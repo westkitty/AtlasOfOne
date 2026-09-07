@@ -1,0 +1,10 @@
+GREYSON / AERRON Color & Material Palette
+========================================
+Source codename: AERRON (Greyson's former code name)
+SKIN TONE: #E3B090  RGB(227, 176, 144)
+HAIR / BEARD: #2C221C  RGB(44, 34, 28)
+HOODIE GRAY: #757371  RGB(117, 115, 113)
+SHERPA LINING: #C9A987  RGB(201, 169, 135)
+CAP BLACK: #1D1D1D  RGB(29, 29, 29)
+UNDERWEAR RED: #D02D38  RGB(208, 45, 56)
+UNDERWEAR BLUE: #334672  RGB(51, 70, 114)

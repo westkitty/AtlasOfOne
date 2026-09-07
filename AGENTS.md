@@ -25,7 +25,8 @@ Those files outrank implementation assumptions.
 - Tests and examples use synthetic data only.
 - Keep the dependency set small. Do not add D1, KV, R2, analytics, auth accounts, SSR, Next.js, native wrappers, 3D, or unnecessary infrastructure.
 - Production is designed for Cloudflare Workers Free. Quota exhaustion must degrade functionality rather than generate cost.
-- Supplied Greyson art, when present, is canonical. Pixel renders are for the map avatar; detailed turnaround art is reserved for later Character/Vault progression.
+- `Aerron` is Greyson's former asset/code name. In the supplied mixed Aerron/Andrew pack, **only Aerron assets are canonical for Greyson**. Andrew assets are unrelated to Atlas and must not be imported.
+- Preserve Aerron/Greyson asset provenance. Sharp 48×64 pixel renders are for the map/avatar; the detailed Aerron turnaround is reserved for later Character/Vault/final progression.
 
 ## Validation before handoff
 

@@ -166,13 +166,16 @@ Browser print CSS should later support **Save as PDF** without a PDF backend.
 
 ## 11. Visual assets
 
-Canonical source intent:
+Canonical source mapping is now explicit:
 
-- sharp pixel Greyson front/back/side renders for the overworld avatar; mirror the side sprite when needed
-- blurred pixel renders may be used for movement/fog/level transition effects
-- detailed turnaround art is a later progression reward for Character/Vault/final assessment
+- **Aerron is Greyson's former asset/code name.** Aerron assets in `aerron_andrew_snes_pack_RENDERED.zip` are Greyson's canonical Atlas visuals.
+- The Andrew assets contained in the same mixed source pack are not Atlas/Greyson assets and must not be imported.
+- The five `rendered-prompts/aerron/game-ready-48x64/` transparent PNGs are the canonical sharp overworld set. The front view is the default avatar; the left view may be mirrored for the opposite direction; quarter-front, back, and quarter-back views are available for later map motion.
+- The detailed canonical progression art is `sheets/aerron_turnaround_hires.png`. Reserve it for Character/Vault/final-assessment progression rather than showing it immediately.
+- Duplicate raw renders, preview enlargements, and contact sheets are source/reference material, not required runtime payload.
+- Runtime filenames may use `Greyson`-facing paths while preserving provenance back to Aerron source names. Visual appearance must not be silently redrawn or changed.
 
-**Source gap recorded, not silently filled:** those binary assets are not present in the accessible repository or attachment set for this implementation pass. The app therefore implements canonical asset paths plus a non-canonical fallback glyph; no fabricated image is declared canonical.
+The current Phase 2 runtime integrates the five exact 48×64 Aerron sprite bytes under `public/assets/greyson/map/`. The high-resolution turnaround is supplied and canonically identified but remains reserved until its progression reveal is implemented.
 
 ## 12. Source coverage gap and reversible bootstrap defaults
 

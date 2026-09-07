@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/atlas.svg'],
+      includeAssets: ['icons/atlas.svg', 'assets/greyson/map/*.png'],
       manifest: {
         name: 'Atlas of One',
         short_name: 'Atlas',
