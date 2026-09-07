@@ -302,7 +302,59 @@ describe('Atlas browser journey', () => {
     await page.setViewportSize(PHONE);
   });
 
-  it('20. records no critical console errors or unhandled rejections', () => {
+  it('21. synthesizes and renders Final Atlas Assessment on Me screen', async () => {
+    await goto('Me');
+    expect(await page.isVisible('[data-testid="final-assessment-section"]')).toBe(true);
+
+    // Click synthesize assessment button
+    await page.click('[data-testid="synthesize-assessment-btn"]');
+    await expect.poll(() => page.isVisible('[data-testid="assessment-content"]')).toBe(true);
+
+    const whoText = await page.textContent('[data-testid="who-is-greyson"]');
+    expect(whoText).toContain('Greyson (he/they)');
+
+    const domainCards = page.locator('.domain-card');
+    expect(await domainCards.count()).toBe(8);
+
+    expect(await page.isVisible('[data-testid="print-assessment-btn"]')).toBe(true);
+  });
+
+  it('22. print styles and 320px layout hold with full assessment rendered', async () => {
+    // 320px viewport layout test with assessment present
+    await page.setViewportSize({ width: 320, height: 640 });
+    const { overflow, offenders } = await page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      const diff = document.documentElement.scrollWidth - vw;
+      const bad = diff > 0 ? [...document.querySelectorAll('*')]
+        .map((el) => {
+          const r = el.getBoundingClientRect();
+          return { tag: el.tagName, cls: el.className, id: el.id, right: Math.round(r.right), width: Math.round(r.width) };
+        })
+        .filter((x) => x.right > vw) : [];
+      return { overflow: diff, offenders: JSON.stringify(bad) };
+    });
+    expect(overflow, `no horizontal overflow on Me with assessment at 320px (offenders: ${offenders})`).toBeLessThanOrEqual(0);
+    await page.setViewportSize(PHONE);
+
+    // Verify print media rules exist
+    const printRulesExist = await page.evaluate(() => {
+      for (const sheet of Array.from(document.styleSheets)) {
+        try {
+          for (const rule of Array.from(sheet.cssRules)) {
+            if (rule instanceof CSSMediaRule && rule.conditionText === 'print') {
+              return true;
+            }
+          }
+        } catch {
+          // ignore cross-origin sheet errors
+        }
+      }
+      return false;
+    });
+    expect(printRulesExist).toBe(true);
+  });
+
+  it('23. records no critical console errors or unhandled rejections', () => {
     expect(pageErrors).toEqual([]);
     // Ignore transport noise from the ephemeral static host; assert on app errors.
     const critical = consoleErrors.filter((text) => !/favicon|Failed to load resource/i.test(text));

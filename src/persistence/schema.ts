@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { finalAssessmentSchema } from '../cartographer/finalize';
 
 const timestamp = z.string();
 export const campaignStateSchemaV1 = z.object({
@@ -22,5 +23,7 @@ export const campaignStateSchemaV1 = z.object({
   activeDoor: z.string().nullable().default(null),
   privateTopics: z.array(z.string()), presentation: z.enum(['normal','quiet']), sessionStatus: z.enum(['active','paused']), campaignCompleted: z.boolean(),
   presentationQueue: z.array(z.object({ id: z.string(), kind: z.enum(['level','unlock','achievement','quest','territory']), title: z.string(), detail: z.string(), createdAt: timestamp })),
-  campaignHistory: z.array(z.object({ id: z.string(), type: z.string(), at: timestamp, detail: z.string().optional() })), updatedAt: timestamp
+  campaignHistory: z.array(z.object({ id: z.string(), type: z.string(), at: timestamp, detail: z.string().optional() })),
+  finalAssessment: finalAssessmentSchema.nullable().optional().default(null),
+  updatedAt: timestamp
 });

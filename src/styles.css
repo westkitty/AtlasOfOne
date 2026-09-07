@@ -505,3 +505,80 @@ html[data-reduced-motion="true"] *::after { transition-duration: .01ms !importan
 .access-row button {
   min-height: 44px; padding: 0 16px;
 }
+
+/* ---- final assessment styles -------------------------------------- */
+.assessment-section { margin-top: 20px; border-color: var(--gold-soft); }
+.assessment-head { display: flex; flex-direction: column; gap: 12px; }
+.assessment-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.assessment-actions button { min-height: 44px; }
+.print-btn {
+  background: #1c2635; color: var(--gold-soft); border: 1px solid var(--line);
+  border-radius: 10px; padding: 0 16px; font-weight: 700;
+}
+.assessment-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 12px; }
+
+.who-is-greyson {
+  margin: 16px 0; padding: 16px; background: #0c1520;
+  border-left: 4px solid var(--gold); border-radius: 4px 12px 12px 4px;
+}
+.who-is-greyson h3 { margin: 0 0 8px; font-size: 1.05rem; color: var(--gold-soft); }
+.who-is-greyson p { margin: 0; line-height: 1.5; color: var(--ink); font-size: .95rem; }
+
+.domain-grid { display: grid; gap: 14px; margin-top: 16px; }
+@media (min-width: 680px) {
+  .domain-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.domain-card {
+  padding: 16px; background: #0e1622; border: 1px solid var(--line);
+  border-radius: 12px; display: flex; flex-direction: column; gap: 10px;
+}
+.domain-card h4 { margin: 0; font-size: 1rem; color: var(--gold-soft); }
+.domain-summary { margin: 0; font-size: .86rem; color: var(--muted); }
+
+.epistemic-group { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.epistemic-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }
+.evidence-label { color: #8bb3f0; }
+.inference-label { color: #d4a373; }
+.uncertainty-label { color: #a0aec0; }
+
+.claim-list, .hypothesis-list, .uncertainty-list, .quotes-list, .open-questions-list {
+  margin: 0; padding-left: 18px; font-size: .84rem; line-height: 1.4; color: var(--ink);
+}
+.hypothesis-list li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.conf-badge {
+  font-size: .68rem; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;
+  background: #1a2332; color: var(--muted); border: 1px solid var(--line-soft);
+}
+.conf-badge.strong { color: var(--gold); border-color: #8c733e; }
+.conf-badge.moderate { color: #8bb3f0; }
+.conf-badge.low { color: #a0aec0; }
+
+.assessment-subblock { margin-top: 18px; }
+.assessment-subblock h3 { margin: 0 0 10px; font-size: .96rem; color: var(--gold-soft); }
+.tensions-list, .framework-list { display: flex; flex-direction: column; gap: 8px; }
+.tension-card, .framework-card {
+  padding: 10px 14px; background: #0e1622; border: 1px solid var(--line-soft);
+  border-radius: 10px; font-size: .86rem;
+}
+.framework-caveat { display: block; margin-top: 6px; color: var(--muted); font-style: italic; font-size: .76rem; }
+
+/* ---- print-to-pdf styles ----------------------------------------- */
+@media print {
+  body { background: #ffffff !important; color: #111111 !important; font-size: 11pt; }
+  .shell { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+  nav, .agency, .mode-switch, .toast, .overlay, .no-print,
+  .access-section, .danger-zone, .settings, .reveal, .stats, .xp {
+    display: none !important;
+  }
+  .card, .domain-card, .who-is-greyson, .tension-card, .framework-card {
+    background: #ffffff !important; color: #111111 !important;
+    border: 1px solid #cccccc !important; box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .domain-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10pt !important; }
+  .who-is-greyson { border-left: 4pt solid #333333 !important; }
+  h1, h2, h3, h4 { color: #000000 !important; }
+  p, li, span, small { color: #222222 !important; }
+  .chip, .conf-badge { border: 1px solid #999999 !important; color: #333333 !important; background: #f0f0f0 !important; }
+}

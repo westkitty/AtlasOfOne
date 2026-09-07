@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { eventsFromTurn } from './cartographer/apply';
-import { createRemoteProvider, transcribeAudio } from './cartographer/client';
+import { createRemoteProvider, requestFinalAssessment, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
+import { compileFinalizeContext, generateLocalAssessment } from './cartographer/finalize';
 import { createMockTurn, describeBossStage, describeDoor, doorInsightFrom, encounterTurnRecord, getMockPrompt } from './cartographer/mock';
 import { type AIProvider, disabledProvider, playerMessageForFailure } from './cartographer/provider';
 import type { CartographerTurn } from './cartographer/schema';
@@ -38,6 +39,11 @@ export default function App() {
   const [message, setMessage] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
+  // Async concurrency and request lifecycle guards
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const currentRequestId = useRef(0);
+  const pendingCaptureCancelled = useRef(false);
   // Voice state machine & access code state
   const [voiceMode, setVoiceMode] = useState<VoiceMode>('type');
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
@@ -97,8 +103,14 @@ export default function App() {
    * path from model output into campaign state, and it can emit exactly three
    * event types — none of which carries XP, a level, an unlock or a completion.
    */
-  const commitTurn = (turn: CartographerTurn, text: string, providerId: string) => {
-    setState((current) => applyGameEvents(current, eventsFromTurn(prompt, text, turn, providerId)));
+  const commitTurn = (turn: CartographerTurn, text: string, providerId: string, turnPrompt = prompt) => {
+    setIsSubmitting(false);
+    setState((current) => {
+      if (current.sessionStatus === 'paused' || current.privateTopics.includes(turnPrompt.dimension)) {
+        return current;
+      }
+      return applyGameEvents(current, eventsFromTurn(turnPrompt, text, turn, providerId));
+    });
     setReply(turn.reply); setAnswer('');
     if (voiceMode === 'talk') {
       setVoiceState('speaking');
@@ -117,24 +129,38 @@ export default function App() {
    * deterministic local turn is committed either way and the degraded state is
    * named in Atlas's own words.
    */
-  const submitViaProvider = async (text: string) => {
-    const context = compileContext(state, { territoryId: prompt.territoryId, dimension: prompt.dimension, question: prompt.question }, text);
-    const result = await provider.turn(context);
-    if (result.ok) { commitTurn(result.turn, text, `workers-ai:${result.modelId}`); return; }
-    setMessage(playerMessageForFailure(result.failure.code));
-    commitTurn(createMockTurn(state, prompt, text), text, 'mock');
+  const submitViaProvider = async (text: string, turnPrompt = prompt) => {
+    const reqId = ++currentRequestId.current;
+    setIsSubmitting(true);
+    try {
+      const context = compileContext(state, { territoryId: turnPrompt.territoryId, dimension: turnPrompt.dimension, question: turnPrompt.question }, text);
+      const result = await provider.turn(context);
+      if (reqId !== currentRequestId.current) return;
+      if (result.ok) { commitTurn(result.turn, text, `workers-ai:${result.modelId}`, turnPrompt); return; }
+      setMessage(playerMessageForFailure(result.failure.code));
+      commitTurn(createMockTurn(state, turnPrompt, text), text, 'mock', turnPrompt);
+    } catch {
+      if (reqId === currentRequestId.current) {
+        commitTurn(createMockTurn(state, turnPrompt, text), text, 'mock', turnPrompt);
+      }
+    } finally {
+      if (reqId === currentRequestId.current) {
+        setIsSubmitting(false);
+      }
+    }
   };
 
   const submitText = (text: string) => {
-    if (!text.trim() || state.sessionStatus === 'paused') return;
-    if (isOffline || provider.id === 'disabled') { commitTurn(createMockTurn(state, prompt, text), text, 'mock'); return; }
-    void submitViaProvider(text);
+    if (!text.trim() || state.sessionStatus === 'paused' || isSubmitting) return;
+    if (isOffline || provider.id === 'disabled') { commitTurn(createMockTurn(state, prompt, text), text, 'mock', prompt); return; }
+    void submitViaProvider(text, prompt);
   };
 
   const submit = () => submitText(answer);
 
   const toggleVoiceMode = (mode: VoiceMode) => {
     if (mode === voiceMode) return;
+    pendingCaptureCancelled.current = true;
     cancelSpeech();
     if (activeCapture) {
       activeCapture.abort();
@@ -145,7 +171,7 @@ export default function App() {
   };
 
   const startRecording = async () => {
-    if (state.sessionStatus === 'paused') return;
+    if (state.sessionStatus === 'paused' || isSubmitting) return;
     cancelSpeech();
     setVoiceState('requesting-permission');
     try {
@@ -160,11 +186,21 @@ export default function App() {
 
   const stopRecordingAndProcess = async () => {
     if (!activeCapture) return;
+    const capture = activeCapture;
+    setActiveCapture(null);
     setVoiceState('transcribing');
+    pendingCaptureCancelled.current = false;
     try {
-      const blob = await activeCapture.stop();
-      setActiveCapture(null);
+      const blob = await capture.stop();
+      if (pendingCaptureCancelled.current) {
+        setVoiceState('idle');
+        return;
+      }
       const res = await transcribeAudio(blob, { headers: getAccessHeaders });
+      if (pendingCaptureCancelled.current) {
+        setVoiceState('idle');
+        return;
+      }
       if (!res.ok) {
         setVoiceState('error');
         setMessage(res.message);
@@ -186,13 +222,13 @@ export default function App() {
       setVoiceState('thinking');
       submitText(text);
     } catch {
-      setActiveCapture(null);
       setVoiceState('error');
       setMessage('Audio processing failed. You can type below.');
     }
   };
 
   const cancelVoice = () => {
+    pendingCaptureCancelled.current = true;
     if (activeCapture) {
       activeCapture.abort();
       setActiveCapture(null);
@@ -260,18 +296,53 @@ export default function App() {
   };
 
   const submitEncounter = () => {
-    if (!encounter || !answer.trim() || state.sessionStatus === 'paused') return;
-    const submitted = answer;
-    if (encounter.kind === 'boss' && bossRun) {
-      dispatch({ type: 'BOSS_STAGE_ANSWERED', turn: encounterTurnRecord(bossRun.territoryId, encounter.dimension, encounter.question, answer) });
-      setReply('Logged. The map does not get to soften that one for you.');
-    } else if (doorRun) {
-      const wording = describeDoor(state, doorRun, territoryLabels);
-      dispatch({ type: 'DOOR_ANSWERED', turn: encounterTurnRecord(doorRun.territoryIds[0], encounter.dimension, wording.question, answer), insight: doorInsightFrom(doorRun, wording) });
-      setReply('The crossing is recorded as a hypothesis, not a verdict.');
+    if (!encounter || !answer.trim() || state.sessionStatus === 'paused' || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const submitted = answer;
+      if (encounter.kind === 'boss' && bossRun) {
+        dispatch({ type: 'BOSS_STAGE_ANSWERED', turn: encounterTurnRecord(bossRun.territoryId, encounter.dimension, encounter.question, answer) });
+        setReply('Logged. The map does not get to soften that one for you.');
+      } else if (doorRun) {
+        const wording = describeDoor(state, doorRun, territoryLabels);
+        dispatch({ type: 'DOOR_ANSWERED', turn: encounterTurnRecord(doorRun.territoryIds[0], encounter.dimension, wording.question, answer), insight: doorInsightFrom(doorRun, wording) });
+        setReply('The crossing is recorded as a hypothesis, not a verdict.');
+      }
+      setAnswer('');
+      enrichEncounterReply(submitted, encounter.dimension, encounter.question, encounter.kind === 'boss' && bossRun ? bossRun.territoryId : (doorRun?.territoryIds[0] ?? state.activeTerritory), encounter.kind);
+    } finally {
+      setIsSubmitting(false);
     }
-    setAnswer('');
-    enrichEncounterReply(submitted, encounter.dimension, encounter.question, encounter.kind === 'boss' && bossRun ? bossRun.territoryId : (doorRun?.territoryIds[0] ?? state.activeTerritory), encounter.kind);
+  };
+
+  const generateAssessment = async () => {
+    if (isFinalizing) return;
+    setIsFinalizing(true);
+    setMessage('Synthesizing holistic character assessment...');
+    try {
+      if (isOffline || provider.id === 'disabled') {
+        const local = generateLocalAssessment(state);
+        dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: local });
+        setMessage('Final Atlas assessment generated locally.');
+        return;
+      }
+      const context = compileFinalizeContext(state);
+      const result = await requestFinalAssessment(context, { headers: getAccessHeaders });
+      if (result.ok) {
+        dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: result.assessment });
+        setMessage('Final Atlas assessment generated.');
+      } else {
+        setMessage(`Cloud synthesis unavailable (${result.message}). Generating with local synthesizer.`);
+        const local = generateLocalAssessment(state);
+        dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: local });
+      }
+    } catch {
+      const local = generateLocalAssessment(state);
+      dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: local });
+      setMessage('Generated via local fallback.');
+    } finally {
+      setIsFinalizing(false);
+    }
   };
 
   const leaveEncounter = () => { dispatch(encounter?.kind === 'boss' ? { type: 'BOSS_WITHDRAWN' } : { type: 'DOOR_CLOSED' }); setReply('Stepped back. Nothing was lost.'); setAnswer(''); };
@@ -400,7 +471,7 @@ export default function App() {
     {voiceMode==='type' ? (
       <>
         <label className="answer">Your coordinate<textarea rows={4} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="answer-input" /></label>
-        <button className="primary full" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'}>Map this answer</button>
+        <button className="primary full" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'||isSubmitting}>{isSubmitting ? 'Mapping coordinate...' : 'Map this answer'}</button>
       </>
     ) : (
       <div className="voice-card" data-testid="voice-card">
@@ -489,7 +560,26 @@ export default function App() {
     </section>
   </section>;
 
-  const importFile = async (file?: File) => { if (!file) return; try { setState(deserializeCampaign(await file.text())); setMessage('Atlas imported and validated.'); setScreen('map'); } catch (error) { setMessage(error instanceof Error ? `Import rejected: ${error.message}` : 'Import rejected.'); } };
+  const importFile = async (file?: File) => {
+    if (!file) return;
+    try {
+      currentRequestId.current++;
+      pendingCaptureCancelled.current = true;
+      cancelSpeech();
+      if (activeCapture) {
+        activeCapture.abort();
+        setActiveCapture(null);
+      }
+      setVoiceState('idle');
+      setIsSubmitting(false);
+      setState(deserializeCampaign(await file.text()));
+      setMessage('Atlas imported and validated.');
+      setScreen('map');
+    } catch (error) {
+      setMessage(error instanceof Error ? `Import rejected: ${error.message}` : 'Import rejected.');
+    }
+  };
+
   const renderMe = () => <section className="screen">
     <div className="eyebrow">CHARACTER RECORD</div>
     <div className="profile"><div className="portrait"><img src={GREYSON_MAP_SPRITE} alt="Greyson character avatar" draggable={false}/></div><div><h1>Greyson</h1><p>{state.player.pronouns}</p></div></div>
@@ -500,6 +590,128 @@ export default function App() {
       <div><b>{state.mapFragments.length}</b><small>Fragments</small></div>
       <div><b>{state.unlocks.filter((u)=>u.unlockedAt).length}</b><small>Unlocks</small></div>
     </div>
+
+    <article className="card assessment-section" data-testid="final-assessment-section">
+      <div className="assessment-head">
+        <div>
+          <h2>Final Atlas Assessment</h2>
+          <p className="settings-note">Holistic synthesis of mapped coordinates, values, contradictions, and open questions.</p>
+        </div>
+        <div className="assessment-actions no-print">
+          <button className="primary" data-testid="synthesize-assessment-btn" onClick={generateAssessment} disabled={isFinalizing}>
+            {isFinalizing ? 'Synthesizing...' : state.finalAssessment ? 'Re-synthesize Atlas' : 'Synthesize Final Atlas'}
+          </button>
+          {state.finalAssessment && (
+            <button className="print-btn" data-testid="print-assessment-btn" onClick={() => window.print()}>
+              Print / Save as PDF
+            </button>
+          )}
+        </div>
+      </div>
+
+      {state.finalAssessment && (
+        <div className="assessment-body" data-testid="assessment-content">
+          <div className="assessment-meta">
+            <span className="chip">Generated {new Date(state.finalAssessment.generatedAt).toLocaleDateString()}</span>
+            <span className="chip">Provider: {state.finalAssessment.provider}</span>
+          </div>
+
+          <blockquote className="who-is-greyson" data-testid="who-is-greyson">
+            <h3>Who is Greyson?</h3>
+            <p>{state.finalAssessment.whoIsGreyson}</p>
+          </blockquote>
+
+          <div className="domain-grid">
+            {[
+              state.finalAssessment.temperament,
+              state.finalAssessment.valuesAndMorals,
+              state.finalAssessment.politicalAndIdeology,
+              state.finalAssessment.relationshipsAndSocial,
+              state.finalAssessment.cognitiveStyle,
+              state.finalAssessment.interestsAndPreferences,
+              state.finalAssessment.fearsAndHopes,
+              state.finalAssessment.idealFutureAndAmbition
+            ].map((domain) => (
+              <div key={domain.title} className="domain-card">
+                <h4>{domain.title}</h4>
+                <p className="domain-summary">{domain.summary}</p>
+                <div className="epistemic-group">
+                  <strong className="epistemic-label evidence-label">Established Evidence</strong>
+                  <ul className="claim-list">
+                    {domain.establishedEvidence.map((ev, idx) => <li key={idx}>{ev}</li>)}
+                  </ul>
+                </div>
+                <div className="epistemic-group">
+                  <strong className="epistemic-label inference-label">Supported Inferences</strong>
+                  <ul className="hypothesis-list">
+                    {domain.supportedInferences.map((inf, idx) => (
+                      <li key={idx}>
+                        <span>{inf.hypothesis}</span>
+                        <small className={`conf-badge ${inf.confidence}`}>{inf.confidence}</small>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="epistemic-group">
+                  <strong className="epistemic-label uncertainty-label">Open Uncertainty</strong>
+                  <ul className="uncertainty-list">
+                    {domain.openQuestionsAndUncertainty.map((uq, idx) => <li key={idx}>{uq}</li>)}
+                  </ul>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {state.finalAssessment.contradictionsAndTensions.length > 0 && (
+            <div className="assessment-subblock">
+              <h3>Contradictions & Tensions</h3>
+              <div className="tensions-list">
+                {state.finalAssessment.contradictionsAndTensions.map((t, idx) => (
+                  <div key={idx} className="tension-card">
+                    <b>{t.tension}</b>
+                    <small>Status: {t.status}</small>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {state.finalAssessment.frameworkEstimates.length > 0 && (
+            <div className="assessment-subblock">
+              <h3>Personality Framework Estimates</h3>
+              <div className="framework-list">
+                {state.finalAssessment.frameworkEstimates.map((f, idx) => (
+                  <div key={idx} className="framework-card">
+                    <strong>{f.framework}</strong>
+                    <p>{f.estimate}</p>
+                    <small className="framework-caveat">{f.caveat}</small>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {state.finalAssessment.representativeQuotes.length > 0 && (
+            <div className="assessment-subblock">
+              <h3>Representative Words</h3>
+              <ul className="quotes-list">
+                {state.finalAssessment.representativeQuotes.map((q, idx) => <li key={idx}>{q}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {state.finalAssessment.openQuestions.length > 0 && (
+            <div className="assessment-subblock">
+              <h3>Open Horizon Questions</h3>
+              <ul className="open-questions-list">
+                {state.finalAssessment.openQuestions.map((oq, idx) => <li key={idx}>{oq}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+
     <article className="card settings"><h2>Cartographer</h2><label>Sass<select value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label></article>
     <article className="card settings"><h2>Your Atlas</h2><p className="settings-note">Everything lives on this device. Export a copy before you switch phones or clear data.</p><button onClick={()=>downloadCampaign(state)}>Export Atlas</button><label className="file">Import Atlas<input type="file" accept="application/json,.json,.atlas" onChange={(e)=>void importFile(e.target.files?.[0])}/></label></article>
     <article className="card settings access-section">

@@ -1,4 +1,5 @@
 import { cartographerContextSchema } from '../src/cartographer/context';
+import { finalAssessmentSchema, finalizeContextSchema } from '../src/cartographer/finalize';
 import { DEFAULT_MODEL_ID, DEFAULT_TRANSCRIBE_MODEL_ID, findCandidate } from '../src/cartographer/models';
 import { playerMessageForFailure, type ProviderFailureCode } from '../src/cartographer/provider';
 import { createWorkersAiProvider, type WorkersAiBinding } from '../src/cartographer/workersai';
@@ -32,6 +33,102 @@ const MAX_BODY_BYTES = 64_000;
 
 /** Maximum accepted audio body for transcription (~2 MB). */
 const MAX_AUDIO_BYTES = 2_000_000;
+
+async function readBoundedJson(request: Request, maxBytes: number): Promise<{ ok: true; data: unknown } | { ok: false; code: 'payload-too-large' | 'bad-request' }> {
+  const lengthHeader = request.headers.get('content-length');
+  if (lengthHeader && Number(lengthHeader) > maxBytes) {
+    return { ok: false, code: 'payload-too-large' };
+  }
+  if (!request.body) return { ok: false, code: 'bad-request' };
+  if (typeof request.body.getReader === 'function') {
+    const reader = request.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          totalBytes += value.byteLength;
+          if (totalBytes > maxBytes) {
+            await reader.cancel();
+            return { ok: false, code: 'payload-too-large' };
+          }
+          chunks.push(value);
+        }
+      }
+    } catch {
+      return { ok: false, code: 'bad-request' };
+    }
+    const merged = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    try {
+      const text = new TextDecoder('utf-8').decode(merged);
+      const data = JSON.parse(text);
+      return { ok: true, data };
+    } catch {
+      return { ok: false, code: 'bad-request' };
+    }
+  } else {
+    try {
+      const text = await request.text();
+      const bytes = new TextEncoder().encode(text).byteLength;
+      if (bytes > maxBytes) return { ok: false, code: 'payload-too-large' };
+      const data = JSON.parse(text);
+      return { ok: true, data };
+    } catch {
+      return { ok: false, code: 'bad-request' };
+    }
+  }
+}
+
+async function readBoundedBuffer(request: Request, maxBytes: number): Promise<{ ok: true; buffer: ArrayBuffer } | { ok: false; code: 'payload-too-large' | 'bad-request' }> {
+  const lengthHeader = request.headers.get('content-length');
+  if (lengthHeader && Number(lengthHeader) > maxBytes) {
+    return { ok: false, code: 'payload-too-large' };
+  }
+  if (!request.body) return { ok: false, code: 'bad-request' };
+  if (typeof request.body.getReader === 'function') {
+    const reader = request.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          totalBytes += value.byteLength;
+          if (totalBytes > maxBytes) {
+            await reader.cancel();
+            return { ok: false, code: 'payload-too-large' };
+          }
+          chunks.push(value);
+        }
+      }
+    } catch {
+      return { ok: false, code: 'bad-request' };
+    }
+    const merged = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return { ok: true, buffer: merged.buffer };
+  } else {
+    try {
+      const buf = await request.arrayBuffer();
+      if (buf.byteLength > maxBytes) return { ok: false, code: 'payload-too-large' };
+      return { ok: true, buffer: buf };
+    } catch {
+      return { ok: false, code: 'bad-request' };
+    }
+  }
+}
 
 const HTTP_STATUS: Record<ProviderFailureCode, number> = {
   'provider-disabled': 503,
@@ -93,11 +190,13 @@ export default {
       if (request.method !== 'POST') return Response.json({ ok: false, code: 'method-not-allowed' }, { status: 405 });
       if (!isAuthorized(request, env)) return failure('unauthorized');
 
-      const length = Number(request.headers.get('content-length') ?? '0');
-      if (length > MAX_BODY_BYTES) return Response.json({ ok: false, code: 'payload-too-large' }, { status: 413 });
+      const bodyRes = await readBoundedJson(request, MAX_BODY_BYTES);
+      if (!bodyRes.ok) {
+        if (bodyRes.code === 'payload-too-large') return Response.json({ ok: false, code: 'payload-too-large' }, { status: 413 });
+        return Response.json({ ok: false, code: 'bad-request', message: 'That request was not a valid Cartographer context.' }, { status: 400 });
+      }
 
-      const body = await request.json().catch(() => null);
-      const parsed = cartographerContextSchema.safeParse(body);
+      const parsed = cartographerContextSchema.safeParse(bodyRes.data);
       // The request shape is rejected without echoing any of it back.
       if (!parsed.success) return Response.json({ ok: false, code: 'bad-request', message: 'That request was not a valid Cartographer context.' }, { status: 400 });
 
@@ -121,12 +220,14 @@ export default {
       if (request.method !== 'POST') return Response.json({ ok: false, code: 'method-not-allowed' }, { status: 405 });
       if (!isAuthorized(request, env)) return failure('unauthorized');
 
-      const length = Number(request.headers.get('content-length') ?? '0');
-      if (length > MAX_AUDIO_BYTES) return Response.json({ ok: false, code: 'payload-too-large', message: 'Audio recording exceeds the maximum length.' }, { status: 413 });
+      const bufRes = await readBoundedBuffer(request, MAX_AUDIO_BYTES);
+      if (!bufRes.ok) {
+        if (bufRes.code === 'payload-too-large') return Response.json({ ok: false, code: 'payload-too-large', message: 'Audio recording exceeds the maximum length.' }, { status: 413 });
+        return Response.json({ ok: false, code: 'bad-request', message: 'Audio recording was empty or unreadable.' }, { status: 400 });
+      }
 
-      const buffer = await request.arrayBuffer().catch(() => null);
-      if (!buffer || buffer.byteLength < 50) return Response.json({ ok: false, code: 'bad-request', message: 'Audio recording was empty or unreadable.' }, { status: 400 });
-      if (buffer.byteLength > MAX_AUDIO_BYTES) return Response.json({ ok: false, code: 'payload-too-large', message: 'Audio recording exceeds the maximum length.' }, { status: 413 });
+      const buffer = bufRes.buffer;
+      if (buffer.byteLength < 50) return Response.json({ ok: false, code: 'bad-request', message: 'Audio recording was empty or unreadable.' }, { status: 400 });
 
       if (env.ATLAS_AI_ENABLED === 'false') return failure('provider-disabled');
       if (!env.AI) return failure('binding-missing');
@@ -137,6 +238,69 @@ export default {
         const result = await env.AI.run(modelId, { audio: [...bytes] }) as { text?: string };
         const text = (result?.text ?? '').trim();
         return Response.json({ ok: true, text, modelId });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (/quota|neuron/i.test(message)) return failure('quota-exhausted');
+        if (/rate limit|too many/i.test(message)) return failure('rate-limited');
+        return failure('network');
+      }
+    }
+
+    if (url.pathname === '/api/finalize') {
+      if (request.method !== 'POST') return Response.json({ ok: false, code: 'method-not-allowed' }, { status: 405 });
+      if (!isAuthorized(request, env)) return failure('unauthorized');
+
+      const bodyRes = await readBoundedJson(request, MAX_BODY_BYTES);
+      if (!bodyRes.ok) {
+        if (bodyRes.code === 'payload-too-large') return Response.json({ ok: false, code: 'payload-too-large' }, { status: 413 });
+        return Response.json({ ok: false, code: 'bad-request', message: 'That request was not a valid finalize context.' }, { status: 400 });
+      }
+
+      const parsed = finalizeContextSchema.safeParse(bodyRes.data);
+      if (!parsed.success) return Response.json({ ok: false, code: 'bad-request', message: 'That request was not a valid finalize context.' }, { status: 400 });
+
+      if (env.ATLAS_AI_ENABLED === 'false') return failure('provider-disabled');
+      if (!env.AI) return failure('binding-missing');
+
+      const modelId = env.ATLAS_MODEL_ID ?? DEFAULT_MODEL_ID;
+      const candidate = findCandidate(modelId);
+      if (!candidate || !candidate.freePlanEligible) return failure('not-configured');
+
+      try {
+        const systemPrompt = [
+          'You are the Cartographer in Atlas of One synthesizing the final holistic assessment ("The Greyson Map") for Greyson (he/they).',
+          'Return ONLY a valid JSON object matching the required schema. No prose or markdown outside the JSON.',
+          'IMPORTANT RULES:',
+          '1. Strictly separate established evidence (facts stated by player), supported inferences (hypotheses with confidence "low" | "moderate" | "strong"), and open questions / uncertainty.',
+          '2. NEVER reference, mention, or hypothesize about these private topics: ' + (parsed.data.privateTopics.join(', ') || 'none'),
+          '3. Do NOT diagnose, score, or reduce the person to a static label.',
+          '4. Framework estimates must always include explicit caveats that they are working hypotheses, not clinical diagnoses.'
+        ].join('\n');
+
+        const userPrompt = JSON.stringify(parsed.data);
+        const raw = await env.AI.run(modelId, {
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          max_tokens: 1500
+        });
+
+        const responseText = typeof raw === 'string' ? raw : (raw as { response?: string })?.response ?? JSON.stringify(raw);
+        let parsedJson: unknown;
+        try {
+          const cleaned = responseText.replace(/```(?:json)?/g, '').trim();
+          parsedJson = JSON.parse(cleaned);
+        } catch {
+          return failure('malformed-output');
+        }
+
+        const valid = finalAssessmentSchema.safeParse(parsedJson);
+        if (!valid.success) {
+          return failure('malformed-output');
+        }
+
+        return Response.json({ ok: true, assessment: valid.data, modelId });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (/quota|neuron/i.test(message)) return failure('quota-exhausted');

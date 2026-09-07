@@ -1,3 +1,5 @@
+import type { FinalAssessment } from '../cartographer/finalize';
+
 export type TerritoryStatus =
   | 'fogged'
   | 'discovered'
@@ -72,6 +74,7 @@ export interface CampaignState {
   campaignCompleted: boolean;
   presentationQueue: PresentationNotice[];
   campaignHistory: GameHistoryEntry[];
+  finalAssessment?: FinalAssessment | null;
   updatedAt: string;
 }
 
@@ -102,4 +105,5 @@ export type GameEvent =
   | { type: 'SASS_SET'; sass: SassLevel }
   | { type: 'ACTIVE_TERRITORY_SET'; territoryId: string }
   | { type: 'PRESENTATION_QUEUE_CLEARED' }
+  | { type: 'FINAL_ASSESSMENT_SET'; assessment: FinalAssessment }
   | { type: 'CAMPAIGN_COMPLETED' };

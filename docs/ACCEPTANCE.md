@@ -124,12 +124,14 @@ These are product invariants, not suggestions. Synthetic automated tests should 
 - [x] Cloudflare Git deployment / Workers Builds connected to `westkitty/AtlasOfOne` on production branch `main`.
 - [ ] Physical Android device install and hardware verification (UNV-003: NOT VERIFIED — NO REACHABLE DEVICE; verified offline/PWA/viewport emulation in Chromium).
 
-## Later-phase acceptance retained from source
+## Adversarial Release QA and Final Assessment (Phase 5)
 
-Not expected to be fully proven in this pass, but must remain protected:
-
-- offline shell/local map/Vault access works after PWA caching
-- provider failure never corrupts local campaign state
-- final assessment separates fact/evidence/inference/uncertainty
-- final Atlas covers political, ideological, relationship, interest, fear, hope, dream/future, contradiction, and character assessment domains
-- browser-print final assessment can be saved as PDF
+- [x] Adversarially tested all player archetypes (short, long, contradictory, private, serious, political, revision-heavy, voice command protection).
+- [x] Asynchronous hammer and race condition safety: double-submit locked (BUG-001), stale closure overwrite protected (BUG-002), cross-campaign import race isolated (BUG-003), voice capture state desync cured (BUG-004).
+- [x] Network degradation resilience: 401, 413, 429 quota, 429 rate limit, 502/503/504 gateway failures, malformed JSON, and network timeouts degrade safely to local deterministic Cartographer.
+- [x] Persistence torture & migration: corrupted JSON rejected, schema version mismatch rejected, missing keys rejected, assessment round-trip preserved.
+- [x] Streaming defensive security bounds: chunked transfer bypass closed with strict byte counting (BUG-005), auth gates enforced, forged progression stripped, canary private/retracted structurally excluded.
+- [x] Final Atlas Assessment synthesis engine: `POST /api/finalize` + deterministic offline generator `generateLocalAssessment(state)` in `src/cartographer/finalize.ts`.
+- [x] Epistemic rigor: 3-way separation of established evidence, supported inferences (with confidence levels), and open questions/uncertainty across all core domains.
+- [x] Zero progression authority: Final Assessment emits `FINAL_ASSESSMENT_SET` with 0 XP, 0 level change, and 0 territory/unlock change.
+- [x] Browser presentation and print export: Final Assessment UI rendered on Me screen, 0 horizontal overflow at 320px, and `@media print` styles format clean Save as PDF.

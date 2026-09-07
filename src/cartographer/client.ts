@@ -1,4 +1,5 @@
 import type { CartographerContext } from './context';
+import { type FinalAssessment, type FinalizeContext, finalAssessmentSchema } from './finalize';
 import { type AIProvider, type ProviderResult, playerMessageForFailure, providerFailure, type ProviderFailureCode } from './provider';
 import { cartographerTurnSchema } from './schema';
 
@@ -106,6 +107,58 @@ export async function transcribeAudio(
     }
 
     return { ok: true, text: payload.text ?? '', modelId: payload.modelId };
+  } catch (error) {
+    const aborted = error instanceof Error && error.name === 'AbortError';
+    const code = aborted ? 'timeout' : 'network';
+    return { ok: false, code, message: playerMessageForFailure(code), retryable: true };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export interface FinalizeAssessmentOptions {
+  endpoint?: string;
+  headers?: Record<string, string> | (() => Record<string, string>);
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+}
+
+export async function requestFinalAssessment(
+  context: FinalizeContext,
+  options: FinalizeAssessmentOptions = {}
+): Promise<{ ok: true; assessment: FinalAssessment; modelId?: string } | { ok: false; code: string; message: string; retryable?: boolean }> {
+  const endpoint = options.endpoint ?? '/api/finalize';
+  const doFetch = options.fetchImpl ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const extraHeaders = typeof options.headers === 'function' ? options.headers() : (options.headers ?? {});
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await doFetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...extraHeaders
+      },
+      body: JSON.stringify(context),
+      signal: controller.signal
+    });
+
+    const payload = await response.json().catch(() => null) as { ok?: boolean; code?: string; assessment?: unknown; message?: string; modelId?: string } | null;
+    if (!response.ok || !payload || payload.ok !== true) {
+      const code = payload?.code ?? (response.status === 401 ? 'unauthorized' : 'network');
+      const message = payload?.message ?? playerMessageForFailure(code as ProviderFailureCode) ?? 'Final assessment generation failed.';
+      return { ok: false, code, message, retryable: code === 'rate-limited' || code === 'capacity' || code === 'timeout' };
+    }
+
+    const parsed = finalAssessmentSchema.safeParse(payload.assessment);
+    if (!parsed.success) {
+      return { ok: false, code: 'malformed-output', message: playerMessageForFailure('malformed-output'), retryable: false };
+    }
+
+    return { ok: true, assessment: parsed.data, modelId: payload.modelId };
   } catch (error) {
     const aborted = error instanceof Error && error.name === 'AbortError';
     const code = aborted ? 'timeout' : 'network';
