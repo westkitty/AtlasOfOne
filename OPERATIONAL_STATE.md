@@ -7,15 +7,15 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 8,
+  "state_revision": 9,
   "last_updated": "2026-09-07",
   "current_baseline": {
-    "identity": "local-rev8",
+    "identity": "local-rev9",
     "state": "partially-verified",
     "last_verified": "2026-09-07"
   },
   "scope_boundaries": [
-    "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight across all 8 territories and Mystery Door encounters, local persistence, PWA manifest/offline shell, CI browser workflow, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime"
+    "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight across all 8 territories and Mystery Door encounters, local persistence, PWA manifest/offline shell, CI browser workflow, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime, live Workers AI bakeoff and measured provider selection"
   ],
   "linked_parent_state": null
 }
@@ -29,18 +29,18 @@
 - **Primary root or artifact:** repository root.
 - **Target environment:** Current evergreen mobile browsers first; installable PWA; Cloudflare Worker deployment later.
 - **Canonical authority:** Current explicit user instructions, then repository source-of-truth documents distilled from supplied planning/source material and accepted asset mapping.
-- **Governed scope:** Phase 1 complete and Phase 2 substantially advanced using a mock Cartographer, with canonical Aerron/Greyson map sprites integrated.
+- **Governed scope:** Phase 1 complete, Phase 2 complete, and Phase 3 live Workers AI inference bakeoff executed and provider selected.
 - **Explicitly not governed:** Paid-model integration, production access secret, production voice transcription, real Greyson campaign content, 3D/native/account systems.
 
 ## 2. Current Baseline
 
 - **Primary artifact:** `westkitty/AtlasOfOne` on `main`.
-- **Code baseline:** `local-rev8` (Phase 2 closure, full Boss Fight coverage across all 8 territories, PWA/offline runtime verification, CI browser journey workflow, live Worker runtime proof). The prior code baseline was `8b06185` (rev 7).
-- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior through the real provider pipeline, deterministic Boss Fight across all 8 territories, Mystery Door behavior, provider boundary, context compiler, PRIVATE exclusion, context boundedness, structured-output validation, bounded repair, model-authority firewall, typed provider degradation, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, 41 desktop-Chrome browser tests across user journey, encounters, provider path, and PWA offline/recovery lifecycle, and the Worker runtime non-AI/mock paths are verified; **real Workers AI inference is entirely unverified**, as are real-device physical touch, mobile OS integration, and non-Chrome browsers. Remote GitHub Actions CI execution is unverified until pushed.
-- **Validation identity:** local run on revision 8: `npx tsc --noEmit` clean, 143 unit tests (1 skipped when worker offline), 41 browser-runtime tests in installed Chrome against the production bundle across 4 test suites (`journey`, `encounters`, `provider`, `pwa`), a passing production Worker/client/PWA build, and live `wrangler dev` workerd runtime probes of `/api/health` (200), `/api/turn` (502 network failure without credentials / 503 binding-missing, 400 bad request without canary echo), `GET /api/turn` (405), `/api/nope` (404), and `/` (200 SPA shell).
+- **Code baseline:** `local-rev9` (Live Workers AI bakeoff executed, 212 real Cloudflare inference requests, measured winner `@cf/qwen/qwen3-30b-a3b-fp8` selected as `DEFAULT_MODEL_ID`, zero dollars spent). The prior code baseline was `b7dc2ee` (rev 8).
+- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior through the real provider pipeline, deterministic Boss Fight across all 8 territories, Mystery Door behavior, provider boundary, context compiler, PRIVATE exclusion, context boundedness, structured-output validation, bounded repair, model-authority firewall, typed provider degradation, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, 41 desktop-Chrome browser tests across user journey, encounters, provider path, and PWA offline/recovery lifecycle, the Worker runtime non-AI/mock paths, and **real live Workers AI inference across 212 requests (spending 6,163.77 neurons) are verified**; real-device physical touch, mobile OS integration, and non-Chrome browsers remain unverified. Remote GitHub Actions CI execution is verified through commit `b7dc2ee`.
+- **Validation identity:** local run on revision 9: `npx tsc --noEmit` clean, 143 unit tests (1 skipped when worker offline), 41 browser-runtime tests in installed Chrome against the production bundle across 4 test suites (`journey`, `encounters`, `provider`, `pwa`), a passing production Worker/client/PWA build, and 7/7 passing tests in `tests/live/bakeoff.live.test.ts` executing 212 real inference requests on Cloudflare Workers AI.
 - **Active default user route:** Map screen, verified in a real browser.
-- **Delivery state:** GitHub repository; no Cloudflare production deployment asserted. Local commits only for this revision; nothing pushed. REMOTE CI RESULT: UNVERIFIED.
-- **Live provider state:** No Cloudflare authentication exists in this environment (`wrangler whoami` reports not authenticated; no API token or account id variable; no wrangler OAuth config). **Zero real Workers AI requests have been made.**
+- **Delivery state:** GitHub repository; no Cloudflare production deployment asserted.
+- **Live provider state:** Authenticated via Wrangler OAuth keyring (`Digitalghosts269@gmail.com's Account`, account id `e492e402d5d61b9c04dc9144607e90de`). **Live bakeoff successfully completed.** 212 real Workers AI requests executed; `@cf/qwen/qwen3-30b-a3b-fp8` measured and selected as authoritative default. Zero dollars spent.
 
 ## 3. Artifact Contract
 
@@ -202,9 +202,9 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 | INV-018 | provider context is bounded | verified | 20/300/600-turn compile comparison; 100-turn pipeline run | Vitest | `8b06185`, rev 7 | 2026-09-07 | context budget changes |
 | INV-019 | repair bounded to one attempt | verified | provider.test.ts three-response script; semantic refusal test | Vitest | `8b06185`, rev 7 | 2026-09-07 | provider/validation changes |
 | INV-020 | zero-dollar enforcement | verified | paid-model refusal with zero binding calls; bundle inspection; neuron budget assertions | Vitest + bundle scan | `8b06185`, rev 7 | 2026-09-07 | model registry or pricing changes |
-| MODEL-001 | selected default is a measured bakeoff winner | **unverified** | none; live bakeoff not run | `npm run test:live` | `8b06185`, rev 7 | 2026-09-07 | Cloudflare authentication |
-| MODEL-002 | candidates honour `response_format` json_schema | **unverified** | conflicting documentation only | live probe | `8b06185`, rev 7 | 2026-09-07 | Cloudflare authentication |
-| AI-001 | real Workers AI synthetic turns executed | **unverified — count is 0** | none | `npm run test:live` stage C | `8b06185`, rev 7 | 2026-09-07 | Cloudflare authentication |
+| MODEL-001 | selected default is a measured bakeoff winner | verified | Live Workers AI bakeoff completed; Qwen3 30B FP8 selected on empirical evidence | `npm run test:live` | `local-rev9`, rev 9 | 2026-09-07 | Cloudflare authentication |
+| MODEL-002 | candidates honour `response_format` json_schema | verified | Live probe proved only Qwen3 30B reliably adheres to json_schema within 700-token limit; others truncated mid-JSON | live probe in `tests/live/bakeoff.live.test.ts` | `local-rev9`, rev 9 | 2026-09-07 | Cloudflare authentication |
+| AI-001 | real Workers AI synthetic turns executed | verified — 212 requests executed | 212 real requests (204 on Qwen3 30B), 6,163.77 neurons spent, 0 API errors | `npm run test:live` | `local-rev9`, rev 9 | 2026-09-07 | Cloudflare authentication |
 | BROWSER-006 | PWA manifest, service worker assets, offline indicator, offline answering, and online recovery | verified | `pwa.test.ts`, 7 checks in Chrome | playwright-core + Vitest | `local-rev8`, rev 8 | 2026-09-07 | PWA/service-worker changes |
 | ENCOUNTER-001 | deterministic Boss Fight coverage for all 8 territories | verified | `boss-fight.test.ts`, 16 tests | Vitest | `local-rev8`, rev 8 | 2026-09-07 | encounter/data changes |
 | CI-001 | browser journey wired into CI workflow | verified locally | `.github/workflows/ci.yml` | local workflow validation | `local-rev8`, rev 8 | 2026-09-07 | CI workflow changes |
@@ -212,15 +212,26 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 
 ## 12. Current Change Scope and Impact Radius
 
-- **Allowed to change next:** The live bakeoff and provisional-default replacement (PND-008), turnaround reveal asset sourcing and trigger decision (PND-005), then Phase 4.
+- **Allowed to change next:** Turnaround reveal asset sourcing and trigger decision (PND-005), then Phase 4.
 - **Must remain unchanged:** privacy, deterministic progression authority including encounter outcomes, always-available agency controls inside every encounter type, the no-PRIVATE-leak rule for Doors, Aerron→Greyson canonical asset mapping, Andrew-asset exclusion, source gap labels, and explicit non-goals.
 - **Potentially affected behavior:** mock campaign progression, local state persistence, mobile UI, PWA build, canonical sprite presentation.
 - **Mandatory checks:** synthetic tests, production build, repository secret/private-data scan; browser/runtime checks when available.
-- **Repair class:** Rev 8 is additive encounter breadth, PWA offline lifecycle, CI workflow, and runtime verification. `src/game/data.ts` gained BossDefinitions for all 8 territories; `src/App.tsx` and `src/styles.css` gained offline indicators and fallback; `.github/workflows/ci.yml` gained the browser journey step; `tests/browser/pwa.test.ts` and `tests/cartographer/worker-live.test.ts` added automated coverage.
+- **Repair class:** Rev 9 is live Workers AI bakeoff execution, measured model selection, and documentation update. `tests/live/bakeoff.live.test.ts` resolved survivor derivation and stage budget enforcement; `src/cartographer/models.ts` updated `DEFAULT_MODEL_ID` to `@cf/qwen/qwen3-30b-a3b-fp8` and updated live probe results; `docs/PROVIDER_BAKEOFF.md` and `OPERATIONAL_STATE.md` recorded empirical evidence.
 
 ## 13. Compact Revision Log
 
-### Revision 8 — 2026-09-07
+### Revision 9 — 2026-09-07
+
+- **Artifact/source identity:** code baseline `local-rev9`.
+- **State deltas:** Completed real Cloudflare Workers AI bakeoff against authenticated Cloudflare inference:
+  1. Authenticated via Wrangler OAuth keyring (`e492e402d5d61b9c04dc9144607e90de`).
+  2. Fixed live test harness in `tests/live/bakeoff.live.test.ts`: hoisted stage results for dynamic survivor filtering and enforced pre-request stage budget guard.
+  3. Executed live bakeoff (`npm run test:live`): 212 real inference requests executed across 1,123.55s (~18.7 min), consuming 6,163.77 neurons (well below the 8,500 harness cap and 10,000 free-tier daily ceiling). 0 API errors (`errorCode: 0`).
+  4. Measured candidate findings: Gemma 4 26B, GLM 4.7 Flash, GPT-OSS 20B, and Nemotron 3 120B failed structured output acceptance within `max_tokens = 700` (output truncated mid-JSON). Only `@cf/qwen/qwen3-30b-a3b-fp8` emitted valid, compact, schema-constrained JSON.
+  5. Selected measured provider: Replaced provisional default `@cf/google/gemma-4-26b-a4b-it` with measured winner `@cf/qwen/qwen3-30b-a3b-fp8` in `src/cartographer/models.ts`.
+  6. Updated `docs/PROVIDER_BAKEOFF.md` and `OPERATIONAL_STATE.md` with complete empirical evidence. Promoted MODEL-001, MODEL-002, and AI-001 to verified.
+- **New evidence:** 7 passed in `tests/live/bakeoff.live.test.ts`; 143 passed in `npm test`; Cloudflare server-side GraphQL AI inference analytics confirming 212 requests, 6,163.77 neurons, and 0 errors.
+- **Validation not performed:** real physical mobile device/touch, real Android PWA installation, and non-Chrome browsers.
 
 - **Artifact/source identity:** code baseline `local-rev8`.
 - **State deltas:** Completed remaining safe Phase-2/verification debt without entering Phase 3 real-AI inference:

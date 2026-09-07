@@ -59,7 +59,7 @@ async function runFixtures(modelId: string, fixtures: typeof PERSONA_FIXTURES, b
   const scores: MachineScore[] = [];
 
   for (const fixture of fixtures) {
-    if (ledger.spent >= budgetCap || !ledger.affords(ESTIMATE(modelId))) break;
+    if (ledger.spent + ESTIMATE(modelId) > budgetCap || !ledger.affords(ESTIMATE(modelId))) break;
     const context = compileContext(state, fixture, fixture.answer);
     const started = Date.now();
     const result = await provider.turn(context);
@@ -73,13 +73,14 @@ async function runFixtures(modelId: string, fixtures: typeof PERSONA_FIXTURES, b
   return scores;
 }
 
-describe.skipIf(!LIVE)('LIVE stage A: compatibility smoke test', () => {
-  const results: StageResult[] = [];
+const stageAResults: StageResult[] = [];
+const stageBSummaries: ReturnType<typeof summarize>[] = [];
 
+describe.skipIf(!LIVE)('LIVE stage A: compatibility smoke test', () => {
   beforeAll(async () => {
     for (const candidate of MODEL_CANDIDATES) {
       if (!candidate.freePlanEligible) continue;
-      results.push({ modelId: candidate.id, scores: await runFixtures(candidate.id, [smokeFixture], STAGE_A_BUDGET) });
+      stageAResults.push({ modelId: candidate.id, scores: await runFixtures(candidate.id, [smokeFixture], STAGE_A_BUDGET) });
     }
   }, 300_000);
 
@@ -94,12 +95,12 @@ describe.skipIf(!LIVE)('LIVE stage A: compatibility smoke test', () => {
   }, 60_000);
 
   it('records which candidates returned usable structured output', () => {
-    for (const result of results) {
+    for (const result of stageAResults) {
       const score = result.scores[0];
       if (!score) continue;
       console.log(`[stage A] ${result.modelId}: accepted=${score.accepted} repaired=${score.repaired} failure=${score.failureCode ?? '-'} latency=${score.latencyMs}ms neurons=${score.neurons}`);
     }
-    expect(results.length).toBeGreaterThan(0);
+    expect(stageAResults.length).toBeGreaterThan(0);
   });
 
   it('never spends more than the stage A budget', () => {
@@ -108,19 +109,20 @@ describe.skipIf(!LIVE)('LIVE stage A: compatibility smoke test', () => {
 });
 
 describe.skipIf(!LIVE)('LIVE stage B: Atlas fixture bakeoff', () => {
-  const summaries: ReturnType<typeof summarize>[] = [];
-
   beforeAll(async () => {
     // Only the survivors of stage A, capped at three, reach the full suite.
-    const survivors = MODEL_CANDIDATES.filter((candidate) => candidate.freePlanEligible).slice(0, 3);
-    for (const candidate of survivors) {
-      const scores = await runFixtures(candidate.id, PERSONA_FIXTURES, STAGE_A_BUDGET + STAGE_B_BUDGET);
-      if (scores.length) summaries.push(summarize(candidate.id, scores));
+    const survivors = stageAResults
+      .filter((r) => r.scores.length > 0 && r.scores[0].accepted && !r.scores[0].privacyViolation)
+      .map((r) => r.modelId)
+      .slice(0, 3);
+    for (const modelId of survivors) {
+      const scores = await runFixtures(modelId, PERSONA_FIXTURES, STAGE_A_BUDGET + STAGE_B_BUDGET);
+      if (scores.length) stageBSummaries.push(summarize(modelId, scores));
     }
   }, 900_000);
 
   it('produces a ranked bakeoff table', () => {
-    const table = rank(summaries);
+    const table = rank(stageBSummaries);
     for (const row of table) {
       console.log(`[stage B] ${row.modelId} accept=${row.acceptRate.toFixed(2)} repair=${row.repairRate.toFixed(2)} grounding=${row.meanExplicitGrounding.toFixed(2)} quotes=${row.meanQuoteFidelity.toFixed(2)} privacy=${row.privacyViolations} latency=${Math.round(row.meanLatencyMs)}ms neurons=${Math.round(row.totalNeurons)}`);
     }
@@ -128,14 +130,15 @@ describe.skipIf(!LIVE)('LIVE stage B: Atlas fixture bakeoff', () => {
   });
 
   it('never lets a model with a privacy violation win', () => {
-    const winner = rank(summaries)[0];
+    const winner = rank(stageBSummaries)[0];
     if (winner) expect(winner.privacyViolations).toBe(0);
   });
 });
 
 describe.skipIf(!LIVE)('LIVE stage C: real-provider synthetic campaign', () => {
   it('runs the largest free-safe synthetic campaign and reports the exact turn count', async () => {
-    const modelId = DEFAULT_MODEL_ID;
+    const winner = stageBSummaries.length > 0 ? rank(stageBSummaries)[0]?.modelId : undefined;
+    const modelId = winner ?? DEFAULT_MODEL_ID;
     const provider = createWorkersAiProvider({ binding: restBinding(credentials!), modelId });
     let campaign: CampaignState = createInitialCampaign();
     let realTurns = 0;
@@ -158,7 +161,7 @@ describe.skipIf(!LIVE)('LIVE stage C: real-provider synthetic campaign', () => {
       realTurns += 1;
     }
 
-    console.log(`[stage C] REAL PROVIDER TURNS: ${realTurns} / 100 (stop: ${stopReason}); neurons spent this run: ${Math.round(ledger.spent)} of ${FREE_NEURONS_PER_DAY} free/day`);
+    console.log(`[stage C] (${modelId}) REAL PROVIDER TURNS: ${realTurns} / 100 (stop: ${stopReason}); neurons spent this run: ${Math.round(ledger.spent)} of ${FREE_NEURONS_PER_DAY} free/day`);
 
     // Whatever the count, the deterministic invariants must still hold.
     expect(campaign.turns.length).toBe(realTurns);

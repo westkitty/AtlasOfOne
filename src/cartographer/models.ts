@@ -66,8 +66,8 @@ export const MODEL_CANDIDATES: ModelCandidate[] = [
     usdPerMillionOutput: 0.3,
     freePlanEligible: true,
     structuredOutput: 'documented-parameter',
-    liveProbe: 'not-run',
-    notes: 'Largest documented context of the eligible set with mid-range cost. Provisional default.'
+    liveProbe: 'failed',
+    notes: 'Former provisional default. Failed live Stage A smoke test due to output token truncation (700 max_tokens exhausted across initial and repair attempts without completing JSON structure).'
   },
   {
     id: '@cf/zai-org/glm-4.7-flash',
@@ -77,8 +77,8 @@ export const MODEL_CANDIDATES: ModelCandidate[] = [
     usdPerMillionOutput: 0.4,
     freePlanEligible: true,
     structuredOutput: 'documented-parameter',
-    liveProbe: 'not-run',
-    notes: 'Cheapest input of the mid-context set. GLM 5.2/5.3 are paid-only; 4.7-flash is not.'
+    liveProbe: 'failed',
+    notes: 'Failed live Stage A smoke test due to output token truncation (700 max_tokens exhausted across both attempts).'
   },
   {
     id: '@cf/openai/gpt-oss-20b',
@@ -88,8 +88,8 @@ export const MODEL_CANDIDATES: ModelCandidate[] = [
     usdPerMillionOutput: 0.3,
     freePlanEligible: true,
     structuredOutput: 'documented-parameter',
-    liveProbe: 'not-run',
-    notes: 'Emits reasoning output, which raises the risk of prose wrapped around the JSON payload.'
+    liveProbe: 'failed',
+    notes: 'Failed live Stage A smoke test: reasoning output exhausted the 700-token output limit before completing JSON structure.'
   },
   {
     id: '@cf/qwen/qwen3-30b-a3b-fp8',
@@ -99,8 +99,8 @@ export const MODEL_CANDIDATES: ModelCandidate[] = [
     usdPerMillionOutput: 0.34,
     freePlanEligible: true,
     structuredOutput: 'documented-parameter',
-    liveProbe: 'not-run',
-    notes: 'Cheapest per Atlas turn but the smallest context window by a wide margin.'
+    liveProbe: 'passed',
+    notes: 'Measured bakeoff winner. Passed Stage A smoke test, ranked #1 in Stage B with 0 privacy violations, and proved real-provider synthetic campaign in Stage C with valid JSON schema adherence.'
   },
   {
     id: '@cf/nvidia/nemotron-3-120b-a12b',
@@ -110,8 +110,8 @@ export const MODEL_CANDIDATES: ModelCandidate[] = [
     usdPerMillionOutput: 1.5,
     freePlanEligible: true,
     structuredOutput: 'documented-parameter',
-    liveProbe: 'not-run',
-    notes: 'Eligible but ~5x the per-turn neuron cost of the others; a 100-turn campaign exceeds the free daily allocation.'
+    liveProbe: 'failed',
+    notes: 'Failed live Stage A smoke test structured output acceptance; per-turn cost also exceeds free daily allocation for 100 turns.'
   }
 ];
 
@@ -129,12 +129,12 @@ export const EXCLUDED_MODELS: Array<{ id: string; reason: string }> = [
 ];
 
 /**
- * PROVISIONAL default. This was selected from documented evidence only — context
- * headroom and free-allocation efficiency — because the live bakeoff could not be
- * run without an authenticated Cloudflare account. It is NOT a measured winner.
- * Replace it with the bakeoff result the first time `npm run bakeoff` completes.
+ * MEASURED winner of the live Workers AI bakeoff.
+ * Replaced the provisional Gemma 4 26B configuration default after live measurement
+ * proved Qwen3 30B is the only free-plan candidate to reliably generate valid
+ * schema-constrained JSON within output token bounds and sustain real multi-turn campaigns.
  */
-export const DEFAULT_MODEL_ID = '@cf/google/gemma-4-26b-a4b-it';
+export const DEFAULT_MODEL_ID = '@cf/qwen/qwen3-30b-a3b-fp8';
 
 export const findCandidate = (id: string): ModelCandidate | undefined =>
   MODEL_CANDIDATES.find((candidate) => candidate.id === id);
