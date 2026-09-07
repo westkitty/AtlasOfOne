@@ -32,7 +32,9 @@ export type ProviderFailureCode =
   /** Decoded and schema-valid, but it violated an Atlas rule (e.g. a private dimension). */
   | 'semantic-invalid'
   /** The single permitted repair attempt also failed. */
-  | 'repair-failed';
+  | 'repair-failed'
+  /** The Worker requires an access secret that was missing or invalid. */
+  | 'unauthorized';
 
 export interface ProviderFailure {
   code: ProviderFailureCode;
@@ -82,7 +84,8 @@ const PLAYER_MESSAGES: Record<ProviderFailureCode, string> = {
   network: 'The Cartographer could not be reached. Your answer is safe on this device.',
   'malformed-output': 'The Cartographer lost the thread of that one. Your answer was still mapped.',
   'semantic-invalid': 'The Cartographer overstepped and its reply was discarded. Your answer was still mapped.',
-  'repair-failed': 'The Cartographer lost the thread of that one. Your answer was still mapped.'
+  'repair-failed': 'The Cartographer lost the thread of that one. Your answer was still mapped.',
+  unauthorized: 'The Cartographer requires an access code to connect. Your answer was still mapped.'
 };
 
 export const playerMessageForFailure = (code: ProviderFailureCode): string => PLAYER_MESSAGES[code];

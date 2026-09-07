@@ -159,7 +159,7 @@ describe('Workers AI provider: failure states', () => {
   });
 
   it('has player-facing copy for every failure code, free of backend jargon', () => {
-    const codes = ['provider-disabled', 'binding-missing', 'not-configured', 'model-unavailable', 'quota-exhausted', 'rate-limited', 'capacity', 'timeout', 'network', 'malformed-output', 'semantic-invalid', 'repair-failed'] as const;
+    const codes = ['provider-disabled', 'binding-missing', 'not-configured', 'model-unavailable', 'quota-exhausted', 'rate-limited', 'capacity', 'timeout', 'network', 'malformed-output', 'semantic-invalid', 'repair-failed', 'unauthorized'] as const;
     for (const code of codes) {
       const message = playerMessageForFailure(code);
       expect(message.length, code).toBeGreaterThan(10);

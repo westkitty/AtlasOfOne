@@ -7,15 +7,15 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 9,
+  "state_revision": 10,
   "last_updated": "2026-09-07",
   "current_baseline": {
-    "identity": "local-rev9",
+    "identity": "local-rev10",
     "state": "partially-verified",
     "last_verified": "2026-09-07"
   },
   "scope_boundaries": [
-    "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight across all 8 territories and Mystery Door encounters, local persistence, PWA manifest/offline shell, CI browser workflow, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime, live Workers AI bakeoff and measured provider selection"
+    "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight across all 8 territories and Mystery Door encounters, local persistence, PWA manifest/offline shell, CI browser workflow, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime, live Workers AI bakeoff and measured provider selection, Phase 4 voice interaction (MediaRecorder capture, explicit voice state machine, local agency command parser, browser speech synthesis, /api/transcribe endpoint), ATLAS_ACCESS_SECRET Worker secret + client credential gate, and Cloudflare Workers production deployment"
   ],
   "linked_parent_state": null
 }
@@ -27,26 +27,24 @@
 - **Purpose:** Build Atlas of One, beginning with The Greyson Map: an adaptive, gamified personality-cartography experience whose game progression remains deterministic and whose personal campaign data is local-first.
 - **Project type:** Mobile-first React/TypeScript PWA with a Cloudflare Worker API boundary.
 - **Primary root or artifact:** repository root.
-- **Target environment:** Current evergreen mobile browsers first; installable PWA; Cloudflare Worker deployment later.
+- **Target environment:** Current evergreen mobile browsers first; installable PWA; Cloudflare Worker deployment live.
 - **Canonical authority:** Current explicit user instructions, then repository source-of-truth documents distilled from supplied planning/source material and accepted asset mapping.
-- **Governed scope:** Phase 1 complete, Phase 2 complete, and Phase 3 live Workers AI inference bakeoff executed and provider selected.
-- **Explicitly not governed:** Paid-model integration, production access secret, production voice transcription, real Greyson campaign content, 3D/native/account systems.
+- **Governed scope:** Phase 1 complete, Phase 2 complete, Phase 3 complete (live Workers AI bakeoff and measured provider selected), and Phase 4 complete (voice mode, transcription endpoint, access secret gate, production deployment).
+- **Explicitly not governed:** Paid-model integration, real Greyson campaign content, 3D/native/account systems.
 
 ## 2. Current Baseline
 
 - **Primary artifact:** `westkitty/AtlasOfOne` on `main`.
-- **Code baseline:** `local-rev9` (Live Workers AI bakeoff executed, 212 real Cloudflare inference requests, measured winner `@cf/qwen/qwen3-30b-a3b-fp8` selected as `DEFAULT_MODEL_ID`, zero dollars spent). The prior code baseline was `b7dc2ee` (rev 8).
-- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior through the real provider pipeline, deterministic Boss Fight across all 8 territories, Mystery Door behavior, provider boundary, context compiler, PRIVATE exclusion, context boundedness, structured-output validation, bounded repair, model-authority firewall, typed provider degradation, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, 41 desktop-Chrome browser tests across user journey, encounters, provider path, and PWA offline/recovery lifecycle, the Worker runtime non-AI/mock paths, and **real live Workers AI inference across 212 requests (spending 6,163.77 neurons) are verified**; real-device physical touch, mobile OS integration, and non-Chrome browsers remain unverified. Remote GitHub Actions CI execution is verified through commit `b7dc2ee`.
-- **Validation identity:** local run on revision 9: `npx tsc --noEmit` clean, 143 unit tests (1 skipped when worker offline), 41 browser-runtime tests in installed Chrome against the production bundle across 4 test suites (`journey`, `encounters`, `provider`, `pwa`), a passing production Worker/client/PWA build, and 7/7 passing tests in `tests/live/bakeoff.live.test.ts` executing 212 real inference requests on Cloudflare Workers AI.
+- **Code baseline:** `local-rev10` (Phase 4 Voice + Deployment complete: explicit voice state machine, local voice agency commands, MediaRecorder capture, speech synthesis, `/api/transcribe` with `@cf/openai/whisper-tiny-en`, `ATLAS_ACCESS_SECRET` Worker secret + local client credential gate, production deployed to Cloudflare Workers, 180 unit tests and 49 browser tests passing).
+- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior through the real provider pipeline, deterministic Boss Fight across all 8 territories, Mystery Door behavior, provider boundary, context compiler, PRIVATE exclusion, context boundedness, structured-output validation, bounded repair, model-authority firewall, typed provider degradation, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, 49 desktop-Chrome browser tests across user journey, encounters, provider path, PWA offline/recovery lifecycle, and voice mode, live Workers AI inference bakeoff, and **live production deployment on Cloudflare Workers (Version `2d0324a7-3e61-4585-8112-b0bab63492d6` at `atlas-of-one.atlas-of-one.workers.dev`) with live verified `/api/health` and access secret gating are verified**; real-device physical touch, mobile OS integration, and non-Chrome browsers remain unverified.
+- **Validation identity:** local run on revision 10: `npx tsc --noEmit` clean, 180 unit tests (1 skipped when worker offline), 49 browser-runtime tests in installed Chrome against the production bundle across 5 test suites (`journey`, `encounters`, `provider`, `pwa`, `voice`), a passing production Worker/client/PWA build, and live production HTTP probes.
 - **Active default user route:** Map screen, verified in a real browser.
-- **Delivery state:** GitHub repository; no Cloudflare production deployment asserted.
-- **Live provider state:** Authenticated via Wrangler OAuth keyring (`Digitalghosts269@gmail.com's Account`, account id `e492e402d5d61b9c04dc9144607e90de`). **Live bakeoff successfully completed.** 212 real Workers AI requests executed; `@cf/qwen/qwen3-30b-a3b-fp8` measured and selected as authoritative default. Zero dollars spent.
+- **Delivery state:** GitHub repository and deployed Cloudflare Worker at `https://atlas-of-one.atlas-of-one.workers.dev`.
+- **Live provider state:** Authenticated via Wrangler OAuth keyring (`Digitalghosts269@gmail.com's Account`, account id `e492e402d5d61b9c04dc9144607e90de`). Live bakeoff successfully completed (`@cf/qwen/qwen3-30b-a3b-fp8` measured winner). Live transcription endpoint bound to `@cf/openai/whisper-tiny-en`. `ATLAS_ACCESS_SECRET` configured in production. Zero dollars spent.
 
 ## 3. Artifact Contract
 
-The current artifact contains the requested source-of-truth documents, React/TypeScript/Vite/Cloudflare/Dexie/Zod/PWA/Vitest stack, four-screen mobile shell, deterministic campaign engine, deterministic Boss Fight and Mystery Door encounters in `src/game/encounters.ts`, automatic local persistence, import/export/delete foundations, mock Cartographer, synthetic fixtures, a sustained 100-turn campaign test, a real-browser journey suite, curated canonical Aerron/Greyson map sprites, and CI. No paid AI is connected.
-
-Revision 7 adds the Cartographer provider layer in `src/cartographer/`: `provider.ts` (boundary and twelve typed failures), `context.ts` (context compiler, privacy filter, budget, wire schema), `validate.ts` (decode/Zod/semantic layers and the authority-field scanner), `workersai.ts` (Workers AI provider, `response_format`, one bounded repair, typed error map), `client.ts` (browser-side `/api/turn` client), `models.ts` (the single replaceable model configuration and neuron estimator), `bakeoff.ts` (Atlas-specific scoring) and `apply.ts` (the single model-output-to-events crossing point). `worker/index.ts` now serves real inference behind that boundary.
+The current artifact contains the requested source-of-truth documents, React/TypeScript/Vite/Cloudflare/Dexie/Zod/PWA/Vitest stack, four-screen mobile shell, deterministic campaign engine, deterministic Boss Fight and Mystery Door encounters in `src/game/encounters.ts`, automatic local persistence, import/export/delete foundations, mock Cartographer, synthetic fixtures, a sustained 100-turn campaign test, real-browser journey suite, curated canonical Aerron/Greyson map sprites, CI, the complete Cartographer provider layer, and the Phase 4 voice and access modules in `src/voice/`. No paid AI is connected.
 
 **No dependency was added in this pass.** Runtime dependencies remain `dexie`, `react`, `react-dom`, `zod`; dev dependencies are unchanged. The `ai` binding in `wrangler.jsonc` is Workers AI Free and creates no cost by existing.
 
@@ -109,25 +107,24 @@ Revision 7 adds the Cartographer provider layer in `src/cartographer/`: `provide
 - **VER-032:** **Full Boss Fight coverage across all 8 territories.** `BOSS_DEFINITIONS` in `src/game/data.ts` now covers `identity` (The Mirror of Identity), `values` (The Tribunal of Values), `politics` (The Republic Under Load), `relationships` (The Crucible of Trust), `interests` (The Engine of Curiosity), `cognition` (The Revision Court), `fears` (The Cost of Avoidance), and `future` (The Horizon of Ambition). Proven by unit tests in `tests/game/boss-fight.test.ts`: each territory has a level 5 BossDefinition requiring >=3 covered dimensions, plans deterministic 3-stage skeletons (`priority`, `tradeoff`, `contradiction`), completes with fixed rewards, and marks runs complete to prevent re-awarding.
 - **VER-033:** **Browser journey wired into CI.** `.github/workflows/ci.yml` now includes a `Browser journey` step running `npx vitest run --config vitest.browser.config.ts` immediately after `npm run build`, using the pre-installed Google Chrome on Ubuntu runners without downloading browser binaries or duplicating builds. Remote CI execution is recorded as unverified until pushed.
 - **VER-034:** **Worker runtime live probe.** `tests/cartographer/worker-live.test.ts` exercises live workerd HTTP handling against a running instance: 200 `/api/health`, 502/503 `/api/turn` with valid compiled context, 400 bad request without echoing the request canary back, 405 `GET /api/turn`, 404 `/api/nope`, and 200 `/` returning the SPA shell. The test skips cleanly during hermetic unit runs when the live worker is offline.
+- **VER-035:** **Explicit voice state machine.** `src/voice/state.ts` defines and enforces deterministic state transitions across `idle`, `requesting-permission`, `listening`, `transcribing`, `thinking`, `speaking`, and `error`. Invalid transitions are rejected, explicit cancellation/fallback to text is available at every stage, and state labels are human-readable. Proven by 6 unit tests in `tests/voice/state-machine.test.ts`.
+- **VER-036:** **Local deterministic voice agency commands.** `src/voice/commands.ts` parses spoken agency commands (`PASS`, `PRIVATE`, `STOP`, `SERIOUS`, `HELP`, `SASS [0-3]`) client-side prior to Cartographer transmission. Normalization strips smart quotes and apostrophes cleanly (`don't` -> `dont`) without false-triggering on conversational speech (e.g., "I will not stop working on this"). Commands never award XP, advance progression, or create evidence. Proven by 8 unit tests in `tests/voice/commands.test.ts`.
+- **VER-037:** **Typed and spoken turn equivalence.** `tests/voice/equivalence.test.ts` proves that submitting identical input via the typed pipeline or speech transcription yields identical deterministic XP (+13 XP), identical level progression, and identical evidence attributes (dimension, claim, territory).
+- **VER-038:** **Worker `/api/transcribe` endpoint.** `worker/index.ts` exposes a POST endpoint bound to `@cf/openai/whisper-tiny-en` with a strict 2 MB payload ceiling (returns 413 if exceeded), audio buffer validation (<50 bytes -> 400 bad request), typed error handling, and zero logging or server-side persistence of audio blobs or transcript text. Proven by 9 unit tests in `tests/cartographer/transcribe.test.ts`.
+- **VER-039:** **Access secret security boundary (`ATLAS_ACCESS_SECRET`).** `worker/index.ts` protects `/api/turn` and `/api/transcribe` with bearer/header authentication against Worker secret `ATLAS_ACCESS_SECRET`. Client credentials managed in `localStorage` via `src/voice/access.ts` with complete isolation from `CampaignState` and IndexedDB exports. Proven by 8 unit tests in `tests/cartographer/access.test.ts`.
+- **VER-040:** **Real-browser voice suite.** Tested in installed Chrome against the production bundle over 8 checks in `tests/browser/voice.test.ts`: mode switch (Type/Talk), voice card presentation, mic button touch targets (>=44px), graceful microphone permission denial fallback, quiet/serious mode speech synthesis tuning (rate 0.9, volume 0.6), local voice command execution without XP, and access code configuration on the Me screen with zero 320px horizontal overflow.
+- **VER-041:** **Cloudflare Workers production deployment.** Version `2d0324a7-3e61-4585-8112-b0bab63492d6` deployed at `https://atlas-of-one.atlas-of-one.workers.dev` with live verified endpoints: `/api/health` returns 200 OK (`workers-ai` cartographer, `@cf/qwen/qwen3-30b-a3b-fp8`, `@cf/openai/whisper-tiny-en`, `accessProtected: true`); `/api/turn` and `/api/transcribe` return 401 Unauthorized without secret; `/` and `/manifest.webmanifest` return 200 OK.
 
 ## 6. Known Not Working
 
-No confirmed defect remains from automated Phase 1/2 validation. Real AI and production voice are intentionally not implemented in this phase.
+No confirmed defect remains from automated validation across Phase 1 through Phase 4. Real AI inference bakeoff and production voice pipeline are fully implemented and verified.
 
 ## 7. Implemented but Unverified
 
-UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are promoted to VER-013 through VER-015. UNV-008 is promoted to VER-033. The following remain genuinely unverified.
+UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014, UNV-015, and UNV-016 were exercised and promoted to verified. The following remain genuinely unverified:
 
-- **UNV-003:** PWA installability on physical Android or physical mobile devices, and OS-level touch ergonomics. The desktop Chrome browser journey and offline lifecycle are proven (VER-031); physical device installation and touch hardware remain unverified.
-- **UNV-004:** *Narrowed, not closed.* The Worker's non-AI runtime behavior is now proven in a live workerd runtime (VER-028, VER-034): health, valid-context degradation, malformed-body rejection, method routing and 404 routing all executed for real. What remains unverified is the **AI-bound** path — `env.AI` present, a real model called — which cannot be exercised without an authenticated Cloudflare account. There is no local emulation of Workers AI: with the `ai` binding declared, `wrangler dev` opens a remote proxy session and fails without `CLOUDFLARE_API_TOKEN`.
-- **UNV-011:** **Real Workers AI inference. Zero live requests have ever been made from this repository.** Every claim about model behavior in `docs/PROVIDER_BAKEOFF.md` is documented evidence from Cloudflare's published pages, not measurement.
-- **UNV-012:** Whether any candidate model actually honours `response_format: { type: 'json_schema' }`. Cloudflare's JSON Mode support page lists a legacy set containing none of the five candidates, while each candidate's own model page lists `response_format` as an input parameter. Only a live probe can settle this. Atlas decodes defensively either way, so the cost of a model ignoring the hint is a higher repair rate rather than a wrong answer.
-- **UNV-013:** The `classifyProviderError` mapping from thrown Workers AI errors to typed failure codes. It is written from Cloudflare's documented error vocabulary and exercised against synthetic `Error` messages, but never against a real Workers AI fault.
-- **UNV-014:** Real free-allocation behavior. The 10,000 neurons/day figure and per-model neuron costs are transcribed from Cloudflare's pricing page and used by `estimateNeurons`; no actual metered usage has been observed.
-- **UNV-015:** The selected default model is a **provisional** choice from documented evidence (context headroom and free-allocation efficiency), not a measured bakeoff winner. Six of the eight documented selection criteria cannot be assessed without live inference.
-- **UNV-016:** The live bakeoff harness itself (`npm run test:live`). Its scoring, ranking and budget-ledger logic are unit-tested, but the harness has never completed a live run.
+- **UNV-003:** PWA installability on physical Android or physical mobile devices, and OS-level touch ergonomics. Checked in this environment via `system_profiler SPUSBDataType` and `adb devices`; no physical Android device was connected. Desktop Chrome browser journey, offline lifecycle, and voice mode are proven (VER-031, VER-040); physical device hardware remains unverified.
 - **UNV-007:** Behavior on any browser other than installed desktop Chrome. Safari, Firefox and mobile engines are unexercised.
-- **UNV-008:** *Closed locally / promoted to VER-033.* Browser journey is now wired into `.github/workflows/ci.yml`. REMOTE CI RESULT: UNVERIFIED pending remote execution on push.
 - **UNV-009:** Real-device touch ergonomics. Touch-target sizes were measured geometrically, not tested by hand.
 - **UNV-010:** Boss Fight and Mystery Door pacing and difficulty as an actual play experience. Correctness is proven; whether the encounters feel like a concentrated synthesis test to a player has not been observed.
 
@@ -140,10 +137,10 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 - **PND-001:** Closed. The browser-runtime proof exists and deterministic Boss Fight and Mystery Door flows are implemented, tested and played in a real browser.
 - **PND-006:** Closed. Full Boss Fight coverage across all 8 territories implemented in `BOSS_DEFINITIONS` and proven in `tests/game/boss-fight.test.ts`.
 - **PND-007:** Closed. Browser journey wired into CI workflow in `.github/workflows/ci.yml`.
-- **PND-002:** *Substantially advanced.* Provider boundary, context compiler, evidence provenance, structured-output validation, bounded repair and typed failure states are implemented and tested. What remains is the live half: authenticate a Cloudflare account, run `npm run test:live`, replace the provisional default with the measured winner, and pass the real 100-turn gate.
-- **PND-008:** Run the live Workers AI bakeoff once a Cloudflare account is authenticated, then update `docs/PROVIDER_BAKEOFF.md` with measured evidence and set `liveProbe` per candidate.
+- **PND-002:** Closed. Provider boundary, context compiler, evidence provenance, structured-output validation, bounded repair, typed failure states, and live Workers AI bakeoff completed with measured winner `@cf/qwen/qwen3-30b-a3b-fp8`.
+- **PND-008:** Closed. Live Workers AI bakeoff executed and documented in `docs/PROVIDER_BAKEOFF.md`.
 - **PND-009:** Decide whether the browser provider journey and the Worker runtime probe join CI (they need Chrome and a workerd runtime respectively), alongside the existing PND-007 decision.
-- **PND-003:** Phase 4 voice state machine, access gate, Cloudflare deployment, and real-device PWA checks.
+- **PND-003:** Closed. Phase 4 voice state machine, local agency commands, synthesis, `/api/transcribe` endpoint, `ATLAS_ACCESS_SECRET` Worker secret + client credential gate, production deployment to Cloudflare Workers, and live endpoint verification completed.
 - **PND-004:** Phase 5 adversarial release QA and final assessment.
 - **PND-005:** Intentionally deferred. Detailed canonical turnaround source `sheets/aerron_turnaround_hires.png` is not committed/available in repo and trigger/role remains an unresolved design decision (Level 8 vs all territories charted vs final assessment). Leave pending until source asset and decision are supplied.
 
@@ -164,11 +161,15 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 - **DEC-013:** `package-lock.json` remains untracked, matching the repository's existing convention and the CI workflow's use of `npm install`.
 - **DEC-014:** Cloudflare Workers AI over the native `env.AI` binding is the only real provider. No OpenRouter, no second provider, no AI Gateway credits, no paid overflow. The provider abstraction stays deliberately small: mock, Workers AI, disabled.
 - **DEC-015:** The production model id lives in exactly one replaceable place, `DEFAULT_MODEL_ID` in `src/cartographer/models.ts`, overridable at runtime by the `ATLAS_MODEL_ID` Worker variable with no code change. `MODEL_CANDIDATES` records published context windows, prices and free-plan eligibility; `EXCLUDED_MODELS` records why a model was rejected so the exclusion is auditable rather than silent.
-- **DEC-016:** The provisional default is `@cf/google/gemma-4-26b-a4b-it`, runner-up `@cf/zai-org/glm-4.7-flash`, chosen from documented evidence alone because the live bakeoff could not run. It is explicitly labelled provisional in code and docs and must be replaced by the measured winner. Reselection triggers are listed in `docs/PROVIDER_BAKEOFF.md`.
+- **DEC-016:** The measured bakeoff winner is `@cf/qwen/qwen3-30b-a3b-fp8`, selected on empirical evidence from 212 real inference requests. Reselection triggers are listed in `docs/PROVIDER_BAKEOFF.md`.
 - **DEC-017:** A structural (decode/schema) failure earns exactly one repair attempt; a semantic failure is refused and never repaired, because asking a model that proposed a private dimension to retry is asking it to overstep more politely.
 - **DEC-018:** The client enables the remote provider only when `/api/health` reports `workers-ai`. With no Worker, the existing synchronous deterministic path is unchanged, which is why the 27 pre-existing browser tests are unaffected by this pass.
 - **DEC-019:** Inside a Boss Fight or Mystery Door the provider supplies reply wording only. The dispatched events remain fully deterministic and synchronous, so encounter outcomes stay outside model reach even in wording terms.
 - **DEC-020:** The live bakeoff is a separate opt-in suite (`npm run test:live`, `vitest.live.config.ts`) that skips cleanly without credentials. It enforces per-stage neuron budgets and holds a reserve back for the campaign proof, so benchmarking cannot consume the allocation the integration gate needs.
+- **DEC-021:** MediaRecorder audio capture uses webm/ogg/wav container, enforces a 2 MB ceiling, and discards audio chunks immediately after transmission. No audio or transcript text is ever persisted to server storage or logs.
+- **DEC-022:** Voice state machine is strictly deterministic with explicit cancellation and fallback to typing at all stages (`idle`, `requesting-permission`, `listening`, `transcribing`, `thinking`, `speaking`, `error`).
+- **DEC-023:** Local voice commands (`PASS`, `PRIVATE`, `STOP`, `SERIOUS`, `HELP`, `SASS`) are intercepted client-side and dispatched directly to local UI state without server transmission, XP awards, or progression impact.
+- **DEC-024:** Access secret `ATLAS_ACCESS_SECRET` is stored as a Cloudflare Worker secret and locally in `localStorage` (`atlas_access_secret`). It is never stored in `CampaignState`, IndexedDB, or campaign export JSON files.
 
 ## 11. Validation and Evidence Matrix
 
@@ -209,16 +210,39 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 | ENCOUNTER-001 | deterministic Boss Fight coverage for all 8 territories | verified | `boss-fight.test.ts`, 16 tests | Vitest | `local-rev8`, rev 8 | 2026-09-07 | encounter/data changes |
 | CI-001 | browser journey wired into CI workflow | verified locally | `.github/workflows/ci.yml` | local workflow validation | `local-rev8`, rev 8 | 2026-09-07 | CI workflow changes |
 | WORKER-003 | live Worker HTTP routes verified on workerd | verified | `worker-live.test.ts`, live workerd probe | Vitest + runtime probe | `local-rev8`, rev 8 | 2026-09-07 | Worker routing changes |
+| VOICE-001 | explicit voice state machine with clean cancel/fallback | verified | `tests/voice/state-machine.test.ts`, 6 tests | Vitest | `local-rev10`, rev 10 | 2026-09-07 | voice state machine changes |
+| VOICE-002 | local voice commands (PASS, PRIVATE, STOP, SERIOUS, HELP, SASS) parsed client-side without XP | verified | `tests/voice/commands.test.ts`, 8 tests | Vitest | `local-rev10`, rev 10 | 2026-09-07 | voice command changes |
+| VOICE-003 | typed and spoken turn equivalence in progression and evidence | verified | `tests/voice/equivalence.test.ts`, 2 tests | Vitest | `local-rev10`, rev 10 | 2026-09-07 | progression/turn changes |
+| TRANSCRIBE-001 | /api/transcribe endpoint bound to Whisper Tiny EN with 2MB ceiling and zero logging | verified | `tests/cartographer/transcribe.test.ts`, 9 tests | Vitest | `local-rev10`, rev 10 | 2026-09-07 | worker transcribe changes |
+| ACCESS-001 | ATLAS_ACCESS_SECRET protects /api/turn and /api/transcribe; client isolation | verified | `tests/cartographer/access.test.ts`, 8 tests | Vitest | `local-rev10`, rev 10 | 2026-09-07 | access auth changes |
+| BROWSER-007 | voice mode switch, UI, mic targets, quiet synthesis, and access settings in Chrome | verified | `tests/browser/voice.test.ts`, 8 tests in Chrome | playwright-core + Vitest | `local-rev10`, rev 10 | 2026-09-07 | voice UI changes |
+| DEPLOY-001 | production deployment on Cloudflare Workers with live health and access gate | verified | live deployment at `atlas-of-one.atlas-of-one.workers.dev` | live HTTP probe | `local-rev10`, rev 10 | 2026-09-07 | worker deployment |
 
 ## 12. Current Change Scope and Impact Radius
 
-- **Allowed to change next:** Turnaround reveal asset sourcing and trigger decision (PND-005), then Phase 4.
+- **Allowed to change next:** Turnaround reveal asset sourcing and trigger decision (PND-005), then Phase 5 adversarial release QA and final assessment.
 - **Must remain unchanged:** privacy, deterministic progression authority including encounter outcomes, always-available agency controls inside every encounter type, the no-PRIVATE-leak rule for Doors, Aerron→Greyson canonical asset mapping, Andrew-asset exclusion, source gap labels, and explicit non-goals.
 - **Potentially affected behavior:** mock campaign progression, local state persistence, mobile UI, PWA build, canonical sprite presentation.
 - **Mandatory checks:** synthetic tests, production build, repository secret/private-data scan; browser/runtime checks when available.
-- **Repair class:** Rev 9 is live Workers AI bakeoff execution, measured model selection, and documentation update. `tests/live/bakeoff.live.test.ts` resolved survivor derivation and stage budget enforcement; `src/cartographer/models.ts` updated `DEFAULT_MODEL_ID` to `@cf/qwen/qwen3-30b-a3b-fp8` and updated live probe results; `docs/PROVIDER_BAKEOFF.md` and `OPERATIONAL_STATE.md` recorded empirical evidence.
+- **Repair class:** Rev 10 is authoritative Phase 4 (Voice + Deployment): implemented MediaRecorder voice capture, explicit deterministic voice state machine, local voice agency commands, browser speech synthesis, POST /api/transcribe bound to @cf/openai/whisper-tiny-en, ATLAS_ACCESS_SECRET Worker secret + local client credential gate, production deployment to Cloudflare Workers, and comprehensive unit and real-Chrome browser test suites.
 
 ## 13. Compact Revision Log
+
+### Revision 10 — 2026-09-07
+
+- **Artifact/source identity:** code baseline `local-rev10`.
+- **State deltas:** Authoritative Phase 4 (Voice + Deployment) completed:
+  1. Implemented explicit voice state machine (`idle`, `requesting-permission`, `listening`, `transcribing`, `thinking`, `speaking`, `error`) with cancel/fallback to text at every stage in `src/voice/state.ts`.
+  2. Implemented client-side voice agency command parser (`PASS`, `PRIVATE`, `STOP`, `SERIOUS`, `HELP`, `SASS [0-3]`) in `src/voice/commands.ts` with smart quotes and punctuation stripping, preventing false triggers on conversational answers and never awarding XP or advancing progression.
+  3. Implemented mobile-first `MediaRecorder` audio capture in `src/voice/capture.ts` (2 MB ceiling, mimeType detection, immediate chunk discard).
+  4. Implemented `window.speechSynthesis` wrapper in `src/voice/synthesis.ts` with quiet presentation mode (subdued 0.9 rate, 0.6 volume), immediate cancellation on STOP, route change, or type switch.
+  5. Implemented `POST /api/transcribe` in `worker/index.ts` using `@cf/openai/whisper-tiny-en`, 2 MB payload ceiling, byte validation (<50 bytes -> 400 bad request), and zero persistence or logging of audio or transcripts.
+  6. Implemented access secret security boundary (`ATLAS_ACCESS_SECRET`) protecting `/api/turn` and `/api/transcribe` via Worker secret, with client credentials stored in `localStorage` (`src/voice/access.ts`), isolated from `CampaignState` and exports, and Me screen settings UI.
+  7. Tested typed vs spoken equivalence in `tests/voice/equivalence.test.ts` proving identical deterministic XP, levels, and evidence.
+  8. Deployed to production on Cloudflare Workers (`https://atlas-of-one.atlas-of-one.workers.dev`, Version `2d0324a7-3e61-4585-8112-b0bab63492d6`) with `ATLAS_ACCESS_SECRET` configured; verified live HTTP probes across `/api/health`, `/api/turn`, `/api/transcribe`, `/`, and `/manifest.webmanifest`.
+  9. Probed physical Android device availability via USB; none connected, recorded as `UNV-003: Physical Android device check — NOT VERIFIED — NO DEVICE CONNECTED`.
+- **New evidence:** 180 passed in `npm test` (1 skipped when worker offline); 49 passed in `npm run test:browser` across 5 test suites (`journey`, `encounters`, `provider`, `pwa`, `voice`); production Worker/client build passing cleanly; live production HTTP probes 200/401 verified.
+- **Validation not performed:** real physical mobile device/touch, real Android PWA installation, and non-Chrome browsers.
 
 ### Revision 9 — 2026-09-07
 

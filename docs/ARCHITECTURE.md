@@ -106,6 +106,14 @@ to the local script; it never escalates to a paid plan.
 
 `vite-plugin-pwa` generates the service worker and manifest. Phase 1 establishes install/offline-shell support; full device/install validation belongs to later phases.
 
+## Voice architecture (Phase 4)
+
+- **Capture**: Browser `MediaRecorder` capture requires explicit player activation, never auto-plays, and immediately discards audio chunks from memory after transcription or abort.
+- **State machine**: Deterministic state progression (`idle` -> `requesting-permission` -> `listening` -> `transcribing` -> `thinking` -> `speaking` -> `idle`) with cancel/fallback to typing at every stage.
+- **Agency command firewall**: Spoken controls (`PASS`, `PRIVATE`, `STOP`, `SERIOUS`, `HELP`, `SASS`) are intercepted and executed client-side. They never submit text to the model, never generate evidence, and never award XP or progression.
+- **Backend transcription**: Same-origin `POST /api/transcribe` converts audio buffers to text via `@cf/openai/whisper-tiny-en` in Cloudflare Workers AI with a 2 MB size ceiling and zero transcript/audio logging.
+- **Speech synthesis**: `window.speechSynthesis` speaks Cartographer replies in voice mode, cancellable on STOP, mode toggle, navigation, or unmount. Respects quiet presentation mode with subdued rate and volume.
+
 ## Accessibility
 
 The behavior layer must use semantic buttons/forms, keyboard-accessible navigation, visible focus, reduced-motion media queries, readable text hierarchy, and no progression dependency for safety/agency controls.
@@ -118,7 +126,7 @@ The behavior layer must use semantic buttons/forms, keyboard-accessible navigati
   request and discards it with the request scope; nothing is logged.
 - Private dimensions are removed before the outgoing payload exists.
 - No D1, KV, R2, analytics, or account/auth database.
-- An invite/access secret, when Phase 4 adds it, lives only as a Worker secret and local client credential.
+- An invite/access secret lives only as a Worker secret (`ATLAS_ACCESS_SECRET`) and local client credential in `localStorage`, strictly isolated from IndexedDB and campaign state export.
 
 ## Zero-cost invariant
 

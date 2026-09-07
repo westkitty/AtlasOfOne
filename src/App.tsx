@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { eventsFromTurn } from './cartographer/apply';
-import { createRemoteProvider } from './cartographer/client';
+import { createRemoteProvider, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
 import { createMockTurn, describeBossStage, describeDoor, doorInsightFrom, encounterTurnRecord, getMockPrompt } from './cartographer/mock';
 import { type AIProvider, disabledProvider, playerMessageForFailure } from './cartographer/provider';
@@ -10,6 +10,12 @@ import { applyGameEvents, createInitialCampaign, xpIntoCurrentLevel } from './ga
 import type { CampaignState, GameEvent, SassLevel, TerritoryStatus } from './game/types';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
 import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
+import { clearAccessSecret, getAccessHeaders, getAccessSecret, setAccessSecret } from './voice/access';
+import { isAudioCaptureSupported, startAudioCapture, type ActiveAudioCapture } from './voice/capture';
+import { parseVoiceCommand } from './voice/commands';
+import { transitionVoiceState, voiceStateLabel } from './voice/state';
+import { cancelSpeech, speakText } from './voice/synthesis';
+import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
 
 type Screen = 'map'|'talk'|'vault'|'me';
 const GREYSON_MAP_SPRITE = '/assets/greyson/map/idle-front.png';
@@ -32,6 +38,12 @@ export default function App() {
   const [message, setMessage] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
+  // Voice state machine & access code state
+  const [voiceMode, setVoiceMode] = useState<VoiceMode>('type');
+  const [voiceState, setVoiceState] = useState<VoiceState>('idle');
+  const [activeCapture, setActiveCapture] = useState<ActiveAudioCapture | null>(null);
+  const [accessSecretInput, setAccessSecretInput] = useState(() => getAccessSecret() ?? '');
+
   // The Cartographer runs on its deterministic local script unless the Worker
   // reports a live provider. Nothing here holds a credential or a model id.
   const [provider, setProvider] = useState<AIProvider>(disabledProvider);
@@ -57,13 +69,23 @@ export default function App() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+  // Reset voice actions on navigation or unmount
+  useEffect(() => {
+    cancelSpeech();
+    if (activeCapture) {
+      activeCapture.abort();
+      setActiveCapture(null);
+    }
+    setVoiceState('idle');
+  }, [screen]);
+
   // One probe at startup. A missing or disabled Worker simply leaves the offline
   // script in place; it is never an error the player has to see.
   useEffect(() => {
     let live = true;
     void fetch('/api/health')
       .then((response) => (response.ok ? response.json() : null))
-      .then((health) => { if (live && health?.cartographer === 'workers-ai') setProvider(() => createRemoteProvider()); })
+      .then((health) => { if (live && health?.cartographer === 'workers-ai') setProvider(() => createRemoteProvider({ headers: getAccessHeaders })); })
       .catch(() => undefined);
     return () => { live = false; };
   }, []);
@@ -78,6 +100,16 @@ export default function App() {
   const commitTurn = (turn: CartographerTurn, text: string, providerId: string) => {
     setState((current) => applyGameEvents(current, eventsFromTurn(prompt, text, turn, providerId)));
     setReply(turn.reply); setAnswer('');
+    if (voiceMode === 'talk') {
+      setVoiceState('speaking');
+      speakText(turn.reply, {
+        quiet: state.presentation === 'quiet',
+        onEnd: () => setVoiceState('idle'),
+        onError: () => setVoiceState('idle')
+      });
+    } else {
+      setVoiceState('idle');
+    }
   };
 
   /**
@@ -93,10 +125,115 @@ export default function App() {
     commitTurn(createMockTurn(state, prompt, text), text, 'mock');
   };
 
-  const submit = () => {
-    if (!answer.trim() || state.sessionStatus === 'paused') return;
-    if (isOffline || provider.id === 'disabled') { commitTurn(createMockTurn(state, prompt, answer), answer, 'mock'); return; }
-    void submitViaProvider(answer);
+  const submitText = (text: string) => {
+    if (!text.trim() || state.sessionStatus === 'paused') return;
+    if (isOffline || provider.id === 'disabled') { commitTurn(createMockTurn(state, prompt, text), text, 'mock'); return; }
+    void submitViaProvider(text);
+  };
+
+  const submit = () => submitText(answer);
+
+  const toggleVoiceMode = (mode: VoiceMode) => {
+    if (mode === voiceMode) return;
+    cancelSpeech();
+    if (activeCapture) {
+      activeCapture.abort();
+      setActiveCapture(null);
+    }
+    setVoiceState('idle');
+    setVoiceMode(mode);
+  };
+
+  const startRecording = async () => {
+    if (state.sessionStatus === 'paused') return;
+    cancelSpeech();
+    setVoiceState('requesting-permission');
+    try {
+      const capture = await startAudioCapture();
+      setActiveCapture(capture);
+      setVoiceState('listening');
+    } catch {
+      setVoiceState('error');
+      setMessage('Microphone permission denied or recording unsupported. You can type below.');
+    }
+  };
+
+  const stopRecordingAndProcess = async () => {
+    if (!activeCapture) return;
+    setVoiceState('transcribing');
+    try {
+      const blob = await activeCapture.stop();
+      setActiveCapture(null);
+      const res = await transcribeAudio(blob, { headers: getAccessHeaders });
+      if (!res.ok) {
+        setVoiceState('error');
+        setMessage(res.message);
+        return;
+      }
+      const text = res.text.trim();
+      if (!text) {
+        setVoiceState('idle');
+        setMessage('No speech detected. Try again or type below.');
+        return;
+      }
+      const command = parseVoiceCommand(text);
+      if (command) {
+        setVoiceState('idle');
+        executeVoiceCommand(command.type);
+        return;
+      }
+      setAnswer(text);
+      setVoiceState('thinking');
+      submitText(text);
+    } catch {
+      setActiveCapture(null);
+      setVoiceState('error');
+      setMessage('Audio processing failed. You can type below.');
+    }
+  };
+
+  const cancelVoice = () => {
+    if (activeCapture) {
+      activeCapture.abort();
+      setActiveCapture(null);
+    }
+    cancelSpeech();
+    setVoiceState('idle');
+  };
+
+  const executeVoiceCommand = (cmd: VoiceCommandType) => {
+    switch (cmd) {
+      case 'pass':
+        setReply('Passed. No penalty.');
+        break;
+      case 'private':
+        dispatch({ type: 'PRIVATE_TOPIC_ADDED', topic: prompt.dimension });
+        setReply('Private. I will not intentionally return to that dimension.');
+        break;
+      case 'stop':
+        cancelVoice();
+        dispatch({ type: 'SESSION_SET', status: 'paused' });
+        break;
+      case 'serious':
+        dispatch({ type: 'PRESENTATION_SET', mode: 'quiet' });
+        setReply('Serious mode. Plain language; no fanfare.');
+        break;
+      case 'help':
+        setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.');
+        break;
+      case 'sass-low':
+        dispatch({ type: 'SASS_SET', sass: 'low' });
+        setMessage('Sass set to low.');
+        break;
+      case 'sass-medium':
+        dispatch({ type: 'SASS_SET', sass: 'medium' });
+        setMessage('Sass set to medium.');
+        break;
+      case 'sass-risks':
+        dispatch({ type: 'SASS_SET', sass: 'risks-understood' });
+        setMessage('Sass set to "I understand the risks".');
+        break;
+    }
   };
 
   const bossRun = activeBossRun(state);
@@ -254,8 +391,60 @@ export default function App() {
     <header><div><h1 className="screen-title">The Cartographer</h1><p>Mapping {activeTerritory.label.toLowerCase()} with you, one coordinate at a time.</p></div>{quiet && <span className="chip">{state.presentation}</span>}{isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}</header>
     <article className="card prompt">{reply && <p className="reply" role="status">{reply}</p>}<h2>{prompt.question}</h2><small>Evidence dimension: {prompt.dimension}</small></article>
     {state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}
-    <label className="answer">Your coordinate<textarea rows={4} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} /></label>
-    <button className="primary full" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'}>Map this answer</button>
+
+    <div className="mode-switch" role="tablist" aria-label="Input mode">
+      <button role="tab" aria-selected={voiceMode==='type'} className={voiceMode==='type'?'active':''} data-testid="mode-type" onClick={()=>toggleVoiceMode('type')}>Type</button>
+      <button role="tab" aria-selected={voiceMode==='talk'} className={voiceMode==='talk'?'active':''} data-testid="mode-talk" onClick={()=>toggleVoiceMode('talk')}>Talk</button>
+    </div>
+
+    {voiceMode==='type' ? (
+      <>
+        <label className="answer">Your coordinate<textarea rows={4} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="answer-input" /></label>
+        <button className="primary full" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'}>Map this answer</button>
+      </>
+    ) : (
+      <div className="voice-card" data-testid="voice-card">
+        <span className={`voice-badge ${voiceState}`} data-testid="voice-status">{voiceStateLabel(voiceState)}</span>
+        {voiceState === 'idle' && (
+          <button className="mic-btn" data-testid="mic-button" aria-label="Tap to talk" onClick={startRecording} disabled={state.sessionStatus==='paused'}>
+            🎙
+          </button>
+        )}
+        {voiceState === 'listening' && (
+          <>
+            <button className="mic-btn is-listening" data-testid="mic-stop" aria-label="Done speaking" onClick={stopRecordingAndProcess}>
+              ◼
+            </button>
+            <div className="voice-actions">
+              <button className="primary" data-testid="voice-submit-done" onClick={stopRecordingAndProcess}>Done speaking</button>
+              <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
+            </div>
+          </>
+        )}
+        {voiceState === 'requesting-permission' && (
+          <div className="voice-actions">
+            <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
+          </div>
+        )}
+        {(voiceState === 'transcribing' || voiceState === 'thinking') && (
+          <div className="voice-actions">
+            <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
+          </div>
+        )}
+        {voiceState === 'speaking' && (
+          <div className="voice-actions">
+            <button data-testid="voice-interrupt" onClick={cancelVoice}>Interrupt</button>
+          </div>
+        )}
+        {voiceState === 'error' && (
+          <div className="voice-actions">
+            <button className="primary" data-testid="voice-retry" onClick={startRecording}>Try again</button>
+            <button data-testid="voice-fallback-type" onClick={()=>toggleVoiceMode('type')}>Switch to typing</button>
+          </div>
+        )}
+      </div>
+    )}
+
     {renderAgency(()=>setReply('Passed. No penalty.'), prompt.dimension)}
   </section>;
 
@@ -313,6 +502,29 @@ export default function App() {
     </div>
     <article className="card settings"><h2>Cartographer</h2><label>Sass<select value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label></article>
     <article className="card settings"><h2>Your Atlas</h2><p className="settings-note">Everything lives on this device. Export a copy before you switch phones or clear data.</p><button onClick={()=>downloadCampaign(state)}>Export Atlas</button><label className="file">Import Atlas<input type="file" accept="application/json,.json,.atlas" onChange={(e)=>void importFile(e.target.files?.[0])}/></label></article>
+    <article className="card settings access-section">
+      <h2>Cartographer Access Code</h2>
+      <p className="settings-note">Worker secret protecting cloud inference. Stored locally on this device only.</p>
+      <div className="access-row">
+        <input
+          type="password"
+          placeholder="Access secret..."
+          value={accessSecretInput}
+          onChange={(e)=>setAccessSecretInput(e.target.value)}
+          aria-label="Cartographer access secret"
+          data-testid="access-secret-input"
+        />
+        <button className="primary" data-testid="save-access-secret" onClick={()=>{
+          setAccessSecret(accessSecretInput);
+          setMessage('Access code saved.');
+        }}>Save</button>
+        {accessSecretInput && <button data-testid="clear-access-secret" onClick={()=>{
+          clearAccessSecret();
+          setAccessSecretInput('');
+          setMessage('Access code cleared.');
+        }}>Clear</button>}
+      </div>
+    </article>
     <article className="card danger-zone">
       <h2>Danger zone</h2>
       <p className="settings-note">Deleting wipes this device's Atlas for good. Export first if you want to keep it.</p>

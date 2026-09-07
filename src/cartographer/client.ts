@@ -14,11 +14,12 @@ import { cartographerTurnSchema } from './schema';
 const FAILURE_CODES = new Set<string>([
   'provider-disabled', 'binding-missing', 'not-configured', 'model-unavailable',
   'quota-exhausted', 'rate-limited', 'capacity', 'timeout', 'network',
-  'malformed-output', 'semantic-invalid', 'repair-failed'
+  'malformed-output', 'semantic-invalid', 'repair-failed', 'unauthorized'
 ]);
 
 export interface RemoteProviderOptions {
   endpoint?: string;
+  headers?: Record<string, string> | (() => Record<string, string>);
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
 }
@@ -33,11 +34,12 @@ export function createRemoteProvider(options: RemoteProviderOptions = {}): AIPro
     async turn(context: CartographerContext): Promise<ProviderResult> {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const extraHeaders = typeof options.headers === 'function' ? options.headers() : (options.headers ?? {});
       let response: Response;
       try {
         response = await doFetch(endpoint, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', ...extraHeaders },
           body: JSON.stringify(context),
           signal: controller.signal
         });
@@ -53,7 +55,7 @@ export function createRemoteProvider(options: RemoteProviderOptions = {}): AIPro
         | null;
 
       if (!payload || payload.ok !== true) {
-        const code = payload?.code && FAILURE_CODES.has(payload.code) ? (payload.code as ProviderFailureCode) : 'network';
+        const code = payload?.code && FAILURE_CODES.has(payload.code) ? (payload.code as ProviderFailureCode) : (response.status === 401 ? 'unauthorized' : 'network');
         return providerFailure(code, `Worker returned ${response.status}.`, code === 'rate-limited' || code === 'capacity' || code === 'timeout');
       }
 
@@ -63,6 +65,54 @@ export function createRemoteProvider(options: RemoteProviderOptions = {}): AIPro
       return { ok: true, turn: parsed.data, modelId: payload.modelId ?? 'unknown', repaired: Boolean(payload.repaired), usage: payload.usage };
     }
   };
+}
+
+export interface TranscribeAudioOptions {
+  endpoint?: string;
+  headers?: Record<string, string> | (() => Record<string, string>);
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+}
+
+export async function transcribeAudio(
+  audioBlob: Blob,
+  options: TranscribeAudioOptions = {}
+): Promise<{ ok: true; text: string; modelId?: string } | { ok: false; code: string; message: string; retryable?: boolean }> {
+  const endpoint = options.endpoint ?? '/api/transcribe';
+  const doFetch = options.fetchImpl ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const extraHeaders = typeof options.headers === 'function' ? options.headers() : (options.headers ?? {});
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await doFetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': audioBlob.type || 'audio/webm',
+        ...extraHeaders
+      },
+      body: audioBlob,
+      signal: controller.signal
+    });
+
+    const payload = await response.json().catch(() => null) as { ok?: boolean; code?: string; text?: string; message?: string; modelId?: string } | null;
+
+    if (!response.ok || !payload || payload.ok !== true) {
+      const code = payload?.code ?? (response.status === 401 ? 'unauthorized' : 'network');
+      const message = payload?.message ?? playerMessageForFailure(code as ProviderFailureCode) ?? 'Transcription failed.';
+      return { ok: false, code, message, retryable: code === 'rate-limited' || code === 'timeout' };
+    }
+
+    return { ok: true, text: payload.text ?? '', modelId: payload.modelId };
+  } catch (error) {
+    const aborted = error instanceof Error && error.name === 'AbortError';
+    const code = aborted ? 'timeout' : 'network';
+    return { ok: false, code, message: playerMessageForFailure(code), retryable: true };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export { playerMessageForFailure };

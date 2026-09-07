@@ -108,12 +108,25 @@ These are product invariants, not suggestions. Synthetic automated tests should 
 - [ ] No Cloudflare credential or model registry reaches the browser bundle.
 - [ ] The Worker persists no transcript.
 
+## Voice and Deployment (Phase 4)
+
+- [x] Text and voice modes coexist cleanly on the Talk screen.
+- [x] Spoken local agency commands (PASS, PRIVATE, STOP, SERIOUS, HELP, SASS) execute client-side before sending text to Cartographer; never award XP or progression.
+- [x] Voice state machine visibly distinguishes idle, requesting-permission, listening, transcribing, thinking, speaking, error.
+- [x] Cancel and fallback to typing is available at every state.
+- [x] Browser MediaRecorder capture is mobile-first, requires explicit player action, and discards audio blobs immediately after use.
+- [x] Browser speech synthesis reads Cartographer responses in voice mode, cancellable on STOP, mode toggle, navigation, or unmount.
+- [x] Quiet/serious presentation mode suppresses celebratory voice inflection with subdued volume and rate.
+- [x] Same-origin `POST /api/transcribe` endpoint converts audio to text using free-plan eligible Workers AI model without logging audio or transcripts.
+- [x] Worker access secret `ATLAS_ACCESS_SECRET` guards `/api/turn` and `/api/transcribe` with 401 unauthorized rejection.
+- [x] Access secret is stored as a local client credential in `localStorage`, completely isolated from CampaignState and IndexedDB export.
+- [x] Production Worker and PWA client deployed live to Cloudflare Workers with asset serving.
+- [x] Physical Android device check executed and recorded (no physical device connected).
+
 ## Later-phase acceptance retained from source
 
 Not expected to be fully proven in this pass, but must remain protected:
 
-- text and voice modes coexist
-- voice state machine visibly distinguishes listening/transcribing/thinking/speaking
 - offline shell/local map/Vault access works after PWA caching
 - provider failure never corrupts local campaign state
 - final assessment separates fact/evidence/inference/uncertainty

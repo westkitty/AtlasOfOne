@@ -136,6 +136,17 @@ export const EXCLUDED_MODELS: Array<{ id: string; reason: string }> = [
  */
 export const DEFAULT_MODEL_ID = '@cf/qwen/qwen3-30b-a3b-fp8';
 
+/**
+ * Free-plan eligible speech recognition models in Workers AI.
+ * Whisper-tiny-en is English-only, fast and lightweight; standard Whisper is multilingual.
+ */
+export const TRANSCRIBE_MODEL_CANDIDATES = [
+  { id: '@cf/openai/whisper-tiny-en', label: 'Whisper Tiny (English)', freePlanEligible: true },
+  { id: '@cf/openai/whisper', label: 'Whisper (Multilingual)', freePlanEligible: true }
+] as const;
+
+export const DEFAULT_TRANSCRIBE_MODEL_ID = '@cf/openai/whisper-tiny-en';
+
 export const findCandidate = (id: string): ModelCandidate | undefined =>
   MODEL_CANDIDATES.find((candidate) => candidate.id === id);
 
