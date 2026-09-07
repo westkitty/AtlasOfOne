@@ -1,4 +1,4 @@
-import type { CampaignState, EvidenceBasis, PresentationMode, SassLevel } from '../game/types';
+import type { CampaignState, EvidenceBasis, EvidenceRecord, PresentationMode, SassLevel } from '../game/types';
 
 /**
  * The deterministic context compiler.
@@ -129,6 +129,51 @@ const clip = (value: string, limit: number) => (value.length > limit ? `${value.
  */
 const isPrivate = (state: CampaignState, dimension: string) => state.privateTopics.includes(dimension);
 
+/**
+ * The one definition of "may this material leave the device".
+ *
+ * Both outgoing payloads — the per-turn context and the final assessment context
+ * — must answer that question the same way, so it is answered once, here.
+ *
+ * Privacy is decided by PROVENANCE, never by reading prose. A derived record
+ * (an Insight, a Contradiction) is a *reading* of evidence, so it is exactly as
+ * private as the evidence underneath it. Searching its wording for the name of a
+ * private topic is not a boundary: a claim can be entirely about a private
+ * dimension without ever naming it.
+ *
+ * A derived record with no evidence ids has no provenance to check, so it is
+ * withheld rather than assumed safe.
+ */
+export interface EvidenceVisibility {
+  /** True when the dimension has been marked PRIVATE by the player. */
+  isPrivateDimension: (dimension: string) => boolean;
+  /** Active, non-retracted evidence on a dimension the player has not closed. */
+  visibleEvidence: EvidenceRecord[];
+  /** Whether one evidence id resolves to a record that may travel. */
+  evidenceIsVisible: (evidenceId: string) => boolean;
+  /** Whether a derived record's whole provenance chain may travel. */
+  derivedIsVisible: (evidenceIds: string[]) => boolean;
+}
+
+export function createEvidenceVisibility(state: CampaignState): EvidenceVisibility {
+  const evidenceById = new Map(state.evidence.map((item) => [item.id, item]));
+  const isPrivateDimension = (dimension: string) => isPrivate(state, dimension);
+
+  // `status === 'active'` is what carries retraction: ANSWER_RETRACTED marks every
+  // evidence record derived from the retracted turn as 'retracted'.
+  const evidenceIsVisible = (evidenceId: string) => {
+    const record = evidenceById.get(evidenceId);
+    return Boolean(record) && record!.status === 'active' && !isPrivateDimension(record!.dimension);
+  };
+
+  return {
+    isPrivateDimension,
+    visibleEvidence: state.evidence.filter((item) => item.status === 'active' && !isPrivateDimension(item.dimension)),
+    evidenceIsVisible,
+    derivedIsVisible: (evidenceIds: string[]) => evidenceIds.length > 0 && evidenceIds.every(evidenceIsVisible)
+  };
+}
+
 const compileEvidence = (record: { id: string; dimension: string; claim: string; basis: EvidenceBasis; strength: 1 | 2 | 3; territories: string[] }): CompiledEvidence => ({
   id: record.id,
   dimension: record.dimension,
@@ -155,7 +200,8 @@ export function compileContext(
 
   // Everything downstream reads from these two filtered pools. Private and
   // retracted material is removed here, once, before any selection happens.
-  const visibleEvidence = state.evidence.filter((item) => item.status === 'active' && !isPrivate(state, item.dimension));
+  const visibility = createEvidenceVisibility(state);
+  const visibleEvidence = visibility.visibleEvidence;
   const visibleTurns = state.turns.filter((item) => !item.retracted && !isPrivate(state, item.dimension));
 
   const sameDimension = visibleEvidence.filter((item) => item.dimension === task.dimension);
@@ -176,13 +222,8 @@ export function compileContext(
     .filter((item) => item.basis === 'revision')
     .slice(-CONTEXT_BUDGET.revisions);
 
-  const evidenceById = new Map(state.evidence.map((item) => [item.id, item]));
   /** An insight is withheld whenever any evidence behind it is private or gone. */
-  const insightIsVisible = (evidenceIds: string[]) =>
-    evidenceIds.length > 0 && evidenceIds.every((id) => {
-      const record = evidenceById.get(id);
-      return Boolean(record) && record!.status === 'active' && !isPrivate(state, record!.dimension);
-    });
+  const insightIsVisible = visibility.derivedIsVisible;
 
   const confirmedInsights = state.insights
     .filter((item) => item.status === 'confirmed' && insightIsVisible(item.evidenceIds))

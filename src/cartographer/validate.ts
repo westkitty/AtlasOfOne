@@ -71,7 +71,7 @@ export function findAuthorityFields(value: unknown): string[] {
  * award anything, but it must not narrate awards either, because the player would
  * read it as real.
  */
-const PROGRESSION_CLAIMS: RegExp[] = [
+export const PROGRESSION_CLAIMS: RegExp[] = [
   /\bxp\b/i,
   /\blevel(?:l)?ed\s*up\b/i,
   /\blevel\s*\d+\b/i,
