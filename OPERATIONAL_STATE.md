@@ -7,15 +7,15 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 6,
+  "state_revision": 7,
   "last_updated": "2026-09-07",
   "current_baseline": {
-    "identity": "b4f26b9",
+    "identity": "8b06185",
     "state": "partially-verified",
     "last_verified": "2026-09-07"
   },
   "scope_boundaries": [
-    "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight and Mystery Door encounters, local persistence, mock Cartographer, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker foundation"
+    "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight and Mystery Door encounters, local persistence, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime"
   ],
   "linked_parent_state": null
 }
@@ -35,17 +35,20 @@
 ## 2. Current Baseline
 
 - **Primary artifact:** `westkitty/AtlasOfOne` on `main`.
-- **Code baseline:** `b4f26b9` (mobile UI/UX polish pass). Revision 6 is documented in the immediately following docs-only commit, which changes no code, so the validation evidence below still describes the current tree. The prior code baseline was `c0dc714`.
-- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior, deterministic Boss Fight/Mystery Door behavior, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, the desktop-Chrome browser journey, and a desktop-Chrome visual polish inspection at 320/390/430/834 viewports are verified; real-device touch, PWA install/offline, non-Chrome browsers and Worker runtime remain unverified.
-- **Validation identity:** local run on `b4f26b9`: 55 unit tests, 27 browser-runtime tests in installed Chrome against the production bundle, and a passing production Worker/client/PWA build. The prior CI identity for the 18-test baseline was Actions run `34129810055`.
+- **Code baseline:** `8b06185` (Phase 3 Cartographer provider boundary). Revision 7 is documented in the immediately following docs-only commit, which changes no code, so the validation evidence below still describes the current tree. The prior code baseline was `b4f26b9`.
+- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior through the real provider pipeline, deterministic Boss Fight/Mystery Door behavior, provider boundary, context compiler, PRIVATE exclusion, context boundedness, structured-output validation, bounded repair, model-authority firewall, typed provider degradation, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, the desktop-Chrome browser journey including the client provider path, and the Worker runtime on its non-AI paths are verified; **real Workers AI inference is entirely unverified**, as are real-device touch, PWA install/offline and non-Chrome browsers.
+- **Validation identity:** local run on `8b06185`: `npx tsc --noEmit` clean, 141 unit tests, 34 browser-runtime tests in installed Chrome against the production bundle, a passing production Worker/client/PWA build, and a live `wrangler dev` workerd runtime probe of `/api/health`, `/api/turn`, method and 404 routing. The prior identity for the 55-test baseline was `b4f26b9`.
 - **Active default user route:** Map screen, verified in a real browser.
-- **Delivery state:** GitHub repository; no Cloudflare production deployment asserted.
+- **Delivery state:** GitHub repository; no Cloudflare production deployment asserted. Local commits only for this revision; nothing pushed.
+- **Live provider state:** No Cloudflare authentication exists in this environment (`wrangler whoami` reports not authenticated; no API token or account id variable; no wrangler OAuth config). **Zero real Workers AI requests have been made.**
 
 ## 3. Artifact Contract
 
 The current artifact contains the requested source-of-truth documents, React/TypeScript/Vite/Cloudflare/Dexie/Zod/PWA/Vitest stack, four-screen mobile shell, deterministic campaign engine, deterministic Boss Fight and Mystery Door encounters in `src/game/encounters.ts`, automatic local persistence, import/export/delete foundations, mock Cartographer, synthetic fixtures, a sustained 100-turn campaign test, a real-browser journey suite, curated canonical Aerron/Greyson map sprites, and CI. No paid AI is connected.
 
-The only dependency added in this pass is the `playwright-core` devDependency, driven with `channel: "chrome"` so no browser binary is downloaded and nothing enters the production bundle. Runtime dependencies remain `dexie`, `react`, `react-dom`, `zod`.
+Revision 7 adds the Cartographer provider layer in `src/cartographer/`: `provider.ts` (boundary and twelve typed failures), `context.ts` (context compiler, privacy filter, budget, wire schema), `validate.ts` (decode/Zod/semantic layers and the authority-field scanner), `workersai.ts` (Workers AI provider, `response_format`, one bounded repair, typed error map), `client.ts` (browser-side `/api/turn` client), `models.ts` (the single replaceable model configuration and neuron estimator), `bakeoff.ts` (Atlas-specific scoring) and `apply.ts` (the single model-output-to-events crossing point). `worker/index.ts` now serves real inference behind that boundary.
+
+**No dependency was added in this pass.** Runtime dependencies remain `dexie`, `react`, `react-dom`, `zod`; dev dependencies are unchanged. The `ai` binding in `wrangler.jsonc` is Workers AI Free and creates no cost by existing.
 
 ## 4. Active Invariants
 
@@ -64,6 +67,11 @@ The only dependency added in this pass is the `playwright-core` devDependency, d
 - **INV-013:** A Mystery Door never exposes PRIVATE material and never requires a private topic to open or complete. Marking a topic private, or retracting its source answer, retires any unresolved encounter that leaned on it.
 - **INV-014:** Neither encounter can trap the player. PASS resolves a stage at no XP cost, withdrawal preserves progress, STOP blocks submission until resumed, and Doors may be left closed indefinitely without blocking campaign completion.
 - **INV-015:** Encounter answers earn exactly the ordinary accepted-answer XP. No bonus exists anywhere for difficulty, vulnerability or painful disclosure.
+- **INV-016:** A real provider has exactly the authority MockCartographer has, which is none. `src/cartographer/apply.ts` is the only crossing point from model output into campaign state and can emit only `ANSWER_ACCEPTED`, `EVIDENCE_ADDED` and `INSIGHT_ADDED`. Adding a fourth event type there requires re-reading the firewall tests first.
+- **INV-017:** PRIVATE exclusion is structural. A retired dimension is filtered out while the context object is being built, so private content never exists inside the outgoing payload. Atlas never sends private content followed by an instruction to ignore it. Only retired dimension *labels* travel. Retracted material is excluded on the same grounds.
+- **INV-018:** Compiled provider context is bounded by `CONTEXT_BUDGET` and does not grow with campaign length.
+- **INV-019:** Malformed model structure earns at most one repair attempt. A semantic violation is refused outright and never repaired. No retry loop exists.
+- **INV-020:** No Cloudflare credential, model registry or provider configuration reaches browser code. A model outside the free-plan eligible registry is refused by the Worker before a request exists, so a misconfiguration cannot create cost. Quota exhaustion is non-retryable and degrades to the local script.
 
 ## 5. Verified Working Behavior
 
@@ -84,6 +92,18 @@ The only dependency added in this pass is the `playwright-core` devDependency, d
 - **VER-015:** Visual inspection of real Chrome screenshots at a 390×844 phone viewport confirms the canonical Greyson sprite renders sharp and correctly scaled on the Map, and that Boss Fight and Mystery Door screens present the player's own mapped evidence with the permanent control bar intact.
 - **VER-016:** The five canonical runtime sprites are byte-identical (SHA-256) to baseline `a50ffe4`, no Andrew-named file exists anywhere under `public/`, no secret or token is committed, no D1/KV/R2/analytics/auth/SSR/Next.js/native/3D dependency or config was introduced, runtime dependencies remain `dexie`/`react`/`react-dom`/`zod`, and `playwright-core` does not appear in either production bundle.
 - **VER-017:** Mobile UI/UX polish pass `b4f26b9` changed only `src/App.tsx`, `src/styles.css` and the two browser test files. The dispatched game-event set in `App.tsx` is identical to `a3d74df`; no engine, encounter, mock, persistence, schema or model-contract file was touched. Real-Chrome inspection at 320/390/430/834 confirmed: the Greyson sprite no longer overlaps territory labels; fog/discovered/charted/deeply-charted states are distinguishable without colour (opacity + edge style + glyph + word); the Map reads as the primary surface with one legible level/XP unit and a promoted quest card; Boss Fight (ember, 3-stage tracker, PASS-safe note) and Mystery Door (verdigris, crossing element, "optional to open") are visually distinct but coherent; the Vault reads as counted accumulating panels; `Me` separates a "Danger zone" card and Delete takes a deliberate second tap.
+- **VER-019:** The Cartographer provider boundary exists and is exercised: 86 new synthetic tests prove the twelve typed failure codes, the disabled provider, Workers AI success, timeout, thrown-error classification, per-model registry refusal, and that every player-facing failure message is free of backend jargon (no status code, binding name, schema term, neuron reference or model id).
+- **VER-020:** PRIVATE exclusion is proven against the whole serialized payload using a canary string that appears nowhere else in the repository. A retired dimension is absent from evidence, counter-evidence, revisions, recent turns, covered and remaining dimensions, and from insights whose evidence became private, while its label still travels in `retiredDimensions`. Retracted material is excluded on the same basis.
+- **VER-021:** Context boundedness is proven by compiling 20-, 300- and 600-turn synthetic campaigns: a 15x increase in turns produces less than a 1.5x increase in payload, the payload stays under 20,000 characters at 600 turns, recalled answers are clipped while the current answer is not, and compilation is deterministic for identical state.
+- **VER-022:** Structured-output validation is proven across four layers: decode accepts objects, bare JSON, fenced blocks and JSON buried in reasoning prose and rejects prose-only responses; Zod rejects contract violations; semantic validation rejects evidence on a retired dimension, a retired dimension resurfacing in prose, unknown territory ids, invented quote candidates, and narrated progression ("+8 XP", "achievement unlocked", "territory charted"); and local quiet presentation is clamped so a provider cannot force celebration against SERIOUS.
+- **VER-023:** Repair is bounded to exactly one attempt. Scripting three responses proves the third is never reached and the provider returns `repair-failed`; usage is summed across the original call and the repair; and a semantic violation is refused after a single call rather than repaired.
+- **VER-024:** The model-authority firewall is proven by driving forged provider output — carrying `xp`, `level`, `levelUp`, `unlocks`, `achievements`, `questComplete`, `quests`, `territories`, `mapFragments`, `bossComplete`, `doorComplete` and `campaignCompleted` — through the real `eventsFromTurn` path. Only the three permitted event types are emitted, XP advances by exactly the deterministic 10, no territory/quest/unlock/achievement changes, and the resulting state is identical to an equivalent honest turn. A progression demand inside the player's own answer is stored verbatim as content and changes nothing.
+- **VER-025:** A 100-turn synthetic campaign runs through the real provider pipeline (compile, provider, decode, Zod, semantic validation, `eventsFromTurn`, engine) with a scripted binding: no state corruption, level consistent with XP throughout, context bounded across the whole run, and total estimated neurons inside the free daily allocation. **These are scripted turns, not inference, and are not counted towards the real-provider gate.**
+- **VER-026:** Provider failure never corrupts the campaign. A fully failing provider over 12 turns keeps every answer and progresses deterministically; a flaky provider over 30 turns produces exactly 20 evidence records and 30 preserved turns; and a retried identical turn awards the accepted-answer XP with zero duplicate-evidence award.
+- **VER-027:** Worker request handling is proven at unit level over 13 checks: health reports the live model or the disabled state, a non-context body is rejected 400 without echoing the request back, an oversized context is rejected before becoming a request, missing binding and explicit disable degrade typed, a paid-plan model is refused 503 with zero binding calls, and quota exhaustion returns 429 non-retryable with player-safe copy.
+- **VER-028:** **Worker runtime proof (narrows UNV-004).** A live `wrangler dev` workerd runtime serving the current production build returned: `/api/health` -> `{"ok":true,"service":"atlas-of-one","cartographer":"disabled","model":null}`; `POST /api/turn` with a valid compiled context and no AI binding -> 503 `binding-missing` with player-facing copy; `POST /api/turn` with a malformed body -> 400 `bad-request` with the request canary absent from the response; `GET /api/turn` -> 405; `/api/nope` -> 404; `/` -> 200 SPA shell. The AI-bound path was NOT exercised.
+- **VER-029:** The browser provider path is proven in installed Chrome against the production bundle over 7 checks: the startup health probe switches the client to the remote provider, a compiled context is posted to `/api/turn`, the returned turn produces the same deterministic +13 XP as the mock path, the outgoing payload is a bounded context rather than a transcript (no `turns`, no `campaignHistory`, recent window <= 4), a PRIVATE dimension's label travels while its evidence and turns do not, `model-proposed` provenance with a `workers-ai:` provider id lands in IndexedDB, and quota exhaustion shows Atlas-voice degraded copy while the answer is still mapped. The Worker was stubbed; this is not evidence of real inference.
+- **VER-030:** Production bundle inspection confirms `api.cloudflare.com`, `CLOUDFLARE_API_TOKEN`, `playwright` and the `@cf/` model registry are all absent from the client bundle, and no credential name appears in the Worker bundle.
 - **VER-018:** At a 320px viewport there is no horizontal overflow on Map, Talk, Vault or Me (the previous 9px `Me` overflow from the hidden file input is fixed); the four bottom-nav targets and all six permanent controls are >=44px; and the fixed bottom nav does not cover the primary action or the last permanent control on Talk or inside a Mystery Door. Proven by two added browser tests (`journey` 19b, `encounters` Door-at-320px).
 
 ## 6. Known Not Working
@@ -95,7 +115,13 @@ No confirmed defect remains from automated Phase 1/2 validation. Real AI and pro
 UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are promoted to VER-013 through VER-015. The following remain genuinely unverified.
 
 - **UNV-003:** PWA installability and offline behavior on Android or any real mobile browser. The journey ran in desktop Chrome at emulated phone viewports; no service-worker offline path, install prompt or device was exercised.
-- **UNV-004:** Worker `/api/health` and `/api/turn` behavior in a running Vite/Cloudflare dev or deployed runtime. The browser journey deliberately serves the built client over a plain static host, so no Worker code executed.
+- **UNV-004:** *Narrowed, not closed.* The Worker's non-AI runtime behavior is now proven in a live workerd runtime (VER-028): health, valid-context degradation, malformed-body rejection, method routing and 404 routing all executed for real. What remains unverified is the **AI-bound** path — `env.AI` present, a real model called — which cannot be exercised without an authenticated Cloudflare account. There is no local emulation of Workers AI: with the `ai` binding declared, `wrangler dev` opens a remote proxy session and fails without `CLOUDFLARE_API_TOKEN`.
+- **UNV-011:** **Real Workers AI inference. Zero live requests have ever been made from this repository.** Every claim about model behavior in `docs/PROVIDER_BAKEOFF.md` is documented evidence from Cloudflare's published pages, not measurement.
+- **UNV-012:** Whether any candidate model actually honours `response_format: { type: 'json_schema' }`. Cloudflare's JSON Mode support page lists a legacy set containing none of the five candidates, while each candidate's own model page lists `response_format` as an input parameter. Only a live probe can settle this. Atlas decodes defensively either way, so the cost of a model ignoring the hint is a higher repair rate rather than a wrong answer.
+- **UNV-013:** The `classifyProviderError` mapping from thrown Workers AI errors to typed failure codes. It is written from Cloudflare's documented error vocabulary and exercised against synthetic `Error` messages, but never against a real Workers AI fault.
+- **UNV-014:** Real free-allocation behavior. The 10,000 neurons/day figure and per-model neuron costs are transcribed from Cloudflare's pricing page and used by `estimateNeurons`; no actual metered usage has been observed.
+- **UNV-015:** The selected default model is a **provisional** choice from documented evidence (context headroom and free-allocation efficiency), not a measured bakeoff winner. Six of the eight documented selection criteria cannot be assessed without live inference.
+- **UNV-016:** The live bakeoff harness itself (`npm run test:live`). Its scoring, ranking and budget-ledger logic are unit-tested, but the harness has never completed a live run.
 - **UNV-007:** Behavior on any browser other than installed desktop Chrome. Safari, Firefox and mobile engines are unexercised.
 - **UNV-008:** The browser journey is not wired into CI; it currently requires a local machine with Chrome installed and is run on demand via `npm run test:browser`. CI still validates only the 55 unit tests and the production build.
 - **UNV-009:** Real-device touch ergonomics. Touch-target sizes were measured geometrically, not tested by hand.
@@ -110,7 +136,9 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 - **PND-001:** Closed. The browser-runtime proof exists and deterministic Boss Fight and Mystery Door flows are implemented, tested and played in a real browser.
 - **PND-006:** Extend encounter coverage: Boss Fights exist for four of eight territories, and Doors present at most three candidate pairings on the Map. Relationships, Interests and Future have no Boss Fight yet.
 - **PND-007:** Decide whether to run the browser journey in CI (GitHub's Ubuntu runners ship Chrome) or keep it a local gate, and record the decision.
-- **PND-002:** Phase 3 real Cartographer provider, context compiler, evidence-model integration, and provider failure states.
+- **PND-002:** *Substantially advanced.* Provider boundary, context compiler, evidence provenance, structured-output validation, bounded repair and typed failure states are implemented and tested. What remains is the live half: authenticate a Cloudflare account, run `npm run test:live`, replace the provisional default with the measured winner, and pass the real 100-turn gate.
+- **PND-008:** Run the live Workers AI bakeoff once a Cloudflare account is authenticated, then update `docs/PROVIDER_BAKEOFF.md` with measured evidence and set `liveProbe` per candidate.
+- **PND-009:** Decide whether the browser provider journey and the Worker runtime probe join CI (they need Chrome and a workerd runtime respectively), alongside the existing PND-007 decision.
 - **PND-003:** Phase 4 voice state machine, access gate, Cloudflare deployment, and real-device PWA checks.
 - **PND-004:** Phase 5 adversarial release QA and final assessment.
 - **PND-005:** Integrate the supplied canonical `sheets/aerron_turnaround_hires.png` when the later Character/Vault/final progression reveal is implemented; it is deliberately not shipped in the current runtime subset yet.
@@ -130,6 +158,13 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 - **DEC-011:** Boss stage plans and Door pairings are stored as skeletons — kind, dimensions and evidence ids — and their wording is rendered from the mock at display time. No model-authored text is persisted as game state.
 - **DEC-012:** Fields added to schema v1 after its first release are additive and carry Zod defaults, so earlier exports still import. A change that alters or removes an existing v1 field must instead raise `CURRENT_SCHEMA_VERSION`. This policy is recorded in `src/persistence/migrations.ts`.
 - **DEC-013:** `package-lock.json` remains untracked, matching the repository's existing convention and the CI workflow's use of `npm install`.
+- **DEC-014:** Cloudflare Workers AI over the native `env.AI` binding is the only real provider. No OpenRouter, no second provider, no AI Gateway credits, no paid overflow. The provider abstraction stays deliberately small: mock, Workers AI, disabled.
+- **DEC-015:** The production model id lives in exactly one replaceable place, `DEFAULT_MODEL_ID` in `src/cartographer/models.ts`, overridable at runtime by the `ATLAS_MODEL_ID` Worker variable with no code change. `MODEL_CANDIDATES` records published context windows, prices and free-plan eligibility; `EXCLUDED_MODELS` records why a model was rejected so the exclusion is auditable rather than silent.
+- **DEC-016:** The provisional default is `@cf/google/gemma-4-26b-a4b-it`, runner-up `@cf/zai-org/glm-4.7-flash`, chosen from documented evidence alone because the live bakeoff could not run. It is explicitly labelled provisional in code and docs and must be replaced by the measured winner. Reselection triggers are listed in `docs/PROVIDER_BAKEOFF.md`.
+- **DEC-017:** A structural (decode/schema) failure earns exactly one repair attempt; a semantic failure is refused and never repaired, because asking a model that proposed a private dimension to retry is asking it to overstep more politely.
+- **DEC-018:** The client enables the remote provider only when `/api/health` reports `workers-ai`. With no Worker, the existing synchronous deterministic path is unchanged, which is why the 27 pre-existing browser tests are unaffected by this pass.
+- **DEC-019:** Inside a Boss Fight or Mystery Door the provider supplies reply wording only. The dispatched events remain fully deterministic and synchronous, so encounter outcomes stay outside model reach even in wording terms.
+- **DEC-020:** The live bakeoff is a separate opt-in suite (`npm run test:live`, `vitest.live.config.ts`) that skips cleanly without credentials. It enforces per-stage neuron budgets and holds a reserve back for the campaign proof, so benchmarking cannot consume the allocation the integration gate needs.
 
 ## 11. Validation and Evidence Matrix
 
@@ -156,17 +191,37 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 | UI-002 | fog states legible without colour; Map/Boss/Door/Vault/Me polish | verified | real-Chrome inspection at 320/390/430/834 | browser visual inspection | `b4f26b9`, rev 6 | 2026-09-07 | UI markup/CSS changes |
 | BROWSER-004 | mobile device and PWA install/offline | implemented-unverified | none | real-device check | `c0dc714`, rev 5 | 2026-09-07 | device availability |
 | BROWSER-005 | non-Chrome browser behavior | implemented-unverified | none | cross-browser check | `c0dc714`, rev 5 | 2026-09-07 | browser support work |
-| WORKER-001 | Worker `/api/health` at runtime | implemented-unverified | source only | dev/deployed runtime check | `c0dc714`, rev 5 | 2026-09-07 | Worker changes |
+| WORKER-001 | Worker `/api/health` + `/api/turn` non-AI paths at runtime | verified | live `wrangler dev` workerd probe: 200 health, 503 binding-missing, 400 bad-request, 405, 404, 200 SPA | runtime curl probe | `8b06185`, rev 7 | 2026-09-07 | Worker changes |
+| WORKER-002 | Worker AI-bound path at runtime | implemented-unverified | none; no Cloudflare auth and no local Workers AI emulation | authenticated dev/deploy | `8b06185`, rev 7 | 2026-09-07 | Cloudflare authentication |
+| INV-016 | provider has no more authority than the mock | verified | firewall.test.ts forged-output and identical-state tests | Vitest | `8b06185`, rev 7 | 2026-09-07 | changes to `apply.ts` or the event vocabulary |
+| INV-017 | PRIVATE excluded before the payload exists | verified | context.test.ts canary over the whole serialized payload; browser provider journey check 4 | Vitest + browser | `8b06185`, rev 7 | 2026-09-07 | context compiler changes |
+| INV-018 | provider context is bounded | verified | 20/300/600-turn compile comparison; 100-turn pipeline run | Vitest | `8b06185`, rev 7 | 2026-09-07 | context budget changes |
+| INV-019 | repair bounded to one attempt | verified | provider.test.ts three-response script; semantic refusal test | Vitest | `8b06185`, rev 7 | 2026-09-07 | provider/validation changes |
+| INV-020 | zero-dollar enforcement | verified | paid-model refusal with zero binding calls; bundle inspection; neuron budget assertions | Vitest + bundle scan | `8b06185`, rev 7 | 2026-09-07 | model registry or pricing changes |
+| MODEL-001 | selected default is a measured bakeoff winner | **unverified** | none; live bakeoff not run | `npm run test:live` | `8b06185`, rev 7 | 2026-09-07 | Cloudflare authentication |
+| MODEL-002 | candidates honour `response_format` json_schema | **unverified** | conflicting documentation only | live probe | `8b06185`, rev 7 | 2026-09-07 | Cloudflare authentication |
+| AI-001 | real Workers AI synthetic turns executed | **unverified — count is 0** | none | `npm run test:live` stage C | `8b06185`, rev 7 | 2026-09-07 | Cloudflare authentication |
 
 ## 12. Current Change Scope and Impact Radius
 
-- **Allowed to change next:** Remaining encounter breadth (PND-006), CI decision for the browser journey (PND-007), then Phase 3 provider work.
+- **Allowed to change next:** The live bakeoff and provisional-default replacement (PND-008), remaining encounter breadth (PND-006), CI decisions (PND-007, PND-009), then Phase 4.
 - **Must remain unchanged:** privacy, deterministic progression authority including encounter outcomes, always-available agency controls inside every encounter type, the no-PRIVATE-leak rule for Doors, Aerron→Greyson canonical asset mapping, Andrew-asset exclusion, source gap labels, and explicit non-goals.
 - **Potentially affected behavior:** mock campaign progression, local state persistence, mobile UI, PWA build, canonical sprite presentation.
 - **Mandatory checks:** synthetic tests, production build, repository secret/private-data scan; browser/runtime checks when available.
-- **Repair class:** Rev 6 was presentation-only: `src/App.tsx` markup/copy, `src/styles.css`, and browser-test extensions. No game architecture change.
+- **Repair class:** Rev 7 is additive provider architecture. `src/game/engine.ts`, `src/game/encounters.ts`, `src/game/data.ts` and `src/styles.css` were not touched. `src/game/types.ts` and `src/persistence/schema.ts` gained two additive evidence-provenance fields with Zod defaults under DEC-012. `src/App.tsx` gained the provider path while leaving the no-provider path synchronous and unchanged.
 
 ## 13. Compact Revision Log
+
+### Revision 7 — 2026-09-07
+
+- **Artifact/source identity:** code baseline `8b06185`.
+- **State deltas:** Phase 3 gave the Cartographer a provider boundary without giving it any authority. Added `src/cartographer/{provider,context,validate,workersai,client,models,bakeoff,apply}.ts`; rewrote `worker/index.ts` to serve Workers AI inference behind twelve typed failure codes; added an `ai` binding to `wrangler.jsonc`; added `origin` and `providerId` to `EvidenceRecord` additively within schema v1; wired the app to use the Worker provider when `/api/health` reports one and to degrade in Atlas's own words when it does not. Unit tests went 55 -> 141, browser tests 27 -> 34. No dependency was added.
+- **New evidence:** `npx tsc --noEmit` clean; 141 unit tests; 34 real-Chrome browser tests against the production bundle; a passing Worker/client/PWA production build; a live `wrangler dev` workerd runtime probe of every Worker route on the non-AI path; and a production-bundle scan confirming no credential, model registry or test tooling reaches the client.
+- **Live provider state:** **No Cloudflare authentication exists in this environment, so zero real Workers AI requests were made.** `wrangler whoami` reports not authenticated; no API token or account id is set; no wrangler OAuth config exists. With the `ai` binding declared, `wrangler dev` requires `CLOUDFLARE_API_TOKEN` for its remote proxy session and there is no local Workers AI emulation, so the AI-bound path could not be exercised at all.
+- **Model candidates:** All five candidates named in the Phase 3 brief were checked rather than trusted and all still exist and are free-plan eligible. The neighbouring GLM 5.2/5.3, Kimi k2.6/k2.7 and DeepSeek-v4 families are paid-only and are recorded in `EXCLUDED_MODELS`. The Workers Free allocation is 10,000 neurons/day; per-turn neuron costs were derived from published prices, which disqualifies `nemotron-3-120b-a12b` in practice (86 free turns/day, so a 100-turn campaign would exceed the allocation).
+- **Selection:** `@cf/google/gemma-4-26b-a4b-it` is a **provisional** default, runner-up `@cf/zai-org/glm-4.7-flash`, chosen on the only two of eight criteria that documented evidence can settle. It is labelled provisional in both code and `docs/PROVIDER_BAKEOFF.md`.
+- **Defects found and fixed during this pass:** the authority-field scanner initially flagged the legitimate nested `evidence[].territories` contract field as a progression attempt, and was made position-aware; the evidence-grounding metric was purely exact-token and punished ordinary paraphrase, and gained light stemming; the uncertainty-preservation regex missed "does not know" style hedging; the bakeoff fixture suite lacked dedicated `values` and `cognition` entries.
+- **Validation not performed:** real Workers AI inference of any kind, the live bakeoff, the real 100-turn gate, the AI-bound Worker path, real quota/rate-limit behavior, real-device touch, PWA install/offline, any non-Chrome browser, and production deployment.
 
 ### Revision 6 — 2026-09-07
 

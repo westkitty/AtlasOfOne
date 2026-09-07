@@ -10,14 +10,17 @@ Browser / installed PWA
   ├─ deterministic game engine
   ├─ Dexie / IndexedDB campaign database
   ├─ Zod runtime schemas
+  ├─ context compiler (privacy filter + budget)
   └─ PWA service worker
           │
           └─ same-origin /api/*
                Cloudflare Worker
-               ├─ /api/health
-               ├─ /api/turn (mock-safe boundary in this phase)
+               ├─ /api/health   (reports whether a provider is live)
+               ├─ /api/turn     (Workers AI inference; typed failures)
                ├─ /api/transcribe (later)
                └─ /api/finalize (later)
+                    │
+                    └─ env.AI → Workers AI (Free plan)
 ```
 
 The Cloudflare Vite plugin is the integration point for Vite static assets and Worker code. `wrangler.jsonc` uses SPA not-found handling and routes `/api/*` through the Worker.
@@ -44,16 +47,60 @@ The UI/game engine decides whether and how structured model proposals become det
 
 ## Provider boundary
 
-Real providers are Phase 3. The current repository exposes a Worker API boundary and a local `MockCartographer`. No paid model is connected and no API secret is needed.
-
-Future provider interface:
+`src/cartographer/provider.ts` defines the boundary. It is deliberately small:
+Atlas needs a mock, a Workers AI implementation, and a disabled state, not a
+multi-provider framework. Provider selection never enters `src/game/`.
 
 ```ts
 interface AIProvider {
-  turn(input: CartographerContext): Promise<CartographerTurn>;
-  finalize(input: FinalizationContext): Promise<FinalAtlas>;
+  readonly id: string;
+  turn(context: CartographerContext): Promise<ProviderResult>;
 }
 ```
+
+`ProviderResult` is either a validated `CartographerTurn` with usage, or a typed
+`ProviderFailure`. Implementations:
+
+- `disabledProvider` — no AI configured; the deterministic local script answers.
+- `createWorkersAiProvider` — Worker-side, over the native `env.AI` binding.
+- `createRemoteProvider` — browser-side, posting a compiled context to `/api/turn`.
+
+The browser client holds no credential and knows no model id; the model registry
+is Worker-side only, which the production bundles are checked against.
+
+The selected production model lives in exactly one replaceable place:
+`DEFAULT_MODEL_ID` in `src/cartographer/models.ts`, overridable at runtime by the
+`ATLAS_MODEL_ID` Worker variable. See `docs/PROVIDER_BAKEOFF.md`.
+
+## Context compiler
+
+`src/cartographer/context.ts` builds the outgoing payload from authoritative
+local state. It never sends the transcript.
+
+**Privacy is structural.** A private dimension is filtered out *while the context
+object is being constructed*, so private content never exists inside the
+outgoing payload. Atlas does not send private material followed by an instruction
+to ignore it, because that is a request rather than a guarantee. Retracted
+material is excluded on the same grounds. Only the *labels* of retired dimensions
+travel, so the model knows what not to ask without being handed what it must not
+see.
+
+**The payload is bounded.** `CONTEXT_BUDGET` caps the recent-turn window,
+relevant evidence, counter-evidence, revisions, contradictions, insights and
+recalled answer length. Selection priority is: current-turn necessities, then
+directly relevant evidence, then unresolved contradictions and revisions, then
+recent continuity, then compact summaries. A 600-turn campaign compiles to
+roughly the same payload as a 40-turn one, which is asserted by test rather than
+assumed. No embeddings or vector database are involved.
+
+## Zero-dollar enforcement
+
+The `ai` binding costs nothing by existing. The Workers Free daily neuron
+allocation is the hard ceiling, and `estimateNeurons` derives per-model cost from
+Cloudflare's published rate so affordability is decided before a request is made.
+A model outside the free-plan registry is refused by the Worker *before* a
+request exists. Quota exhaustion is a non-retryable typed failure that degrades
+to the local script; it never escalates to a paid plan.
 
 ## PWA
 
@@ -67,7 +114,9 @@ The behavior layer must use semantic buttons/forms, keyboard-accessible navigati
 
 - No actual campaign content in Git/test fixtures.
 - No secret in browser source or committed config.
-- No server transcript persistence.
+- No server transcript persistence. The Worker uses the compiled context for one
+  request and discards it with the request scope; nothing is logged.
+- Private dimensions are removed before the outgoing payload exists.
 - No D1, KV, R2, analytics, or account/auth database.
 - An invite/access secret, when Phase 4 adds it, lives only as a Worker secret and local client credential.
 

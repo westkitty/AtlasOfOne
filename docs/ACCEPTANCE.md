@@ -83,6 +83,31 @@ These are product invariants, not suggestions. Synthetic automated tests should 
 - [ ] Worker API is same-origin and returns a health response.
 - [ ] Paid AI service is not connected in Phase 1/2.
 
+## Provider boundary (Phase 3)
+
+- [ ] The model never gains authority beyond the MockCartographer: only
+      `ANSWER_ACCEPTED`, `EVIDENCE_ADDED` and `INSIGHT_ADDED` can be produced
+      from provider output.
+- [ ] Forged progression fields in a provider response produce campaign state
+      identical to an equivalent honest turn.
+- [ ] A PRIVATE dimension's content never appears anywhere in the outgoing
+      provider payload; only its label travels.
+- [ ] Retracted material never appears in the outgoing payload.
+- [ ] Compiled context does not grow linearly with campaign length.
+- [ ] Structured provider output is decoded, schema-validated and
+      semantically validated before acceptance.
+- [ ] Malformed model structure earns at most ONE repair attempt.
+- [ ] A semantic violation is refused rather than repaired.
+- [ ] Every provider failure is typed and has player-facing copy free of backend
+      jargon.
+- [ ] A provider failure never loses the player's answer, corrupts state, double
+      awards, retries without bound, or switches to a paid service.
+- [ ] A model requiring a paid plan is refused before any request is made.
+- [ ] A 100-turn campaign is affordable within the Workers Free daily neuron
+      allocation on the selected model.
+- [ ] No Cloudflare credential or model registry reaches the browser bundle.
+- [ ] The Worker persists no transcript.
+
 ## Later-phase acceptance retained from source
 
 Not expected to be fully proven in this pass, but must remain protected:
