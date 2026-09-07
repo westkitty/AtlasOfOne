@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { completeOnboardingIfPresent } from './helper';
 import { serveDist } from './server';
 
 const DIST = join(process.cwd(), 'dist', 'client');
@@ -34,6 +35,7 @@ beforeAll(async () => {
   page.on('pageerror', (error: Error) => pageErrors.push(error.message));
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await completeOnboardingIfPresent(page);
 }, 120_000);
 
 afterAll(async () => {

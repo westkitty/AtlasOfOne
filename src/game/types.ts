@@ -75,6 +75,7 @@ export interface CampaignState {
   presentationQueue: PresentationNotice[];
   campaignHistory: GameHistoryEntry[];
   finalAssessment?: FinalAssessment | null;
+  onboardingCompleted?: boolean;
   updatedAt: string;
 }
 
@@ -106,4 +107,5 @@ export type GameEvent =
   | { type: 'ACTIVE_TERRITORY_SET'; territoryId: string }
   | { type: 'PRESENTATION_QUEUE_CLEARED' }
   | { type: 'FINAL_ASSESSMENT_SET'; assessment: FinalAssessment }
+  | { type: 'ONBOARDING_COMPLETED'; sass?: SassLevel; voiceMode?: 'text' | 'talk' }
   | { type: 'CAMPAIGN_COMPLETED' };

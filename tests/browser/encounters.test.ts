@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { availableBosses, availableDoors } from '../../src/game/encounters';
 import { serializeCampaign } from '../../src/persistence/transfer';
 import { seededCampaign } from '../fixtures/synthetic';
+import { completeOnboardingIfPresent } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -75,6 +76,7 @@ beforeAll(async () => {
   page.on('pageerror', (error: Error) => pageErrors.push(error.message));
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await completeOnboardingIfPresent(page);
   await loadSeed();
 }, 120_000);
 

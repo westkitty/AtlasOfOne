@@ -22,7 +22,7 @@ export function createInitialCampaign(): CampaignState {
     activeQuest: 'first-coordinates',
     turns: [], evidence: [], insights: [], contradictions: [], mapFragments: [],
     bossRuns: [], activeBoss: null, doorRuns: [], activeDoor: null, privateTopics: [],
-    presentation: 'normal', sessionStatus: 'active', campaignCompleted: false, presentationQueue: [], campaignHistory: [], finalAssessment: null, updatedAt: now()
+    presentation: 'normal', sessionStatus: 'active', campaignCompleted: false, presentationQueue: [], campaignHistory: [], finalAssessment: null, onboardingCompleted: false, updatedAt: now()
   };
 }
 
@@ -236,6 +236,17 @@ export function applyGameEvent(state: CampaignState, event: GameEvent): Campaign
     case 'ACTIVE_TERRITORY_SET': if (state.territories.some((item) => item.id === event.territoryId)) next = { ...state, activeTerritory: event.territoryId }; break;
     case 'PRESENTATION_QUEUE_CLEARED': next = { ...state, presentationQueue: [] }; break;
     case 'FINAL_ASSESSMENT_SET': next = { ...state, finalAssessment: event.assessment }; break;
+    case 'ONBOARDING_COMPLETED':
+      next = {
+        ...state,
+        onboardingCompleted: true,
+        settings: {
+          ...state.settings,
+          ...(event.sass ? { sass: event.sass } : {}),
+          ...(event.voiceMode ? { voiceMode: event.voiceMode } : {})
+        }
+      };
+      break;
     case 'CAMPAIGN_COMPLETED': next = { ...state, campaignCompleted: true }; break;
     case 'TERRITORY_ADVANCED':
     case 'LEVEL_UP':

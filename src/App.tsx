@@ -50,13 +50,32 @@ export default function App() {
   const [activeCapture, setActiveCapture] = useState<ActiveAudioCapture | null>(null);
   const [accessSecretInput, setAccessSecretInput] = useState(() => getAccessSecret() ?? '');
 
+  // Minimal canonical onboarding state
+  const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [onboardingSass, setOnboardingSass] = useState<SassLevel>('medium');
+  const [onboardingMode, setOnboardingMode] = useState<VoiceMode>('type');
+
   // The Cartographer runs on its deterministic local script unless the Worker
   // reports a live provider. Nothing here holds a credential or a model id.
   const [provider, setProvider] = useState<AIProvider>(disabledProvider);
   const prompt = useMemo(() => getMockPrompt(state), [state]);
   const dispatch = (...events: GameEvent[]) => setState((current) => applyGameEvents(current, events));
 
-  useEffect(() => { let live = true; void loadCampaign().then((saved) => { if (live && saved) setState(saved); }).catch(() => setMessage('Local save could not be read.')).finally(() => { if (live) setHydrated(true); }); return () => { live = false; }; }, []);
+  useEffect(() => {
+    let live = true;
+    void loadCampaign()
+      .then((saved) => {
+        if (live && saved) {
+          const isCompletedLocally = typeof window !== 'undefined' && window.localStorage?.getItem('atlas_onboarding_completed') === 'true';
+          const onboardingCompleted = saved.onboardingCompleted ?? isCompletedLocally ?? (saved.turns.length > 0);
+          setState({ ...saved, onboardingCompleted });
+          if (saved.settings.voiceMode === 'talk') setVoiceMode('talk');
+        }
+      })
+      .catch(() => setMessage('Local save could not be read.'))
+      .finally(() => { if (live) setHydrated(true); });
+    return () => { live = false; };
+  }, []);
   useEffect(() => { if (hydrated) void saveCampaign(state).catch(() => setMessage('Automatic save failed. Export before leaving.')); }, [state, hydrated]);
   useEffect(() => { document.documentElement.dataset.reducedMotion = String(state.settings.reducedMotion); }, [state.settings.reducedMotion]);
   useEffect(() => {
@@ -741,16 +760,216 @@ export default function App() {
       <h2>Danger zone</h2>
       <p className="settings-note">Deleting wipes this device's Atlas for good. Export first if you want to keep it.</p>
       {confirmDelete
-        ? <div className="row"><button className="danger" onClick={()=>void deleteCampaign().then(()=>{setState(createInitialCampaign());setConfirmDelete(false);})}>Delete everything</button><button onClick={()=>setConfirmDelete(false)}>Keep it</button></div>
+        ? <div className="row"><button className="danger" onClick={()=>void deleteCampaign().then(()=>{setState(createInitialCampaign());setConfirmDelete(false);setOnboardingStep(1);})}>Delete everything</button><button onClick={()=>setConfirmDelete(false)}>Keep it</button></div>
         : <button className="danger" onClick={()=>setConfirmDelete(true)}>Delete local Atlas</button>}
     </article>
     <article className="empty reveal"><span className="eyebrow">LEVEL 8 REVEAL</span><h2>Detailed character turnaround</h2><p>{atMaxLevel ? 'You have reached the level that unlocks it. The full canonical turnaround lands in a later pass.' : 'The canonical Greyson turnaround is reserved for the Level 8 reveal.'}</p></article>
   </section>;
 
+  const handleOnboardingStart = () => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('atlas_onboarding_completed', 'true');
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+    dispatch({
+      type: 'ONBOARDING_COMPLETED',
+      sass: onboardingSass,
+      voiceMode: onboardingMode === 'talk' ? 'talk' : 'text'
+    });
+    setVoiceMode(onboardingMode);
+    setScreen('map');
+  };
+
+  const renderOnboarding = () => (
+    <section className="onboarding-screen">
+      {onboardingStep === 1 && (
+        <article className="card onboarding-card" data-testid="onboarding-step-1">
+          <span className="eyebrow">THE GREYSON MAP</span>
+          <h1>Atlas of One</h1>
+          <p className="onboarding-intro">
+            An adaptive personality cartography expedition. Explore uncharted territories of yourself through conversation, unlock insights, and chart your inner landscape.
+          </p>
+          <div className="onboarding-actions">
+            <button
+              className="primary"
+              data-testid="onboarding-begin"
+              onClick={() => setOnboardingStep(2)}
+            >
+              Begin
+            </button>
+          </div>
+        </article>
+      )}
+
+      {onboardingStep === 2 && (
+        <article className="card onboarding-card" data-testid="onboarding-step-2">
+          <span className="eyebrow">STEP 1 OF 3</span>
+          <h2>Cartographer Sass</h2>
+          <p className="onboarding-desc">
+            Choose how direct or sharp the Cartographer should be. You can adjust this anytime in settings.
+          </p>
+          <div className="onboarding-choices">
+            <button
+              type="button"
+              className={`onboarding-choice ${onboardingSass === 'low' ? 'active' : ''}`}
+              data-testid="onboarding-sass-low"
+              aria-pressed={onboardingSass === 'low'}
+              onClick={() => setOnboardingSass('low')}
+            >
+              <strong>Low</strong>
+              <span>Gentle and measured guidance.</span>
+            </button>
+            <button
+              type="button"
+              className={`onboarding-choice ${onboardingSass === 'medium' ? 'active' : ''}`}
+              data-testid="onboarding-sass-medium"
+              aria-pressed={onboardingSass === 'medium'}
+              onClick={() => setOnboardingSass('medium')}
+            >
+              <strong>Medium</strong>
+              <span>Balanced with a light playful edge.</span>
+            </button>
+            <button
+              type="button"
+              className={`onboarding-choice ${onboardingSass === 'risks-understood' ? 'active' : ''}`}
+              data-testid="onboarding-sass-risks"
+              aria-pressed={onboardingSass === 'risks-understood'}
+              onClick={() => setOnboardingSass('risks-understood')}
+            >
+              <strong>I Understand the Risks</strong>
+              <span>Full unfiltered candor and challenge.</span>
+            </button>
+          </div>
+          <div className="onboarding-actions">
+            <button
+              className="primary"
+              data-testid="onboarding-next-sass"
+              onClick={() => setOnboardingStep(3)}
+            >
+              Next
+            </button>
+          </div>
+        </article>
+      )}
+
+      {onboardingStep === 3 && (
+        <article className="card onboarding-card" data-testid="onboarding-step-3">
+          <span className="eyebrow">STEP 2 OF 3</span>
+          <h2>Interaction Mode</h2>
+          <p className="onboarding-desc">
+            Choose how you would like to explore. You can switch freely between voice and typing anytime on the Talk screen.
+          </p>
+          <div className="onboarding-choices">
+            <button
+              type="button"
+              className={`onboarding-choice ${onboardingMode === 'talk' ? 'active' : ''}`}
+              data-testid="onboarding-mode-talk"
+              aria-pressed={onboardingMode === 'talk'}
+              onClick={() => setOnboardingMode('talk')}
+            >
+              <strong>Talk</strong>
+              <span>Spoken conversation via microphone and speech synthesis.</span>
+            </button>
+            <button
+              type="button"
+              className={`onboarding-choice ${onboardingMode === 'type' ? 'active' : ''}`}
+              data-testid="onboarding-mode-type"
+              aria-pressed={onboardingMode === 'type'}
+              onClick={() => setOnboardingMode('type')}
+            >
+              <strong>Type</strong>
+              <span>Written conversation via standard keyboard input.</span>
+            </button>
+          </div>
+          <div className="onboarding-actions">
+            <button
+              className="primary"
+              data-testid="onboarding-next-mode"
+              onClick={() => setOnboardingStep(4)}
+            >
+              Next
+            </button>
+          </div>
+        </article>
+      )}
+
+      {onboardingStep === 4 && (
+        <article className="card onboarding-card" data-testid="onboarding-step-4">
+          <span className="eyebrow">STEP 3 OF 3</span>
+          <h2>Permanent Controls</h2>
+          <p className="onboarding-desc">
+            You are always in control. These commands are permanently available at every step and never cost XP or progress:
+          </p>
+          <ul className="onboarding-agency-list">
+            <li>
+              <strong>Pass</strong>
+              <span>Skip any question without penalty or forced explanation.</span>
+            </li>
+            <li>
+              <strong>Private</strong>
+              <span>Mark the topic private. It is never revisited and never leaves your device.</span>
+            </li>
+            <li>
+              <strong>Stop</strong>
+              <span>Pause the session immediately. Nothing advances until you resume.</span>
+            </li>
+            <li>
+              <strong>Serious</strong>
+              <span>Enter quiet, respectful mode. Celebratory effects are instantly suppressed.</span>
+            </li>
+          </ul>
+          <p className="onboarding-subnote">
+            Help and Sass adjustments are also always available in the action bar.
+          </p>
+          <div className="onboarding-actions">
+            <button
+              className="primary"
+              data-testid="onboarding-next-agency"
+              onClick={() => setOnboardingStep(5)}
+            >
+              Next
+            </button>
+          </div>
+        </article>
+      )}
+
+      {onboardingStep === 5 && (
+        <article className="card onboarding-card" data-testid="onboarding-step-5">
+          <span className="eyebrow">EXPEDITION READY</span>
+          <h2>Start Your Expedition</h2>
+          <p className="onboarding-desc">
+            Your map begins in the territory of Identity. Take your time, explore at your own pace, and chart what feels true.
+          </p>
+          <div className="onboarding-actions">
+            <button
+              className="primary"
+              data-testid="onboarding-start"
+              onClick={handleOnboardingStart}
+            >
+              Start
+            </button>
+          </div>
+        </article>
+      )}
+    </section>
+  );
+
+  const isCompletedLocally = typeof window !== 'undefined' && window.localStorage?.getItem('atlas_onboarding_completed') === 'true';
+  const showOnboarding = hydrated && !state.onboardingCompleted && !isCompletedLocally && state.turns.length === 0;
+
   return <div className="shell">
     {message&&<div className="toast" role="status">{message}<button aria-label="Dismiss" onClick={()=>setMessage('')}>×</button></div>}
-    {notices.length>0&&<div className="overlay"><article className="unlock"><span className="eyebrow">MAP UPDATED</span><h2>{notices[0].title}</h2><p>{notices[0].detail}</p><button className="primary" onClick={()=>dispatch({type:'PRESENTATION_QUEUE_CLEARED'})}>Continue</button></article></div>}
-    {screen==='map'?renderMap():screen==='talk'?renderTalk():screen==='vault'?renderVault():renderMe()}
-    <nav aria-label="Main">{(['map','talk','vault','me'] as Screen[]).map((item)=><button key={item} className={screen===item?'active':''} aria-current={screen===item?'page':undefined} onClick={()=>setScreen(item)}><span aria-hidden="true">{item==='map'?'⌖':item==='talk'?'◉':item==='vault'?'▤':'☗'}</span><small>{item==='me'?'Me':item[0].toUpperCase()+item.slice(1)}</small></button>)}</nav>
+    {showOnboarding ? (
+      renderOnboarding()
+    ) : (
+      <>
+        {notices.length>0&&<div className="overlay"><article className="unlock"><span className="eyebrow">MAP UPDATED</span><h2>{notices[0].title}</h2><p>{notices[0].detail}</p><button className="primary" onClick={()=>dispatch({type:'PRESENTATION_QUEUE_CLEARED'})}>Continue</button></article></div>}
+        {screen==='map'?renderMap():screen==='talk'?renderTalk():screen==='vault'?renderVault():renderMe()}
+        <nav aria-label="Main">{(['map','talk','vault','me'] as Screen[]).map((item)=><button key={item} className={screen===item?'active':''} aria-current={screen===item?'page':undefined} onClick={()=>setScreen(item)}><span aria-hidden="true">{item==='map'?'⌖':item==='talk'?'◉':item==='vault'?'▤':'☗'}</span><small>{item==='me'?'Me':item[0].toUpperCase()+item.slice(1)}</small></button>)}</nav>
+      </>
+    )}
   </div>;
 }

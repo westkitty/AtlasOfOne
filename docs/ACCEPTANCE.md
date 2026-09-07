@@ -135,3 +135,13 @@ These are product invariants, not suggestions. Synthetic automated tests should 
 - [x] Epistemic rigor: 3-way separation of established evidence, supported inferences (with confidence levels), and open questions/uncertainty across all core domains.
 - [x] Zero progression authority: Final Assessment emits `FINAL_ASSESSMENT_SET` with 0 XP, 0 level change, and 0 territory/unlock change.
 - [x] Browser presentation and print export: Final Assessment UI rendered on Me screen, 0 horizontal overflow at 320px, and `@media print` styles format clean Save as PDF.
+
+## Greyson Onboarding and First-Run Handoff (Phase 6)
+
+- [x] Canonical minimal onboarding flow: 5-step sequence (1. Begin, 2. Sass: Low/Medium/Risks, 3. Mode: Talk/Type, 4. Agency controls: Pass/Private/Stop/Serious, 5. Start).
+- [x] Zero progression impact: Onboarding completes with 0 XP, Level 1, 0 unlocks, 0 territories.
+- [x] Dual local persistence: `state.onboardingCompleted` (IndexedDB) + `localStorage.atlas_onboarding_completed` prevents re-prompting on campaign re-import.
+- [x] Pre-existing campaigns (with turns or existing state) backward-compatible bypass.
+- [x] Real-browser verification: 0 horizontal overflow at 320px, >=44px touch targets, keyboard navigation, reload persistence in Chrome.
+- [x] Production access secret securely rotated, loaded in Worker secret, stored in macOS Keychain, and copied to system clipboard.
+- [ ] Physical Android device install and hardware verification (UNV-003: NOT VERIFIED — NO REACHABLE DEVICE).
