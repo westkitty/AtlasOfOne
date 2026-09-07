@@ -202,6 +202,9 @@ describe('Atlas browser journey', () => {
     expect((await download).suggestedFilename()).toMatch(/^atlas-of-one-.*\.atlas\.json$/);
 
     await page.click('button:text("Delete local Atlas")');
+    // Destructive delete now takes a deliberate second tap.
+    expect(await page.isVisible('button:text-is("Delete everything")')).toBe(true);
+    await page.click('button:text-is("Delete everything")');
     await goto('Map');
     await expect.poll(xpOf).toBe(0);
 
@@ -253,6 +256,39 @@ describe('Atlas browser journey', () => {
     }
     await goto('Talk');
     expect(await page.isVisible('[data-testid="agency"]')).toBe(true);
+    await page.setViewportSize(PHONE);
+  });
+
+  it('19b. mobile polish holds: no overflow on any screen, reachable controls, fixed nav clears content', async () => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    for (const screen of ['Map', 'Talk', 'Vault', 'Me']) {
+      await goto(screen);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `no horizontal overflow on ${screen} at 320px`).toBeLessThanOrEqual(0);
+    }
+
+    // Every permanent control is a real 44px+ target.
+    await goto('Talk');
+    for (const control of ['pass', 'private', 'stop', 'serious', 'help', 'sass']) {
+      const box = (await page.locator(`[data-testid="agency-${control}"]`).boundingBox())!;
+      expect(box.height, `${control} height`).toBeGreaterThanOrEqual(44);
+      expect(box.width, `${control} width`).toBeGreaterThanOrEqual(44);
+    }
+
+    // The fixed bottom nav must never sit on top of the form controls: once
+    // scrolled to the end, the last permanent control clears the nav entirely.
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const lastControl = (await page.locator('[data-testid="agency-sass"]').boundingBox())!;
+    const navBox = (await page.locator('nav').boundingBox())!;
+    expect(lastControl.y + lastControl.height).toBeLessThanOrEqual(navBox.y + 1);
+
+    // Long question text stays inside the viewport.
+    const promptOverflow = await page.evaluate(() => {
+      const h2 = document.querySelector('.prompt h2') as HTMLElement | null;
+      return h2 ? h2.getBoundingClientRect().right - document.documentElement.clientWidth : -1;
+    });
+    expect(promptOverflow).toBeLessThanOrEqual(0);
+
     await page.setViewportSize(PHONE);
   });
 

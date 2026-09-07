@@ -206,6 +206,38 @@ describe('Mystery Door in the browser', () => {
     expect(await page.isVisible('[data-testid="start-boss-values"]')).toBe(false);
   });
 
+  it('stays laid out and controllable inside a Door at a 320px viewport', async () => {
+    await ensureNoEncounter();
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.locator('[data-testid^="open-door_"]').first().click();
+    await page.waitForSelector('[data-testid="encounter-door"]');
+
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, 'no horizontal overflow in a Door at 320px').toBeLessThanOrEqual(0);
+
+    // The long crossing question must not spill past the viewport edge.
+    const questionOverflow = await page.evaluate(() => {
+      const h2 = document.querySelector('.encounter h2') as HTMLElement;
+      return h2.getBoundingClientRect().right - document.documentElement.clientWidth;
+    });
+    expect(questionOverflow).toBeLessThanOrEqual(0);
+
+    // Permanent controls remain usable inside the encounter at this width.
+    for (const control of ['pass', 'private', 'stop', 'serious', 'help', 'sass']) {
+      const box = (await page.locator(`[data-testid="agency-${control}"]`).boundingBox())!;
+      expect(box.height, `${control} height`).toBeGreaterThanOrEqual(44);
+    }
+
+    // Scrolled to the end, the leave control clears the fixed bottom nav.
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const leave = (await page.locator('[data-testid="encounter-leave"]').boundingBox())!;
+    const navBox = (await page.locator('nav').boundingBox())!;
+    expect(leave.y + leave.height).toBeLessThanOrEqual(navBox.y + 1);
+
+    await page.click('[data-testid="encounter-leave"]');
+    await page.setViewportSize({ width: 390, height: 844 });
+  });
+
   it('raises no unhandled page errors across the encounter flows', () => {
     expect(pageErrors).toEqual([]);
   });

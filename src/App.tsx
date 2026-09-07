@@ -2,12 +2,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { createMockTurn, describeBossStage, describeDoor, doorInsightFrom, encounterTurnRecord, getMockPrompt, recordsFromMockTurn } from './cartographer/mock';
 import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefinition, currentBossStage } from './game/encounters';
 import { applyGameEvents, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
-import type { CampaignState, GameEvent, SassLevel } from './game/types';
+import type { CampaignState, GameEvent, SassLevel, TerritoryStatus } from './game/types';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
 import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
 
 type Screen = 'map'|'talk'|'vault'|'me';
 const GREYSON_MAP_SPRITE = '/assets/greyson/map/idle-front.png';
+
+/** Short player-facing words for each fog-of-war state. */
+const STATUS_WORD: Record<TerritoryStatus, string> = {
+  fogged: 'Fogged', discovered: 'Discovered', exploring: 'Exploring', charted: 'Charted', 'deeply-charted': 'Deeply charted'
+};
+/** A glyph per state so the map reads without relying on colour alone. */
+const STATUS_MARK: Record<TerritoryStatus, string> = {
+  fogged: '▓', discovered: '○', exploring: '◔', charted: '◆', 'deeply-charted': '★'
+};
 
 export default function App() {
   const [state, setState] = useState<CampaignState>(() => createInitialCampaign());
@@ -16,12 +25,15 @@ export default function App() {
   const [reply, setReply] = useState('');
   const [answer, setAnswer] = useState('');
   const [message, setMessage] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const prompt = useMemo(() => getMockPrompt(state), [state]);
   const dispatch = (...events: GameEvent[]) => setState((current) => applyGameEvents(current, events));
 
   useEffect(() => { let live = true; void loadCampaign().then((saved) => { if (live && saved) setState(saved); }).catch(() => setMessage('Local save could not be read.')).finally(() => { if (live) setHydrated(true); }); return () => { live = false; }; }, []);
   useEffect(() => { if (hydrated) void saveCampaign(state).catch(() => setMessage('Automatic save failed. Export before leaving.')); }, [state, hydrated]);
   useEffect(() => { document.documentElement.dataset.reducedMotion = String(state.settings.reducedMotion); }, [state.settings.reducedMotion]);
+  // Toasts are transient status, not a panel: clear them after a few seconds.
+  useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 6000); return () => window.clearTimeout(timer); }, [message]);
 
   const submit = () => {
     if (!answer.trim() || state.sessionStatus === 'paused') return;
@@ -59,47 +71,192 @@ export default function App() {
   const leaveEncounter = () => { dispatch(encounter?.kind === 'boss' ? { type: 'BOSS_WITHDRAWN' } : { type: 'DOOR_CLOSED' }); setReply('Stepped back. Nothing was lost.'); setAnswer(''); };
 
   const xp = xpIntoCurrentLevel(state);
+  const atMaxLevel = state.level >= 8;
+  const xpPercent = Math.max(0, Math.min(100, (xp.current / xp.required) * 100));
   const openBosses = availableBosses(state);
   const openDoors = availableDoors(state);
   const activeTerritory = state.territories.find((item) => item.id === state.activeTerritory) ?? state.territories[0];
+  const activeRemaining = activeTerritory.requiredDimensions.length - activeTerritory.coveredDimensions.length;
   const quest = state.quests.find((item) => item.id === state.activeQuest);
   const notices = state.presentation === 'normal' ? state.presentationQueue : [];
+  const quiet = state.presentation === 'quiet';
+
+  // Level and XP shown as one unit so progress is legible on Map and Me.
+  const renderProgress = () => <div className="xp">
+    <div className="xp-head">
+      <span>XP {state.xp}</span>
+      <b className="level">L{state.level}</b>
+      <span className="xp-into">{atMaxLevel ? 'Highest level reached' : `${xp.current} / ${xp.required} to L${state.level + 1}`}</span>
+    </div>
+    <div className="xp-track"><i style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></div>
+  </div>;
 
   // The six permanent controls. They are rendered identically for ordinary
   // encounters, Boss Fights and Mystery Doors, and never depend on progression.
-  const renderAgency = (onPass: () => void, privateDimension: string) => <div className="agency" data-testid="agency">
-    <button data-testid="agency-pass" onClick={onPass}>PASS</button>
-    <button data-testid="agency-private" onClick={()=>{dispatch({type:'PRIVATE_TOPIC_ADDED',topic:privateDimension});setReply('Private. I will not intentionally return to that dimension.');}}>PRIVATE</button>
-    <button data-testid="agency-stop" onClick={()=>dispatch({type:'SESSION_SET',status:state.sessionStatus==='paused'?'active':'paused'})}>{state.sessionStatus==='paused'?'RESUME':'STOP'}</button>
-    <button data-testid="agency-serious" onClick={()=>{dispatch({type:'PRESENTATION_SET',mode:'quiet'});setReply('Serious mode. Plain language; no fanfare.');}}>SERIOUS</button>
-    <button data-testid="agency-help" onClick={()=>setMessage('PASS skips. PRIVATE closes a topic. STOP pauses. SERIOUS suppresses fanfare. Sass is always adjustable.')}>HELP</button>
-    <button data-testid="agency-sass" onClick={()=>dispatch({type:'SASS_SET',sass:state.settings.sass==='low'?'medium':state.settings.sass==='medium'?'risks-understood':'low'})}>SASS</button>
+  // PRIVATE / STOP / SERIOUS carry a steadier "protective" style; PASS / HELP /
+  // SASS are quieter utilities. All stay >=44px and always visible.
+  const renderAgency = (onPass: () => void, privateDimension: string) => <div className="agency" data-testid="agency" role="group" aria-label="Always-available controls">
+    <button className="agency-util" data-testid="agency-pass" onClick={onPass}>PASS</button>
+    <button className="agency-protect" data-testid="agency-private" onClick={()=>{dispatch({type:'PRIVATE_TOPIC_ADDED',topic:privateDimension});setReply('Private. I will not intentionally return to that dimension.');}}>PRIVATE</button>
+    <button className={`agency-protect${state.sessionStatus==='paused'?' is-active':''}`} data-testid="agency-stop" aria-pressed={state.sessionStatus==='paused'} onClick={()=>dispatch({type:'SESSION_SET',status:state.sessionStatus==='paused'?'active':'paused'})}>{state.sessionStatus==='paused'?'RESUME':'STOP'}</button>
+    <button className={`agency-protect${quiet?' is-active':''}`} data-testid="agency-serious" aria-pressed={quiet} onClick={()=>{dispatch({type:'PRESENTATION_SET',mode:'quiet'});setReply('Serious mode. Plain language; no fanfare.');}}>SERIOUS</button>
+    <button className="agency-util" data-testid="agency-help" onClick={()=>setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}>HELP</button>
+    <button className="agency-util" data-testid="agency-sass" onClick={()=>dispatch({type:'SASS_SET',sass:state.settings.sass==='low'?'medium':state.settings.sass==='medium'?'risks-understood':'low'})}>SASS</button>
   </div>;
 
-  const renderEncounter = () => encounter && <section className="screen" data-testid={`encounter-${encounter.kind}`}>
+  const renderEncounter = () => encounter && <section className="screen encounter-screen" data-testid={`encounter-${encounter.kind}`}>
     <div className="eyebrow">{encounter.kind==='boss'?'BOSS FIGHT':'MYSTERY DOOR'}</div>
-    <header><div><h1>{encounter.heading}</h1><p>{encounter.step} · resolved by the game engine, not the Cartographer</p></div><span className="chip">{state.presentation}</span></header>
+    <header>
+      <div>
+        <h1 className="screen-title">{encounter.kind==='door' ? encounter.title : encounter.heading}</h1>
+        <p>{encounter.step}{encounter.kind==='boss' ? ' · your own mapped positions, put under load' : ' · optional to open, safe to close'}</p>
+      </div>
+      {quiet && <span className="chip">{state.presentation}</span>}
+    </header>
+    {encounter.kind==='boss' && bossRun && <ol className="stage-track" aria-label={`Boss Fight progress: ${encounter.step}`}>
+      {bossRun.stages.map((stage, index) => {
+        const current = bossRun.stages.indexOf(bossStage!) === index;
+        const cleared = stage.outcome !== 'pending';
+        return <li key={stage.id} className={cleared?'done':current?'now':'next'} aria-current={current?'step':undefined}><span aria-hidden="true">{cleared?'✓':index+1}</span></li>;
+      })}
+    </ol>}
+    {encounter.kind==='door' && doorRun && <div className="crossing" aria-hidden="true">
+      <span>{territoryLabels[doorRun.territoryIds[0]] ?? doorRun.territoryIds[0]}</span><i>⟷</i><span>{territoryLabels[doorRun.territoryIds[1]] ?? doorRun.territoryIds[1]}</span>
+    </div>}
     <article className={`card encounter ${encounter.kind}`}>
-      {reply && <p className="reply">{reply}</p>}
+      {reply && <p className="reply" role="status">{reply}</p>}
       <h2>{encounter.question}</h2>
-      {encounter.evidenceClaims.length>0 && <ul className="evidence-list">{encounter.evidenceClaims.map((claim,index)=><li key={index}>{claim}</li>)}</ul>}
-      <small>Drawn from evidence you already mapped. Dimension: {encounter.dimension}</small>
+      {encounter.evidenceClaims.length>0 && <><p className="evidence-caption">From evidence you already mapped</p><ul className="evidence-list">{encounter.evidenceClaims.map((claim,index)=><li key={index}>{claim}</li>)}</ul></>}
+      <small>Dimension: {encounter.dimension}</small>
     </article>
     {state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}
-    <label className="answer">Your position<textarea rows={6} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="encounter-input" /></label>
+    <label className="answer">Your position<textarea rows={4} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="encounter-input" /></label>
     <button className="primary full" data-testid="encounter-submit" onClick={submitEncounter} disabled={!answer.trim()||state.sessionStatus==='paused'}>{encounter.kind==='boss'?'Hold this position':'Walk through'}</button>
     <button className="full leave" data-testid="encounter-leave" onClick={leaveEncounter}>{encounter.kind==='boss'?'Step back for now':'Close the door for now'}</button>
+    <p className="safe-note">PASS clears {encounter.kind==='boss'?'a stage':'this crossing'} at no cost. Stepping back keeps every point you have earned.</p>
     {renderAgency(()=>{dispatch(encounter.kind==='boss'?{type:'BOSS_STAGE_PASSED'}:{type:'DOOR_CLOSED'});setReply('Passed. No penalty, no cost.');setAnswer('');}, encounter.dimension)}
   </section>;
 
-  const renderMap = () => <section className="screen"><div className="eyebrow">THE GREYSON MAP</div><header><div><h1>Atlas of One</h1><p>One person. More territory than a questionnaire can survive.</p></div><b className="level">L{state.level}</b></header><div className="xp"><span>XP {state.xp}</span><div><i style={{width:`${Math.min(100,(xp.current/xp.required)*100)}%`}} /></div></div><div className="map"><div className="avatar"><img src={GREYSON_MAP_SPRITE} alt="Greyson map avatar" draggable={false}/></div>{state.territories.map((territory) => <button key={territory.id} className={`territory ${territory.id===state.activeTerritory?'active':''}`} onClick={() => dispatch({type:'ACTIVE_TERRITORY_SET',territoryId:territory.id})}><strong>{territory.label}</strong><small>{territory.status} · {territory.coveredDimensions.length}/{territory.requiredDimensions.length}</small></button>)}</div><article className="card"><span className="eyebrow">CURRENT TERRITORY</span><h2>{activeTerritory.label}</h2><p>{activeTerritory.coveredDimensions.length} dimensions mapped.</p><button className="primary" onClick={() => setScreen('talk')}>Continue encounter</button></article><article className="quest"><b>◆</b><div><span className="eyebrow">CURRENT QUEST</span><strong>{quest?.label ?? 'No active quest'}</strong><small>{quest ? `${quest.progress}/${quest.target} · ${quest.description}` : ''}</small></div></article>{(openBosses.length>0||openDoors.length>0||encounter)&&<article className="card encounters" data-testid="encounter-offers"><span className="eyebrow">OPEN ENCOUNTERS</span><p>Earned from territory you have already mapped.</p>{encounter&&<button className="primary full" data-testid="resume-encounter" onClick={()=>setScreen('talk')}>Resume {encounter.heading}</button>}{!encounter&&openBosses.map((boss)=>{const run=state.bossRuns.find((item)=>item.bossId===boss.id&&item.status==='active');const done=run?run.stages.filter((stage)=>stage.outcome!=='pending').length:0;return <button key={boss.id} className="offer boss" data-testid={`start-${boss.id}`} onClick={()=>{dispatch({type:'BOSS_STARTED',bossId:boss.id});setReply('');setScreen('talk');}}><strong>▲ {run?'Resume: ':''}{boss.label}</strong><small>{run?`Stage ${done+1} of ${run.stages.length} · progress kept`:boss.description}</small></button>;})}{!encounter&&openDoors.slice(0,3).map((door)=><button key={door.doorId} className="offer door" data-testid={`open-${door.doorId}`} onClick={()=>{dispatch({type:'DOOR_OPENED',doorId:door.doorId});setReply('');setScreen('talk');}}><strong>◈ {territoryLabels[door.territoryIds[0]]} × {territoryLabels[door.territoryIds[1]]}</strong><small>A crossing between two mapped regions.</small></button>)}</article>}</section>;
+  const renderMap = () => <section className="screen">
+    <div className="eyebrow">THE GREYSON MAP</div>
+    <header><div><h1>Atlas of One</h1><p>One person. More territory than a questionnaire can survive.</p></div></header>
+    {renderProgress()}
+    <article className="quest-card">
+      <b aria-hidden="true">◆</b>
+      <div>
+        <span className="eyebrow">CURRENT QUEST</span>
+        <strong>{quest?.label ?? 'Every territory charted'}</strong>
+        {quest
+          ? <><small>{quest.description}</small><div className="quest-track"><i style={{width:`${Math.min(100,(quest.progress/quest.target)*100)}%`}} /></div><small className="quest-count">{quest.progress} / {quest.target}</small></>
+          : <small>Nothing outstanding. Open an encounter, or keep mapping.</small>}
+      </div>
+    </article>
+    <div className="map">
+      <div className="map-here">
+        <div className="avatar"><img src={GREYSON_MAP_SPRITE} alt="Greyson map avatar" draggable={false}/></div>
+        <div><span className="eyebrow">YOU ARE HERE</span><strong>{activeTerritory.label}</strong><small>{STATUS_WORD[activeTerritory.status]}</small></div>
+      </div>
+      <div className="territory-grid">
+        {state.territories.map((territory) => <button key={territory.id} className={`territory t-${territory.status}${territory.id===state.activeTerritory?' active':''}`} aria-current={territory.id===state.activeTerritory?'true':undefined} onClick={() => dispatch({type:'ACTIVE_TERRITORY_SET',territoryId:territory.id})}>
+          <span className="t-mark" aria-hidden="true">{STATUS_MARK[territory.status]}</span>
+          <strong>{territory.label}</strong>
+          <small>{STATUS_WORD[territory.status]} · {territory.coveredDimensions.length}/{territory.requiredDimensions.length}</small>
+        </button>)}
+      </div>
+    </div>
+    <article className="card current-territory">
+      <span className="eyebrow">CURRENT TERRITORY</span>
+      <h2>{activeTerritory.label}</h2>
+      <p>{activeTerritory.coveredDimensions.length} of {activeTerritory.requiredDimensions.length} dimensions mapped{activeRemaining>0?` · ${activeRemaining} to go`:' · fully charted'}.</p>
+      <button className="primary" onClick={() => setScreen('talk')}>{activeTerritory.coveredDimensions.length===0?'Start mapping':'Continue encounter'}</button>
+    </article>
+    {(openBosses.length>0||openDoors.length>0||encounter)&&<article className="card encounters" data-testid="encounter-offers">
+      <span className="eyebrow">OPEN ENCOUNTERS</span>
+      <p>Earned from territory you have already mapped. All optional.</p>
+      {encounter&&<button className="primary full" data-testid="resume-encounter" onClick={()=>setScreen('talk')}>Resume {encounter.kind==='door'?encounter.title:encounter.heading}</button>}
+      {!encounter&&openBosses.map((boss)=>{const run=state.bossRuns.find((item)=>item.bossId===boss.id&&item.status==='active');const done=run?run.stages.filter((stage)=>stage.outcome!=='pending').length:0;return <button key={boss.id} className="offer boss" data-testid={`start-${boss.id}`} onClick={()=>{dispatch({type:'BOSS_STARTED',bossId:boss.id});setReply('');setScreen('talk');}}><span className="offer-tag" aria-hidden="true">▲ BOSS</span><strong>{run?'Resume: ':''}{boss.label}</strong><small>{run?`Stage ${done+1} of ${run.stages.length} · progress kept`:boss.description}</small></button>;})}
+      {!encounter&&openDoors.slice(0,3).map((door)=><button key={door.doorId} className="offer door" data-testid={`open-${door.doorId}`} onClick={()=>{dispatch({type:'DOOR_OPENED',doorId:door.doorId});setReply('');setScreen('talk');}}><span className="offer-tag" aria-hidden="true">◈ DOOR</span><strong>{territoryLabels[door.territoryIds[0]]} × {territoryLabels[door.territoryIds[1]]}</strong><small>What connects these two regions that neither shows alone.</small></button>)}
+    </article>}
+  </section>;
 
-  const renderTalk = () => encounter ? renderEncounter() : <section className="screen"><div className="eyebrow">ENCOUNTER · {activeTerritory.label.toUpperCase()}</div><header><div><h1>The Cartographer</h1><p>Mock mode · deterministic game engine</p></div><span className="chip">{state.presentation}</span></header><article className="card prompt">{reply && <p className="reply">{reply}</p>}<h2>{prompt.question}</h2><small>Evidence dimension: {prompt.dimension}</small></article>{state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}<label className="answer">Your coordinate<textarea rows={6} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} /></label><button className="primary full" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'}>Map this answer</button>{renderAgency(()=>setReply('Passed. No penalty.'), prompt.dimension)}</section>;
+  const renderTalk = () => encounter ? renderEncounter() : <section className="screen">
+    <div className="eyebrow">ENCOUNTER · {activeTerritory.label.toUpperCase()}</div>
+    <header><div><h1 className="screen-title">The Cartographer</h1><p>Mapping {activeTerritory.label.toLowerCase()} with you, one coordinate at a time.</p></div>{quiet && <span className="chip">{state.presentation}</span>}</header>
+    <article className="card prompt">{reply && <p className="reply" role="status">{reply}</p>}<h2>{prompt.question}</h2><small>Evidence dimension: {prompt.dimension}</small></article>
+    {state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}
+    <label className="answer">Your coordinate<textarea rows={4} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} /></label>
+    <button className="primary full" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'}>Map this answer</button>
+    {renderAgency(()=>setReply('Passed. No penalty.'), prompt.dimension)}
+  </section>;
 
-  const renderVault = () => <section className="screen"><div className="eyebrow">LOCAL EVIDENCE VAULT</div><h1>Vault</h1><p>Evidence, fragments, contradictions, and things the map is not allowed to pretend it knows.</p><h2>Insight Cards</h2>{state.insights.length===0?<div className="empty">No insight cards yet. Correct.</div>:state.insights.slice().reverse().map((insight)=><article className="card" key={insight.id}><span className="eyebrow">{insight.confidence.toUpperCase()} · {insight.status}</span><h3>{insight.title}</h3><p>{insight.summary}</p>{insight.status==='pending'&&<div className="row"><button onClick={()=>dispatch({type:'INSIGHT_CONFIRMED',insightId:insight.id})}>ACCURATE</button><button onClick={()=>dispatch({type:'INSIGHT_REJECTED',insightId:insight.id})}>NOPE</button></div>}</article>)}<h2>Fragments</h2><div className="fragment-grid">{state.territories.map((t)=><div key={t.id}><b>{state.mapFragments.some((f)=>f.territoryId===t.id)?'◆':'◇'}</b><small>{t.label}</small></div>)}</div><h2>Achievements</h2>{state.achievements.filter((a)=>a.unlockedAt).map((a)=><article className="quest" key={a.id}><b>✦</b><div><strong>{a.label}</strong><small>{a.description}</small></div></article>)}</section>;
+  const fragmentCount = state.territories.filter((t)=>state.mapFragments.some((f)=>f.territoryId===t.id)).length;
+  const unlockedAchievements = state.achievements.filter((a)=>a.unlockedAt);
+  const pendingInsights = state.insights.filter((i)=>i.status==='pending');
+  const renderVault = () => <section className="screen">
+    <div className="eyebrow">LOCAL EVIDENCE VAULT</div>
+    <h1>Vault</h1>
+    <p>Evidence, fragments, contradictions, and things the map is not allowed to pretend it knows.</p>
+
+    <section className="vault-section">
+      <h2>Insight Cards <span className="count">{state.insights.length}</span></h2>
+      {state.insights.length===0
+        ? <div className="empty">No insight cards yet. They arrive as hypotheses once the map has something to guess with.</div>
+        : <>
+          {pendingInsights.length>0 && <p className="section-note">{pendingInsights.length} waiting on your call.</p>}
+          {state.insights.slice().reverse().map((insight)=><article className={`card insight${insight.status==='pending'?' is-pending':''}`} key={insight.id}>
+            <span className="eyebrow">{insight.confidence.toUpperCase()} · {insight.status}</span>
+            <h3>{insight.title}</h3>
+            <p>{insight.summary}</p>
+            {insight.status==='pending'&&<div className="row"><button className="ok" onClick={()=>dispatch({type:'INSIGHT_CONFIRMED',insightId:insight.id})}>Accurate</button><button onClick={()=>dispatch({type:'INSIGHT_REJECTED',insightId:insight.id})}>Not me</button></div>}
+          </article>)}
+        </>}
+    </section>
+
+    <section className="vault-section">
+      <h2>Fragments <span className="count">{fragmentCount} / {state.territories.length}</span></h2>
+      <div className="fragment-grid">{state.territories.map((t)=>{const has=state.mapFragments.some((f)=>f.territoryId===t.id);return <div key={t.id} className={has?'has':'missing'}><b aria-hidden="true">{has?'◆':'◇'}</b><small>{t.label}</small><small className="frag-state">{has?'Charted':'Not yet'}</small></div>;})}</div>
+    </section>
+
+    {state.contradictions.length>0 && <section className="vault-section">
+      <h2>Contradictions <span className="count">{state.contradictions.length}</span></h2>
+      {state.contradictions.map((c)=><article className="card" key={c.id}><h3>{c.claim}</h3><small>{c.status}</small></article>)}
+    </section>}
+
+    <section className="vault-section">
+      <h2>Achievements <span className="count">{unlockedAchievements.length} / {state.achievements.length}</span></h2>
+      {unlockedAchievements.length===0
+        ? <div className="empty">Nothing unlocked yet. Keep mapping.</div>
+        : unlockedAchievements.map((a)=><article className="quest-card compact" key={a.id}><b aria-hidden="true">✦</b><div><strong>{a.label}</strong><small>{a.description}</small></div></article>)}
+    </section>
+  </section>;
 
   const importFile = async (file?: File) => { if (!file) return; try { setState(deserializeCampaign(await file.text())); setMessage('Atlas imported and validated.'); setScreen('map'); } catch (error) { setMessage(error instanceof Error ? `Import rejected: ${error.message}` : 'Import rejected.'); } };
-  const renderMe = () => <section className="screen"><div className="eyebrow">CHARACTER RECORD</div><div className="profile"><div className="portrait"><img src={GREYSON_MAP_SPRITE} alt="Greyson character avatar" draggable={false}/></div><div><h1>Greyson</h1><p>{state.player.pronouns} · Level {state.level} · {state.xp} XP</p></div></div><div className="stats"><div><b>{state.evidence.filter((e)=>e.status==='active').length}</b><small>Evidence</small></div><div><b>{state.insights.filter((i)=>i.status==='confirmed').length}</b><small>Confirmed</small></div><div><b>{state.mapFragments.length}</b><small>Fragments</small></div><div><b>{state.unlocks.filter((u)=>u.unlockedAt).length}</b><small>Unlocks</small></div></div><article className="card settings"><h2>Cartographer</h2><label>Sass<select value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label></article><article className="card settings"><h2>Your Atlas</h2><button onClick={()=>downloadCampaign(state)}>Export Atlas</button><label className="file">Import Atlas<input type="file" accept="application/json,.json,.atlas" onChange={(e)=>void importFile(e.target.files?.[0])}/></label><button className="danger" onClick={()=>void deleteCampaign().then(()=>setState(createInitialCampaign()))}>Delete local Atlas</button></article><article className="empty"><span className="eyebrow">LEVEL 8 REVEAL</span><h2>Detailed character turnaround</h2><p>The canonical Aerron/Greyson turnaround is supplied and reserved for the later Character/Vault reveal pass.</p></article></section>;
+  const renderMe = () => <section className="screen">
+    <div className="eyebrow">CHARACTER RECORD</div>
+    <div className="profile"><div className="portrait"><img src={GREYSON_MAP_SPRITE} alt="Greyson character avatar" draggable={false}/></div><div><h1>Greyson</h1><p>{state.player.pronouns}</p></div></div>
+    {renderProgress()}
+    <div className="stats">
+      <div><b>{state.evidence.filter((e)=>e.status==='active').length}</b><small>Evidence</small></div>
+      <div><b>{state.insights.filter((i)=>i.status==='confirmed').length}</b><small>Confirmed insights</small></div>
+      <div><b>{state.mapFragments.length}</b><small>Fragments</small></div>
+      <div><b>{state.unlocks.filter((u)=>u.unlockedAt).length}</b><small>Unlocks</small></div>
+    </div>
+    <article className="card settings"><h2>Cartographer</h2><label>Sass<select value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label></article>
+    <article className="card settings"><h2>Your Atlas</h2><p className="settings-note">Everything lives on this device. Export a copy before you switch phones or clear data.</p><button onClick={()=>downloadCampaign(state)}>Export Atlas</button><label className="file">Import Atlas<input type="file" accept="application/json,.json,.atlas" onChange={(e)=>void importFile(e.target.files?.[0])}/></label></article>
+    <article className="card danger-zone">
+      <h2>Danger zone</h2>
+      <p className="settings-note">Deleting wipes this device's Atlas for good. Export first if you want to keep it.</p>
+      {confirmDelete
+        ? <div className="row"><button className="danger" onClick={()=>void deleteCampaign().then(()=>{setState(createInitialCampaign());setConfirmDelete(false);})}>Delete everything</button><button onClick={()=>setConfirmDelete(false)}>Keep it</button></div>
+        : <button className="danger" onClick={()=>setConfirmDelete(true)}>Delete local Atlas</button>}
+    </article>
+    <article className="empty reveal"><span className="eyebrow">LEVEL 8 REVEAL</span><h2>Detailed character turnaround</h2><p>{atMaxLevel ? 'You have reached the level that unlocks it. The full canonical turnaround lands in a later pass.' : 'The canonical Greyson turnaround is reserved for the Level 8 reveal.'}</p></article>
+  </section>;
 
-  return <div className="shell">{message&&<div className="toast">{message}<button onClick={()=>setMessage('')}>×</button></div>}{notices.length>0&&<div className="overlay"><article className="unlock"><span className="eyebrow">MAP UPDATED</span><h2>{notices[0].title}</h2><p>{notices[0].detail}</p><button className="primary" onClick={()=>dispatch({type:'PRESENTATION_QUEUE_CLEARED'})}>Continue</button></article></div>}{screen==='map'?renderMap():screen==='talk'?renderTalk():screen==='vault'?renderVault():renderMe()}<nav>{(['map','talk','vault','me'] as Screen[]).map((item)=><button key={item} className={screen===item?'active':''} onClick={()=>setScreen(item)}><span>{item==='map'?'⌖':item==='talk'?'◉':item==='vault'?'◆':'◇'}</span><small>{item==='me'?'Me':item[0].toUpperCase()+item.slice(1)}</small></button>)}</nav></div>;
+  return <div className="shell">
+    {message&&<div className="toast" role="status">{message}<button aria-label="Dismiss" onClick={()=>setMessage('')}>×</button></div>}
+    {notices.length>0&&<div className="overlay"><article className="unlock"><span className="eyebrow">MAP UPDATED</span><h2>{notices[0].title}</h2><p>{notices[0].detail}</p><button className="primary" onClick={()=>dispatch({type:'PRESENTATION_QUEUE_CLEARED'})}>Continue</button></article></div>}
+    {screen==='map'?renderMap():screen==='talk'?renderTalk():screen==='vault'?renderVault():renderMe()}
+    <nav aria-label="Main">{(['map','talk','vault','me'] as Screen[]).map((item)=><button key={item} className={screen===item?'active':''} aria-current={screen===item?'page':undefined} onClick={()=>setScreen(item)}><span aria-hidden="true">{item==='map'?'⌖':item==='talk'?'◉':item==='vault'?'▤':'☗'}</span><small>{item==='me'?'Me':item[0].toUpperCase()+item.slice(1)}</small></button>)}</nav>
+  </div>;
 }
