@@ -315,22 +315,23 @@ p { color: var(--muted); line-height: 1.5; margin: .4rem 0; }
 }
 .portrait img { width: 66px; height: 88px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 6px 4px #0008); }
 
-.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px; }
-.stats div { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #111923; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.stats div { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #111923; }
 .stats b { display: block; font-size: 1.5rem; color: var(--gold-soft); }
 .stats small { display: block; color: var(--muted); font-size: .74rem; }
 
-.settings { display: grid; gap: 12px; }
-.settings label { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 700; }
+.settings { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.settings > * { min-width: 0; }
+.settings label { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 700; min-width: 0; }
 .settings-note { margin: 0; font-size: .8rem; }
-.settings select { max-width: 62%; background: #0e151e; color: var(--ink); border: 1px solid var(--line-soft); border-radius: 9px; padding: 8px; }
+.settings select { min-width: 0; max-width: 62%; background: #0e151e; color: var(--ink); border: 1px solid var(--line-soft); border-radius: 9px; padding: 8px; }
 .settings button, .file {
   min-height: 46px; border: 1px solid var(--line-soft); border-radius: 10px;
   background: #121a25; padding: 10px; font-size: .8rem; font-weight: 800; text-align: center;
 }
 .file { position: relative; display: block; }
 .file input {
-  position: absolute; width: 1px; height: 1px;
+  position: absolute; top: 0; left: 0; width: 1px; height: 1px;
   padding: 0; margin: 0; overflow: hidden; opacity: 0;
   clip: rect(0 0 0 0); clip-path: inset(50%); pointer-events: none;
 }

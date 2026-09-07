@@ -263,8 +263,18 @@ describe('Atlas browser journey', () => {
     await page.setViewportSize({ width: 320, height: 640 });
     for (const screen of ['Map', 'Talk', 'Vault', 'Me']) {
       await goto(screen);
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      expect(overflow, `no horizontal overflow on ${screen} at 320px`).toBeLessThanOrEqual(0);
+      const { overflow, offenders } = await page.evaluate(() => {
+        const vw = document.documentElement.clientWidth;
+        const diff = document.documentElement.scrollWidth - vw;
+        const bad = diff > 0 ? [...document.querySelectorAll('*')]
+          .map((el) => {
+            const r = el.getBoundingClientRect();
+            return { tag: el.tagName, cls: el.className, id: el.id, right: Math.round(r.right), width: Math.round(r.width) };
+          })
+          .filter((x) => x.right > vw) : [];
+        return { overflow: diff, offenders: JSON.stringify(bad) };
+      });
+      expect(overflow, `no horizontal overflow on ${screen} at 320px (offenders: ${offenders})`).toBeLessThanOrEqual(0);
     }
 
     // Every permanent control is a real 44px+ target.
