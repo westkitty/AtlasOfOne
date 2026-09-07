@@ -16,6 +16,10 @@ export const campaignStateSchemaV1 = z.object({
   insights: z.array(z.object({ id: z.string(), title: z.string(), summary: z.string(), evidenceIds: z.array(z.string()), confidence: z.enum(['low','moderate','strong']), status: z.enum(['pending','confirmed','rejected']), createdAt: timestamp })),
   contradictions: z.array(z.object({ id: z.string(), claim: z.string(), evidenceIds: z.array(z.string()), status: z.enum(['open','resolved']) })),
   mapFragments: z.array(z.object({ id: z.string(), territoryId: z.string(), label: z.string(), unlockedAt: timestamp })),
+  bossRuns: z.array(z.object({ id: z.string(), bossId: z.string(), territoryId: z.string(), stages: z.array(z.object({ id: z.string(), kind: z.enum(['priority','tradeoff','contradiction']), dimensions: z.array(z.string()), evidenceIds: z.array(z.string()), outcome: z.enum(['pending','answered','passed','private']) })), status: z.enum(['active','complete','withdrawn']), startedAt: timestamp, completedAt: timestamp.optional() })).default([]),
+  activeBoss: z.string().nullable().default(null),
+  doorRuns: z.array(z.object({ id: z.string(), doorId: z.string(), territoryIds: z.array(z.string()), evidenceIds: z.array(z.string()), dimensions: z.array(z.string()), status: z.enum(['open','complete']), openedAt: timestamp, completedAt: timestamp.optional() })).default([]),
+  activeDoor: z.string().nullable().default(null),
   privateTopics: z.array(z.string()), presentation: z.enum(['normal','quiet']), sessionStatus: z.enum(['active','paused']), campaignCompleted: z.boolean(),
   presentationQueue: z.array(z.object({ id: z.string(), kind: z.enum(['level','unlock','achievement','quest','territory']), title: z.string(), detail: z.string(), createdAt: timestamp })),
   campaignHistory: z.array(z.object({ id: z.string(), type: z.string(), at: timestamp, detail: z.string().optional() })), updatedAt: timestamp

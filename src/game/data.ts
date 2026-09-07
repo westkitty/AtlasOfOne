@@ -1,4 +1,4 @@
-import type { AchievementState, QuestState, TerritoryState, UnlockState } from './types';
+import type { AchievementState, BossDefinition, QuestState, TerritoryState, UnlockState } from './types';
 
 export const CORE_COMMANDS = ['PASS', 'PRIVATE', 'STOP', 'SERIOUS', 'HELP', 'SASS'] as const;
 export const LEVEL_THRESHOLDS = [0, 35, 90, 160, 250, 360, 500, 675] as const;
@@ -32,5 +32,26 @@ export const UNLOCK_DEFINITIONS: UnlockState[] = [
 export const ACHIEVEMENT_DEFINITIONS: AchievementState[] = [
   { id: 'first-mark', label: 'First Mark on the Map', description: 'Accept the first substantive answer.' },
   { id: 'revision-is-data', label: 'Revision Is Data', description: 'Meaningfully revise an earlier position.' },
-  { id: 'cartographer', label: 'Cartographer', description: 'Chart the first territory.' }
+  { id: 'cartographer', label: 'Cartographer', description: 'Chart the first territory.' },
+  { id: 'boss-resolved', label: 'Held the Line', description: 'Resolve a Boss Fight.' },
+  { id: 'door-opener', label: 'Door Opener', description: 'Resolve a Mystery Door.' }
 ];
+
+/**
+ * Boss Fights are deterministic, territory-scoped synthesis encounters.
+ * `minCoveredDimensions` is the evidence bar the player must already have cleared;
+ * a Boss Fight tests mapped material rather than asking for anything new.
+ */
+export const BOSS_DEFINITIONS: BossDefinition[] = [
+  { id: 'boss-values', territoryId: 'values', label: 'The Tribunal of Values', description: 'Your mapped values are put against each other under pressure.', levelRequired: 5, minCoveredDimensions: 3, xpReward: 40 },
+  { id: 'boss-politics', territoryId: 'politics', label: 'The Republic Under Load', description: 'Your political commitments are forced to pay their own costs.', levelRequired: 5, minCoveredDimensions: 4, xpReward: 60 },
+  { id: 'boss-cognition', territoryId: 'cognition', label: 'The Revision Court', description: 'Your decision style is tested against your own contradictions.', levelRequired: 5, minCoveredDimensions: 3, xpReward: 40 },
+  { id: 'boss-fears', territoryId: 'fears', label: 'The Cost of Avoidance', description: 'Your mapped aversions are weighed against what they protect.', levelRequired: 5, minCoveredDimensions: 3, xpReward: 40 }
+];
+
+/** Fixed deterministic reward for resolving one Mystery Door. */
+export const DOOR_XP_REWARD = 20;
+/** Minimum active, non-private evidence records required on each side of a Door. */
+export const DOOR_MIN_EVIDENCE_PER_TERRITORY = 2;
+/** Level at which the Mystery Door move becomes available (mirrors UNLOCK_DEFINITIONS). */
+export const DOOR_LEVEL_REQUIRED = 6;

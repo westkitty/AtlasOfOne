@@ -1,4 +1,4 @@
-import type { CampaignState, EvidenceRecord, InsightRecord, TurnRecord } from '../game/types';
+import type { BossStage, CampaignState, DoorRunState, EvidenceRecord, InsightRecord, TurnRecord } from '../game/types';
 import type { CartographerTurn } from './schema';
 
 export interface MockPrompt { id: string; territoryId: string; territoryLabel: string; dimension: string; question: string; }
@@ -50,4 +50,61 @@ export function recordsFromMockTurn(prompt: MockPrompt, answer: string, turn: Ca
   const evidence = turn.evidence.map((proposal) => ({ id: `ev_${crypto.randomUUID()}`, dimension: proposal.dimension, claim: proposal.claim, sourceTurnIds: [turnId], basis: proposal.basis, strength: proposal.strength, territories: proposal.territories, counterEvidenceIds: [], status: 'active' as const }));
   const insight = evidence.length ? { id: `insight_${crypto.randomUUID()}`, title: prompt.dimension.replace(/\b\w/g, (char) => char.toUpperCase()), summary: `Current mock read: this answer adds usable evidence about ${prompt.dimension}.`, evidenceIds: evidence.map((item) => item.id), confidence: evidence[0].strength >= 3 ? 'strong' as const : evidence[0].strength === 2 ? 'moderate' as const : 'low' as const, status: 'pending' as const, createdAt } : undefined;
   return { turnRecord, evidence, insight };
+}
+
+// ---------------------------------------------------------------------------
+// Encounter wording
+//
+// These helpers supply language for Boss Fight stages and Mystery Doors. The
+// stage plan, the Door pairing, eligibility, progress and every reward are
+// decided in src/game/encounters.ts and src/game/engine.ts. Nothing here can
+// start, advance, complete or reward an encounter.
+// ---------------------------------------------------------------------------
+
+function claimFor(state: CampaignState, evidenceId: string): string | undefined {
+  const record = state.evidence.find((item) => item.id === evidenceId);
+  return record && record.status === 'active' && !state.privateTopics.includes(record.dimension) ? record.claim : undefined;
+}
+
+export interface EncounterWording { title: string; question: string; evidenceClaims: string[]; }
+
+export function describeBossStage(state: CampaignState, stage: BossStage): EncounterWording {
+  const [first, second] = stage.dimensions;
+  const evidenceClaims = stage.evidenceIds.map((id) => claimFor(state, id)).filter((claim): claim is string => Boolean(claim));
+  if (stage.kind === 'priority') {
+    return { title: 'Hold the line', question: `You have mapped both “${first}” and “${second}”. When those two collide and only one can win, which one actually wins — and what decides it?`, evidenceClaims };
+  }
+  if (stage.kind === 'tradeoff') {
+    return { title: 'Name the cost', question: `Keeping “${first}” costs something real. Name what you would actually give up to keep it, in concrete terms rather than principle.`, evidenceClaims };
+  }
+  return { title: 'The tension', question: `Your mapped positions on “${first}” and “${second}” pull against each other under pressure. Which one is closer to true when it is expensive to hold, and why?`, evidenceClaims };
+}
+
+export function describeDoor(state: CampaignState, run: DoorRunState, territoryLabels: Record<string, string>): EncounterWording {
+  const [left, right] = run.dimensions;
+  const evidenceClaims = run.evidenceIds.map((id) => claimFor(state, id)).filter((claim): claim is string => Boolean(claim));
+  const leftLabel = territoryLabels[run.territoryIds[0]] ?? run.territoryIds[0];
+  const rightLabel = territoryLabels[run.territoryIds[1]] ?? run.territoryIds[1];
+  return {
+    title: `${leftLabel} × ${rightLabel}`,
+    question: `Two mapped regions touch here: “${left}” in ${leftLabel} and “${right}” in ${rightLabel}. What connects them that neither territory would have shown on its own — a shared cause, a hidden cost, or a contradiction?`,
+    evidenceClaims
+  };
+}
+
+export function doorInsightFrom(run: DoorRunState, wording: EncounterWording): InsightRecord {
+  return {
+    id: `insight_${crypto.randomUUID()}`,
+    title: `Crossing: ${wording.title}`,
+    summary: `Cross-territory mock read connecting ${run.dimensions.join(' and ')}.`,
+    evidenceIds: [...run.evidenceIds],
+    confidence: 'moderate',
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  };
+}
+
+export function encounterTurnRecord(territoryId: string, dimension: string, question: string, answer: string): TurnRecord {
+  const trimmed = answer.trim();
+  return { id: `turn_${crypto.randomUUID()}`, createdAt: new Date().toISOString(), territoryId, dimension, question, answer: trimmed, substantive: trimmed.length > 0, behavioralExample: looksLikeExample(trimmed), revision: looksLikeRevision(trimmed), retracted: false };
 }

@@ -26,6 +26,18 @@ export interface MapFragment { id: string; territoryId: string; label: string; u
 export interface PresentationNotice { id: string; kind: 'level' | 'unlock' | 'achievement' | 'quest' | 'territory'; title: string; detail: string; createdAt: string; }
 export interface GameHistoryEntry { id: string; type: GameEvent['type']; at: string; detail?: string; }
 
+export interface BossDefinition { id: string; territoryId: string; label: string; description: string; levelRequired: number; minCoveredDimensions: number; xpReward: number; }
+
+export type EncounterStageKind = 'priority' | 'tradeoff' | 'contradiction';
+export type EncounterStageOutcome = 'pending' | 'answered' | 'passed' | 'private';
+export type BossRunStatus = 'active' | 'complete' | 'withdrawn';
+export type DoorRunStatus = 'open' | 'complete';
+
+/** Deterministic skeleton of one Boss Fight stage. Wording is supplied at render time. */
+export interface BossStage { id: string; kind: EncounterStageKind; dimensions: string[]; evidenceIds: string[]; outcome: EncounterStageOutcome; }
+export interface BossRunState { id: string; bossId: string; territoryId: string; stages: BossStage[]; status: BossRunStatus; startedAt: string; completedAt?: string; }
+export interface DoorRunState { id: string; doorId: string; territoryIds: string[]; evidenceIds: string[]; dimensions: string[]; status: DoorRunStatus; openedAt: string; completedAt?: string; }
+
 export interface CampaignState {
   schemaVersion: 1;
   campaignId: string;
@@ -44,6 +56,10 @@ export interface CampaignState {
   insights: InsightRecord[];
   contradictions: ContradictionRecord[];
   mapFragments: MapFragment[];
+  bossRuns: BossRunState[];
+  activeBoss: string | null;
+  doorRuns: DoorRunState[];
+  activeDoor: string | null;
   privateTopics: string[];
   presentation: PresentationMode;
   sessionStatus: SessionStatus;
@@ -63,6 +79,13 @@ export type GameEvent =
   | { type: 'ABILITY_UNLOCKED'; unlockId: string }
   | { type: 'ACHIEVEMENT_UNLOCKED'; achievementId: string }
   | { type: 'MAP_FRAGMENT_UNLOCKED'; fragment: MapFragment }
+  | { type: 'BOSS_STARTED'; bossId: string }
+  | { type: 'BOSS_STAGE_ANSWERED'; turn: TurnRecord }
+  | { type: 'BOSS_STAGE_PASSED' }
+  | { type: 'BOSS_WITHDRAWN' }
+  | { type: 'DOOR_OPENED'; doorId: string }
+  | { type: 'DOOR_ANSWERED'; turn: TurnRecord; insight: InsightRecord }
+  | { type: 'DOOR_CLOSED' }
   | { type: 'INSIGHT_ADDED'; insight: InsightRecord }
   | { type: 'INSIGHT_CONFIRMED'; insightId: string }
   | { type: 'INSIGHT_REJECTED'; insightId: string }

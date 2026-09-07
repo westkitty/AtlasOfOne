@@ -1,5 +1,6 @@
-import { ACHIEVEMENT_DEFINITIONS, LEVEL_THRESHOLDS, QUEST_DEFINITIONS, TERRITORY_DEFINITIONS, UNLOCK_DEFINITIONS } from './data';
-import type { AchievementState, CampaignState, EvidenceRecord, GameEvent, TerritoryState, TerritoryStatus, UnlockState } from './types';
+import { ACHIEVEMENT_DEFINITIONS, DOOR_XP_REWARD, LEVEL_THRESHOLDS, QUEST_DEFINITIONS, TERRITORY_DEFINITIONS, UNLOCK_DEFINITIONS } from './data';
+import { activeBossRun, activeDoorRun, bossDefinition, currentBossStageIndex, doorCandidate, doorRunIsPresentable, isBossAvailable, planBossStages } from './encounters';
+import type { AchievementState, BossRunState, CampaignState, DoorRunState, EvidenceRecord, GameEvent, TerritoryState, TerritoryStatus, UnlockState } from './types';
 
 const now = () => new Date().toISOString();
 const uid = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
@@ -19,7 +20,8 @@ export function createInitialCampaign(): CampaignState {
     unlocks: structuredClone(UNLOCK_DEFINITIONS),
     activeTerritory: 'identity',
     activeQuest: 'first-coordinates',
-    turns: [], evidence: [], insights: [], contradictions: [], mapFragments: [], privateTopics: [],
+    turns: [], evidence: [], insights: [], contradictions: [], mapFragments: [],
+    bossRuns: [], activeBoss: null, doorRuns: [], activeDoor: null, privateTopics: [],
     presentation: 'normal', sessionStatus: 'active', campaignCompleted: false, presentationQueue: [], campaignHistory: [], updatedAt: now()
   };
 }
@@ -77,7 +79,9 @@ function reconcileProgression(state: CampaignState, previous: CampaignState): Ca
   const predicates: Record<string, boolean> = {
     'first-mark': state.turns.some((turn) => turn.substantive && !turn.retracted),
     'revision-is-data': state.turns.some((turn) => turn.revision && !turn.retracted),
-    cartographer: state.territories.some((territory) => territory.status === 'charted' || territory.status === 'deeply-charted')
+    cartographer: state.territories.some((territory) => territory.status === 'charted' || territory.status === 'deeply-charted'),
+    'boss-resolved': state.bossRuns.some((run) => run.status === 'complete'),
+    'door-opener': state.doorRuns.some((run) => run.status === 'complete')
   };
   const achievements = state.achievements.map((achievement): AchievementState => achievement.unlockedAt || !predicates[achievement.id] ? achievement : { ...achievement, unlockedAt: now() });
   const notices = [...state.presentationQueue];
@@ -85,6 +89,32 @@ function reconcileProgression(state: CampaignState, previous: CampaignState): Ca
   unlocks.filter((item) => item.unlockedAt && !previous.unlocks.find((old) => old.id === item.id)?.unlockedAt).forEach((item) => notices.push({ id: uid('notice'), kind: 'unlock', title: item.label, detail: item.description, createdAt: now() }));
   achievements.filter((item) => item.unlockedAt && !previous.achievements.find((old) => old.id === item.id)?.unlockedAt).forEach((item) => notices.push({ id: uid('notice'), kind: 'achievement', title: item.label, detail: item.description, createdAt: now() }));
   return { ...state, level, unlocks, achievements, presentationQueue: notices };
+}
+
+/**
+ * Encounter answers earn exactly what an ordinary accepted answer earns. There is
+ * no bonus for difficulty, vulnerability or painful disclosure anywhere in this file.
+ */
+function answerXp(turn: { answer: string; behavioralExample: boolean; revision: boolean }) {
+  return 5 + (turn.answer.trim().length >= 80 ? 3 : 0) + (turn.behavioralExample ? 3 : 0) + (turn.revision ? 5 : 0);
+}
+
+/**
+ * A Boss Fight resolves once no stage is still pending. Its fixed reward and its
+ * achievement are granted here, by the engine, and by nothing else.
+ */
+function settleBossRun(state: CampaignState, run: BossRunState): CampaignState {
+  if (run.stages.some((stage) => stage.outcome === 'pending')) {
+    return { ...state, bossRuns: state.bossRuns.map((item) => item.id === run.id ? run : item) };
+  }
+  const reward = bossDefinition(run.bossId)?.xpReward ?? 0;
+  const completed: BossRunState = { ...run, status: 'complete', completedAt: now() };
+  return {
+    ...state,
+    xp: state.xp + reward,
+    bossRuns: state.bossRuns.map((item) => item.id === run.id ? completed : item),
+    activeBoss: null
+  };
 }
 
 function evidenceXp(state: CampaignState, evidence: EvidenceRecord) {
@@ -117,11 +147,89 @@ export function applyGameEvent(state: CampaignState, event: GameEvent): Campaign
     case 'QUEST_PROGRESS': next = { ...state, quests: state.quests.map((q) => q.id === event.questId && q.status === 'active' ? { ...q, progress: Math.min(q.target, q.progress + Math.max(0, event.amount)) } : q) }; break;
     case 'QUEST_COMPLETE': { const q = state.quests.find((item) => item.id === event.questId && item.status === 'active'); if (q) next = { ...state, xp: state.xp + q.xpBonus, quests: state.quests.map((item) => item.id === q.id ? { ...item, progress: item.target, status: 'complete' } : item) }; break; }
     case 'MAP_FRAGMENT_UNLOCKED': if (!state.mapFragments.some((item) => item.id === event.fragment.id)) next = { ...state, mapFragments: [...state.mapFragments, event.fragment] }; break;
+    case 'BOSS_STARTED': {
+      // Availability and the stage plan are decided here, never by model output.
+      if (state.activeBoss || state.activeDoor) break;
+      if (!isBossAvailable(state, event.bossId)) break;
+      // Resuming a withdrawn run keeps its stage progress rather than restarting it.
+      const existing = state.bossRuns.find((item) => item.bossId === event.bossId && item.status === 'active');
+      if (existing) { next = { ...state, activeBoss: event.bossId, activeTerritory: existing.territoryId }; break; }
+      const stages = planBossStages(state, event.bossId);
+      if (!stages.length) break;
+      const definition = bossDefinition(event.bossId)!;
+      const run: BossRunState = { id: uid('bossrun'), bossId: event.bossId, territoryId: definition.territoryId, stages, status: 'active', startedAt: now() };
+      next = { ...state, bossRuns: [...state.bossRuns, run], activeBoss: event.bossId, activeTerritory: definition.territoryId };
+      break;
+    }
+    case 'BOSS_STAGE_ANSWERED': {
+      const run = activeBossRun(state);
+      const index = currentBossStageIndex(run);
+      if (!run || index < 0) break;
+      if (state.sessionStatus === 'paused') break;
+      const stages = run.stages.map((stage, position) => position === index ? { ...stage, outcome: 'answered' as const } : stage);
+      const advanced = { ...state, xp: state.xp + answerXp(event.turn), turns: [...state.turns, event.turn] };
+      next = settleBossRun(advanced, { ...run, stages });
+      break;
+    }
+    case 'BOSS_STAGE_PASSED': {
+      // PASS costs nothing and always advances, so a Boss Fight can never trap the player.
+      const run = activeBossRun(state);
+      const index = currentBossStageIndex(run);
+      if (!run || index < 0) break;
+      const stages = run.stages.map((stage, position) => position === index ? { ...stage, outcome: 'passed' as const } : stage);
+      next = settleBossRun(state, { ...run, stages });
+      break;
+    }
+    case 'BOSS_WITHDRAWN': next = { ...state, activeBoss: null }; break;
+    case 'DOOR_OPENED': {
+      if (state.activeBoss || state.activeDoor) break;
+      const candidate = doorCandidate(state, event.doorId);
+      if (!candidate) break;
+      const run: DoorRunState = { id: uid('doorrun'), doorId: candidate.doorId, territoryIds: candidate.territoryIds, evidenceIds: candidate.evidenceIds, dimensions: candidate.dimensions, status: 'open', openedAt: now() };
+      next = { ...state, doorRuns: [...state.doorRuns, run], activeDoor: candidate.doorId };
+      break;
+    }
+    case 'DOOR_ANSWERED': {
+      const run = activeDoorRun(state);
+      if (!run) break;
+      if (state.sessionStatus === 'paused') break;
+      next = {
+        ...state,
+        xp: state.xp + answerXp(event.turn) + DOOR_XP_REWARD,
+        turns: [...state.turns, event.turn],
+        insights: state.insights.some((item) => item.id === event.insight.id) ? state.insights : [...state.insights, event.insight],
+        doorRuns: state.doorRuns.map((item) => item.id === run.id ? { ...item, status: 'complete' as const, completedAt: now() } : item),
+        activeDoor: null
+      };
+      break;
+    }
+    case 'DOOR_CLOSED': {
+      // Leaving a Door discards the unopened run so the pairing stays available later.
+      const run = activeDoorRun(state);
+      next = { ...state, activeDoor: null, doorRuns: run ? state.doorRuns.filter((item) => item.id !== run.id) : state.doorRuns };
+      break;
+    }
     case 'INSIGHT_ADDED': if (!state.insights.some((item) => item.id === event.insight.id)) next = { ...state, insights: [...state.insights, event.insight] }; break;
     case 'INSIGHT_CONFIRMED': next = { ...state, insights: state.insights.map((item) => item.id === event.insightId ? { ...item, status: 'confirmed' } : item) }; break;
     case 'INSIGHT_REJECTED': next = { ...state, insights: state.insights.map((item) => item.id === event.insightId ? { ...item, status: 'rejected' } : item) }; break;
-    case 'ANSWER_RETRACTED': next = { ...state, turns: state.turns.map((item) => item.id === event.turnId ? { ...item, retracted: true } : item), evidence: state.evidence.map((item) => item.sourceTurnIds.includes(event.turnId) ? { ...item, status: 'retracted' } : item) }; break;
-    case 'PRIVATE_TOPIC_ADDED': next = { ...state, privateTopics: unique([...state.privateTopics, event.topic]) }; break;
+    case 'ANSWER_RETRACTED': {
+      const retracted = { ...state, turns: state.turns.map((item) => item.id === event.turnId ? { ...item, retracted: true } : item), evidence: state.evidence.map((item) => item.sourceTurnIds.includes(event.turnId) ? { ...item, status: 'retracted' as const } : item) };
+      const doorRuns = retracted.doorRuns.filter((run) => run.status === 'complete' || doorRunIsPresentable(retracted, run));
+      next = { ...retracted, doorRuns, activeDoor: doorRuns.some((run) => run.doorId === retracted.activeDoor && run.status === 'open') ? retracted.activeDoor : null };
+      break;
+    }
+    case 'PRIVATE_TOPIC_ADDED': {
+      // Marking a topic private retires any unresolved encounter built on it, so
+      // private material cannot resurface through a Boss stage or a Mystery Door.
+      const privateTopics = unique([...state.privateTopics, event.topic]);
+      const scrubbed = { ...state, privateTopics };
+      const doorRuns = scrubbed.doorRuns.filter((run) => run.status === 'complete' || doorRunIsPresentable(scrubbed, run));
+      const bossRuns = scrubbed.bossRuns.map((run) => run.status !== 'active' ? run : { ...run, stages: run.stages.map((stage) => stage.outcome === 'pending' && stage.dimensions.includes(event.topic) ? { ...stage, outcome: 'private' as const } : stage) });
+      const withRuns = { ...scrubbed, doorRuns, bossRuns, activeDoor: doorRuns.some((run) => run.doorId === state.activeDoor && run.status === 'open') ? state.activeDoor : null };
+      const boss = withRuns.bossRuns.find((run) => run.bossId === withRuns.activeBoss && run.status === 'active');
+      next = boss ? settleBossRun(withRuns, boss) : withRuns;
+      break;
+    }
     case 'PRESENTATION_SET': next = { ...state, presentation: event.mode }; break;
     case 'SESSION_SET': next = { ...state, sessionStatus: event.status }; break;
     case 'SASS_SET': next = { ...state, settings: { ...state.settings, sass: event.sass } }; break;

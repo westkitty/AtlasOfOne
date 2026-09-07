@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = join(process.cwd(), 'public', 'assets', 'greyson');
@@ -26,7 +26,10 @@ describe('canonical Greyson/Aerron runtime assets', () => {
   });
 
   it('does not import Andrew-side assets into the Greyson tree', () => {
-    const paths = walk(ROOT).map((path) => path.toLowerCase());
+    // Compare paths relative to the asset root: an absolute path would otherwise
+    // match the checkout directory rather than any asset name.
+    const paths = walk(ROOT).map((path) => relative(ROOT, path).toLowerCase());
+    expect(paths.length).toBeGreaterThan(0);
     expect(paths.some((path) => path.includes('andrew'))).toBe(false);
   });
 });
