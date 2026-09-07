@@ -3,6 +3,12 @@
   "name": "atlas-of-one",
   "compatibility_date": "2026-09-07",
   "main": "./worker/index.ts",
+  // Workers AI on the Workers Free plan. This binding creates no cost by
+  // existing; the free daily neuron allocation is the hard ceiling, and the
+  // Worker refuses any model that requires a paid plan.
+  "ai": {
+    "binding": "AI"
+  },
   "assets": {
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
