@@ -43,11 +43,16 @@ export function createMockTurn(state: CampaignState, prompt: MockPrompt, answer:
   };
 }
 
-export function recordsFromMockTurn(prompt: MockPrompt, answer: string, turn: CartographerTurn): { turnRecord: TurnRecord; evidence: EvidenceRecord[]; insight?: InsightRecord } {
+/**
+ * Turn a Cartographer proposal into records. Works for any provider, not only the
+ * mock: `providerId` records which mind authored the evidence claims, while the
+ * player's own words are preserved verbatim in `turnRecord.answer`.
+ */
+export function recordsFromMockTurn(prompt: MockPrompt, answer: string, turn: CartographerTurn, providerId = 'mock'): { turnRecord: TurnRecord; evidence: EvidenceRecord[]; insight?: InsightRecord } {
   const createdAt = new Date().toISOString();
   const turnId = `turn_${crypto.randomUUID()}`;
   const turnRecord: TurnRecord = { id: turnId, createdAt, territoryId: prompt.territoryId, dimension: prompt.dimension, question: prompt.question, answer: answer.trim(), substantive: answer.trim().length > 0, behavioralExample: looksLikeExample(answer), revision: looksLikeRevision(answer), retracted: false };
-  const evidence = turn.evidence.map((proposal) => ({ id: `ev_${crypto.randomUUID()}`, dimension: proposal.dimension, claim: proposal.claim, sourceTurnIds: [turnId], basis: proposal.basis, strength: proposal.strength, territories: proposal.territories, counterEvidenceIds: [], status: 'active' as const }));
+  const evidence = turn.evidence.map((proposal) => ({ id: `ev_${crypto.randomUUID()}`, dimension: proposal.dimension, claim: proposal.claim, sourceTurnIds: [turnId], basis: proposal.basis, strength: proposal.strength, territories: proposal.territories, counterEvidenceIds: [], status: 'active' as const, origin: 'model-proposed' as const, providerId }));
   const insight = evidence.length ? { id: `insight_${crypto.randomUUID()}`, title: prompt.dimension.replace(/\b\w/g, (char) => char.toUpperCase()), summary: `Current mock read: this answer adds usable evidence about ${prompt.dimension}.`, evidenceIds: evidence.map((item) => item.id), confidence: evidence[0].strength >= 3 ? 'strong' as const : evidence[0].strength === 2 ? 'moderate' as const : 'low' as const, status: 'pending' as const, createdAt } : undefined;
   return { turnRecord, evidence, insight };
 }
