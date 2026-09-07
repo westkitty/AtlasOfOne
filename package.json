@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "deploy": "npm run build && wrangler deploy",
-    "test:browser": "npm run build && vitest run --config vitest.browser.config.ts"
+    "test:browser": "npm run build && vitest run --config vitest.browser.config.ts",
+    "test:live": "vitest run --config vitest.live.config.ts"
   },
   "dependencies": {
     "dexie": "^4.2.0",
