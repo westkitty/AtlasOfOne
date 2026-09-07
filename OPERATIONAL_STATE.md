@@ -7,10 +7,10 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 5,
+  "state_revision": 6,
   "last_updated": "2026-09-07",
   "current_baseline": {
-    "identity": "c0dc714",
+    "identity": "b4f26b9",
     "state": "partially-verified",
     "last_verified": "2026-09-07"
   },
@@ -35,9 +35,9 @@
 ## 2. Current Baseline
 
 - **Primary artifact:** `westkitty/AtlasOfOne` on `main`.
-- **Code baseline:** `c0dc714`. Revision 5 is documented in the immediately following docs-only commit, which changes no code, so the validation evidence below still describes the current tree.
-- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior, deterministic Boss Fight/Mystery Door behavior, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, and the desktop-Chrome browser journey are verified; mobile-device and PWA install/offline behavior remain unverified.
-- **Validation identity:** local run on `c0dc714`: 55 unit tests, 25 browser-runtime tests in installed Chrome against the production bundle, and a passing production Worker/client/PWA build. The prior CI identity for the 18-test baseline was Actions run `34129810055`.
+- **Code baseline:** `b4f26b9` (mobile UI/UX polish pass). Revision 6 is documented in the immediately following docs-only commit, which changes no code, so the validation evidence below still describes the current tree. The prior code baseline was `c0dc714`.
+- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior, deterministic Boss Fight/Mystery Door behavior, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, the desktop-Chrome browser journey, and a desktop-Chrome visual polish inspection at 320/390/430/834 viewports are verified; real-device touch, PWA install/offline, non-Chrome browsers and Worker runtime remain unverified.
+- **Validation identity:** local run on `b4f26b9`: 55 unit tests, 27 browser-runtime tests in installed Chrome against the production bundle, and a passing production Worker/client/PWA build. The prior CI identity for the 18-test baseline was Actions run `34129810055`.
 - **Active default user route:** Map screen, verified in a real browser.
 - **Delivery state:** GitHub repository; no Cloudflare production deployment asserted.
 
@@ -83,6 +83,8 @@ The only dependency added in this pass is the `playwright-core` devDependency, d
 - **VER-014:** A real-browser encounter suite passed 12 checks proving Boss Fights and Mystery Doors are playable end to end in Chrome: offers appear from mapped state, stages cite already-mapped evidence, all six permanent controls are present and enabled inside both encounter types, STOP blocks submission inside an encounter, stepping back preserves progress and the Map advertises the kept run, completion pays the fixed rewards (+40 boss, +20 door) and records the `Held the Line` and `Door Opener` achievements and a `Crossing:` insight in the Vault, resolved encounters are not offered again, and results survive a page reload.
 - **VER-015:** Visual inspection of real Chrome screenshots at a 390×844 phone viewport confirms the canonical Greyson sprite renders sharp and correctly scaled on the Map, and that Boss Fight and Mystery Door screens present the player's own mapped evidence with the permanent control bar intact.
 - **VER-016:** The five canonical runtime sprites are byte-identical (SHA-256) to baseline `a50ffe4`, no Andrew-named file exists anywhere under `public/`, no secret or token is committed, no D1/KV/R2/analytics/auth/SSR/Next.js/native/3D dependency or config was introduced, runtime dependencies remain `dexie`/`react`/`react-dom`/`zod`, and `playwright-core` does not appear in either production bundle.
+- **VER-017:** Mobile UI/UX polish pass `b4f26b9` changed only `src/App.tsx`, `src/styles.css` and the two browser test files. The dispatched game-event set in `App.tsx` is identical to `a3d74df`; no engine, encounter, mock, persistence, schema or model-contract file was touched. Real-Chrome inspection at 320/390/430/834 confirmed: the Greyson sprite no longer overlaps territory labels; fog/discovered/charted/deeply-charted states are distinguishable without colour (opacity + edge style + glyph + word); the Map reads as the primary surface with one legible level/XP unit and a promoted quest card; Boss Fight (ember, 3-stage tracker, PASS-safe note) and Mystery Door (verdigris, crossing element, "optional to open") are visually distinct but coherent; the Vault reads as counted accumulating panels; `Me` separates a "Danger zone" card and Delete takes a deliberate second tap.
+- **VER-018:** At a 320px viewport there is no horizontal overflow on Map, Talk, Vault or Me (the previous 9px `Me` overflow from the hidden file input is fixed); the four bottom-nav targets and all six permanent controls are >=44px; and the fixed bottom nav does not cover the primary action or the last permanent control on Talk or inside a Mystery Door. Proven by two added browser tests (`journey` 19b, `encounters` Door-at-320px).
 
 ## 6. Known Not Working
 
@@ -147,9 +149,11 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 | INV-013 | no PRIVATE leak through a Door | verified | mystery-door.test.ts privacy suite | Vitest | `c0dc714`, rev 5 | 2026-09-07 | encounter/privacy changes |
 | INV-014 | encounters never trap the player | verified | PASS/withdraw/STOP/never-required tests | Vitest + browser | `c0dc714`, rev 5 | 2026-09-07 | encounter/control changes |
 | INV-015 | no XP bonus for painful disclosure | verified | equal-length neutral vs painful answer tests | Vitest | `c0dc714`, rev 5 | 2026-09-07 | XP rule changes |
-| BROWSER-001 | required user journey works in a real browser | verified | journey.test.ts, 13 checks in Chrome | playwright-core + Vitest | `c0dc714`, rev 5 | 2026-09-07 | UI/persistence changes |
-| BROWSER-002 | reload restores campaign from IndexedDB | verified | journey.test.ts reload check | playwright-core + Vitest | `c0dc714`, rev 5 | 2026-09-07 | persistence changes |
-| BROWSER-003 | encounters playable with controls intact | verified | encounters.test.ts, 12 checks in Chrome | playwright-core + Vitest | `c0dc714`, rev 5 | 2026-09-07 | encounter UI changes |
+| BROWSER-001 | required user journey works in a real browser | verified | journey.test.ts, 14 checks in Chrome | playwright-core + Vitest | `b4f26b9`, rev 6 | 2026-09-07 | UI/persistence changes |
+| BROWSER-002 | reload restores campaign from IndexedDB | verified | journey.test.ts reload check | playwright-core + Vitest | `b4f26b9`, rev 6 | 2026-09-07 | persistence changes |
+| BROWSER-003 | encounters playable with controls intact | verified | encounters.test.ts, 13 checks in Chrome | playwright-core + Vitest | `b4f26b9`, rev 6 | 2026-09-07 | encounter UI changes |
+| UI-001 | no horizontal overflow, >=44px targets, nav never covers controls at 320px | verified | journey 19/19b + encounters Door-at-320px | playwright-core + Vitest | `b4f26b9`, rev 6 | 2026-09-07 | layout/CSS changes |
+| UI-002 | fog states legible without colour; Map/Boss/Door/Vault/Me polish | verified | real-Chrome inspection at 320/390/430/834 | browser visual inspection | `b4f26b9`, rev 6 | 2026-09-07 | UI markup/CSS changes |
 | BROWSER-004 | mobile device and PWA install/offline | implemented-unverified | none | real-device check | `c0dc714`, rev 5 | 2026-09-07 | device availability |
 | BROWSER-005 | non-Chrome browser behavior | implemented-unverified | none | cross-browser check | `c0dc714`, rev 5 | 2026-09-07 | browser support work |
 | WORKER-001 | Worker `/api/health` at runtime | implemented-unverified | source only | dev/deployed runtime check | `c0dc714`, rev 5 | 2026-09-07 | Worker changes |
@@ -160,9 +164,17 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 - **Must remain unchanged:** privacy, deterministic progression authority including encounter outcomes, always-available agency controls inside every encounter type, the no-PRIVATE-leak rule for Doors, Aerron→Greyson canonical asset mapping, Andrew-asset exclusion, source gap labels, and explicit non-goals.
 - **Potentially affected behavior:** mock campaign progression, local state persistence, mobile UI, PWA build, canonical sprite presentation.
 - **Mandatory checks:** synthetic tests, production build, repository secret/private-data scan; browser/runtime checks when available.
-- **Repair class:** Greenfield bounded implementation.
+- **Repair class:** Rev 6 was presentation-only: `src/App.tsx` markup/copy, `src/styles.css`, and browser-test extensions. No game architecture change.
 
 ## 13. Compact Revision Log
+
+### Revision 6 — 2026-09-07
+
+- **Artifact/source identity:** code baseline `b4f26b9`.
+- **State deltas:** Mobile-first UI/UX polish and defect repair across Map, Talk, Boss Fight, Mystery Door, Vault, Me, navigation, agency controls and the settings/transfer surfaces. Presentation-only: `src/App.tsx` (markup, hierarchy, microcopy, a two-step Delete confirm, toast auto-dismiss, door heading = crossing pairing) and a full rewrite of `src/styles.css`. No engine/encounter/mock/persistence/schema/model file was touched; the dispatched game-event set is identical to `a3d74df`.
+- **Defects found and fixed during this pass:** the Greyson sprite was absolutely centred over the territory grid and overlapped territory labels at every viewport; fog-of-war states were distinguished only by a faint border hue and small text; the `Me` screen had 9px of horizontal overflow at 320px from an unclipped hidden file input; the destructive Delete had no confirmation and sat adjacent to Export/Import; agency touch targets were 42px; the status toast was `position: sticky` and scrolled over headings; user-facing copy leaked "Mock mode / deterministic game engine" and "resolved by the game engine, not the Cartographer".
+- **New evidence:** 55 unit tests, 27 real-browser tests (2 added for mobile-polish invariants) and a passing Worker/client/PWA production build on this baseline, plus a real-Chrome visual inspection at 320/390/430/834 viewports covering fresh and progressed campaigns, both special encounters, quiet mode, empty and populated Vault, and the celebratory overlay.
+- **Validation not performed:** real mobile device / touch, PWA installation and offline journey, any non-Chrome browser, Worker runtime execution, production deployment, and encounter play-feel.
 
 ### Revision 5 — 2026-09-07
 
