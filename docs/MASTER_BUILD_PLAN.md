@@ -59,9 +59,15 @@ The model still never owns game progression.
 - explicit voice state machine
 - local voice commands
 - PWA offline shell
-- invite/access secret stored only as Worker secret
+- access secret: the authoritative value is a Cloudflare **Worker secret**
+  (`ATLAS_ACCESS_SECRET`) and never reaches committed source or the client
+  bundle. The player's copy is entered manually and held as a local client
+  credential in `localStorage`, isolated from `CampaignState`, IndexedDB and
+  campaign export. There is no fragment-based invitation link, and none has
+  existed in this repository.
 - Cloudflare Git deployment
-- Android install/device check
+- Android install/device check — **still open** (UNV-003, no reachable device),
+  so Phase 4 is PARTIAL
 
 ## Phase 5 — Break it deliberately (~96%)
 
@@ -78,6 +84,12 @@ Minimal onboarding:
 5. Start.
 
 Observe product friction only; do not siphon campaign answers into development tools.
+
+**Onboarding is not the phase.** Building those five steps is implementation
+work, and it is done and browser-verified. Phase 6 is the handoff: Greyson
+actually receives Atlas, uses it, and product friction is observed. Until that
+session has happened, Phase 6 is INCOMPLETE no matter how complete the
+onboarding is. Tracked as UNV-021.
 
 ## Cut line — not v1
 

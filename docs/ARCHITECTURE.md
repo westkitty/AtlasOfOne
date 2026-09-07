@@ -17,8 +17,8 @@ Browser / installed PWA
                Cloudflare Worker
                ├─ /api/health   (reports whether a provider is live)
                ├─ /api/turn     (Workers AI inference; typed failures)
-               ├─ /api/transcribe (later)
-               └─ /api/finalize (later)
+               ├─ /api/transcribe (Workers AI speech recognition)
+               └─ /api/finalize (final assessment synthesis)
                     │
                     └─ env.AI → Workers AI (Free plan)
 ```
@@ -124,7 +124,13 @@ The behavior layer must use semantic buttons/forms, keyboard-accessible navigati
 - No secret in browser source or committed config.
 - No server transcript persistence. The Worker uses the compiled context for one
   request and discards it with the request scope; nothing is logged.
-- Private dimensions are removed before the outgoing payload exists.
+- Private and retracted material is removed before an outgoing payload exists,
+  on both `/api/turn` and `/api/finalize`. For DERIVED records — Insights and
+  Contradictions — visibility is decided by evidence provenance (`evidenceIds`)
+  and never by matching their prose against a topic name; `createEvidenceVisibility`
+  in `src/cartographer/context.ts` is the single shared definition. *(The finalize
+  half of this holds in the local candidate `e940788` and is NOT yet deployed —
+  see KNOWN-001 in `OPERATIONAL_STATE.md`.)*
 - No D1, KV, R2, analytics, or account/auth database.
 - An invite/access secret lives only as a Worker secret (`ATLAS_ACCESS_SECRET`) and local client credential in `localStorage`, strictly isolated from IndexedDB and campaign state export.
 

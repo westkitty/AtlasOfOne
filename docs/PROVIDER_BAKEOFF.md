@@ -4,23 +4,58 @@ Authoritative record of provider selection for Phase 3.
 
 ## Status of this document
 
-**The live bakeoff HAS been run.** Real Workers AI inference was executed across all
-five free-plan-eligible candidates against an authenticated Cloudflare account via supported Wrangler OAuth.
-A total of **212 live inference requests** were executed, spending **6,163.77 neurons**
-(61.6% of the 10,000/day free limit). Zero dollars spent.
+**The live bakeoff was run, and its raw output was not kept.**
 
-The provisional default (`@cf/google/gemma-4-26b-a4b-it`) failed structured-output
-acceptance under live measurement due to output token truncation.
-**`@cf/qwen/qwen3-30b-a3b-fp8` survived all stages and is the MEASURED WINNER.**
+`@cf/qwen/qwen3-30b-a3b-fp8` is the selected provider and that decision is not in
+doubt. Two different kinds of claim appear below and must not be read as one:
 
-## Live execution details
+**VERIFIED — independently checkable right now**
+
+- `DEFAULT_MODEL_ID` in `src/cartographer/models.ts` is `@cf/qwen/qwen3-30b-a3b-fp8`.
+- The deployed production Worker reports the same model on an unauthenticated
+  `GET /api/health`.
+- The per-turn neuron arithmetic in the tables below is reproducible from
+  `estimateNeurons` and Cloudflare's published USD rates. It was independently
+  recomputed at state revision 14 and matched.
+- A paid-plan model is refused before a request exists, on `/api/turn` and
+  `/api/finalize`. (Not on `/api/transcribe` — see KNOWN-004.)
+
+**REPORTED — historical results with no surviving artifact**
+
+The run reported 212 live inference requests spending 6,163.77 neurons in
+1,123.55s with zero API errors, zero privacy violations and zero authority leaks,
+and reported the Stage A / B / C outcomes recorded below. Zero dollars were spent.
+
+`tests/live/bakeoff.live.test.ts` emits its results through `console.log` and
+writes no file. Nothing was committed. A repository-wide search finds these
+figures only in this document and in `OPERATIONAL_STATE.md` — that is, only in
+prose describing the run, never in output produced by it. They are therefore
+**reported historical results, not independently reproducible evidence of that
+execution**, and they cannot be recovered without spending the allocation again
+on a *different* run. Tracked as UNV-019.
+
+This does not demote Qwen3. A missing log is missing evidence about the past, not
+evidence against the decision, and the decision is separately confirmed by source
+and by the live health endpoint.
+
+**Unresolved numeric tension.** The figures below report 100% structured-output
+acceptance for Qwen3 — which implies no repair calls — while also reporting 204
+requests on Qwen3, against a Stage C loop capped at 100 turns plus at most one
+repair each. Those two statements are hard to hold together. A plausible reading
+is that Stage B fixtures account for the difference, but that is inference, not
+record. It is left flagged rather than resolved, and it needs a historical
+explanation rather than an invented one. Any future rerun **must write a durable
+artifact** so this class of question is answerable.
+
+## Live execution details (reported)
 
 Authentication was completed via supported Wrangler OAuth keyring integration.
-Inference telemetry was recorded directly from the live test run and verified against
-Cloudflare's server-side GraphQL AI Inference analytics.
+Inference telemetry was reported as recorded from the live test run and checked
+against Cloudflare's server-side GraphQL AI Inference analytics; neither the test
+output nor the analytics response was archived.
 
-All 5 candidates were confirmed to exist in the live Workers AI catalogue with HTTP 200
-availability (`errorCode: 0`).
+All 5 candidates were reported present in the live Workers AI catalogue with HTTP
+200 availability (`errorCode: 0`).
 
 ## Zero-dollar constraints
 
@@ -67,12 +102,19 @@ Recorded in `EXCLUDED_MODELS` so the exclusion is auditable rather than silent.
 | `@cf/google/gemma-3-12b-it`, `@cf/meta/llama-3.1-*` | Deprecated in the catalogue |
 
 The Worker refuses any model id absent from the eligible registry *before* a
-request exists, so a paid-only model cannot be reached even by misconfiguration.
+request exists, so a paid-only model cannot be reached even by misconfiguration
+— on `/api/turn` and `/api/finalize`. **This guard is missing on
+`/api/transcribe`**, which uses `ATLAS_TRANSCRIBE_MODEL_ID` without consulting
+`TRANSCRIBE_MODEL_CANDIDATES` (which is declared and never referenced). Reachable
+only by Worker configuration, not by a player, but it is a real gap in the
+zero-dollar guarantee. Tracked as KNOWN-004.
 
-## Structured output: measured findings
+## Structured output: reported findings
 
-The live bakeoff proved the architectural warning right: models without strict JSON
-mode enforcement fail schema compliance when output tokens are bounded.
+The live bakeoff reported the architectural warning as borne out: models without
+strict JSON mode enforcement failed schema compliance when output tokens were
+bounded. As above, this is the run's reported finding; the raw outputs were not
+archived.
 
 In the live run, `createWorkersAiProvider` sent requests with `max_tokens = 700` and
 `response_format: { type: 'json_schema', json_schema: CARTOGRAPHER_JSON_SCHEMA }`.
@@ -86,7 +128,7 @@ In the live run, `createWorkersAiProvider` sent requests with `max_tokens = 700`
 - **Qwen3 30B FP8** was the only candidate that consistently emitted compact, valid,
   schema-conforming JSON well within the 700-token ceiling (averaging ~623 output tokens).
 
-## Measured selection
+## Selection
 
 Weighted in the documented order: privacy compliance, evidence fidelity, schema
 reliability, conversation quality, long-context stability, sass/SERIOUS control,
@@ -111,9 +153,11 @@ Reselection was triggered under documented rules #1 (bakeoff executed) and #3
 its JSON response within the 700-token ceiling, making it unusable without paying for
 unbounded token limits.
 
-## Live bakeoff execution evidence
+## Live bakeoff execution evidence (reported, unarchived)
 
 Executed via `npm run test:live` against authenticated Cloudflare Workers AI.
+Every figure in this table is REPORTED. See "Status of this document" — the run
+committed no artifact, so none of it is independently reproducible.
 
 | Metric | Measured Value |
 |---|---|
@@ -129,7 +173,7 @@ Executed via `npm run test:live` against authenticated Cloudflare Workers AI.
 
 ## Real-provider turn count
 
-**REAL PROVIDER GATE: PASSED.**
+**REAL PROVIDER GATE: PASSED (reported).**
 
 Real Workers AI synthetic turns executed: **204 requests** on the measured winner
 `@cf/qwen/qwen3-30b-a3b-fp8`, plus 8 qualification requests on the remaining
