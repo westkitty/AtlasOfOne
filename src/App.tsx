@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createMockTurn, describeBossStage, describeDoor, doorInsightFrom, encounterTurnRecord, getMockPrompt, recordsFromMockTurn } from './cartographer/mock';
+import { eventsFromTurn } from './cartographer/apply';
+import { createRemoteProvider } from './cartographer/client';
+import { compileContext } from './cartographer/context';
+import { createMockTurn, describeBossStage, describeDoor, doorInsightFrom, encounterTurnRecord, getMockPrompt } from './cartographer/mock';
+import { type AIProvider, disabledProvider, playerMessageForFailure } from './cartographer/provider';
+import type { CartographerTurn } from './cartographer/schema';
 import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefinition, currentBossStage } from './game/encounters';
 import { applyGameEvents, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
 import type { CampaignState, GameEvent, SassLevel, TerritoryStatus } from './game/types';
@@ -26,23 +31,55 @@ export default function App() {
   const [answer, setAnswer] = useState('');
   const [message, setMessage] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // The Cartographer runs on its deterministic local script unless the Worker
+  // reports a live provider. Nothing here holds a credential or a model id.
+  const [provider, setProvider] = useState<AIProvider>(disabledProvider);
   const prompt = useMemo(() => getMockPrompt(state), [state]);
   const dispatch = (...events: GameEvent[]) => setState((current) => applyGameEvents(current, events));
 
   useEffect(() => { let live = true; void loadCampaign().then((saved) => { if (live && saved) setState(saved); }).catch(() => setMessage('Local save could not be read.')).finally(() => { if (live) setHydrated(true); }); return () => { live = false; }; }, []);
   useEffect(() => { if (hydrated) void saveCampaign(state).catch(() => setMessage('Automatic save failed. Export before leaving.')); }, [state, hydrated]);
   useEffect(() => { document.documentElement.dataset.reducedMotion = String(state.settings.reducedMotion); }, [state.settings.reducedMotion]);
+  // One probe at startup. A missing or disabled Worker simply leaves the offline
+  // script in place; it is never an error the player has to see.
+  useEffect(() => {
+    let live = true;
+    void fetch('/api/health')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((health) => { if (live && health?.cartographer === 'workers-ai') setProvider(() => createRemoteProvider()); })
+      .catch(() => undefined);
+    return () => { live = false; };
+  }, []);
   // Toasts are transient status, not a panel: clear them after a few seconds.
   useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 6000); return () => window.clearTimeout(timer); }, [message]);
 
+  /**
+   * Turn a Cartographer proposal into deterministic events. This is the ONLY
+   * path from model output into campaign state, and it can emit exactly three
+   * event types — none of which carries XP, a level, an unlock or a completion.
+   */
+  const commitTurn = (turn: CartographerTurn, text: string, providerId: string) => {
+    setState((current) => applyGameEvents(current, eventsFromTurn(prompt, text, turn, providerId)));
+    setReply(turn.reply); setAnswer('');
+  };
+
+  /**
+   * A provider failure must never cost the player their answer, so the
+   * deterministic local turn is committed either way and the degraded state is
+   * named in Atlas's own words.
+   */
+  const submitViaProvider = async (text: string) => {
+    const context = compileContext(state, { territoryId: prompt.territoryId, dimension: prompt.dimension, question: prompt.question }, text);
+    const result = await provider.turn(context);
+    if (result.ok) { commitTurn(result.turn, text, `workers-ai:${result.modelId}`); return; }
+    setMessage(playerMessageForFailure(result.failure.code));
+    commitTurn(createMockTurn(state, prompt, text), text, 'mock');
+  };
+
   const submit = () => {
     if (!answer.trim() || state.sessionStatus === 'paused') return;
-    const model = createMockTurn(state, prompt, answer);
-    const records = recordsFromMockTurn(prompt, answer, model);
-    const events: GameEvent[] = [{ type: 'ANSWER_ACCEPTED', turn: records.turnRecord }, ...records.evidence.map((evidence) => ({ type: 'EVIDENCE_ADDED', evidence }) as GameEvent)];
-    if (records.insight) events.push({ type: 'INSIGHT_ADDED', insight: records.insight });
-    setState((current) => applyGameEvents(current, events));
-    setReply(model.reply); setAnswer('');
+    if (provider.id === 'disabled') { commitTurn(createMockTurn(state, prompt, answer), answer, 'mock'); return; }
+    void submitViaProvider(answer);
   };
 
   const bossRun = activeBossRun(state);
@@ -55,8 +92,22 @@ export default function App() {
       ? { kind: 'door' as const, heading: 'Mystery Door', step: 'One crossing', dimension: doorRun.dimensions[0], ...describeDoor(state, doorRun, territoryLabels) }
       : null;
 
+  /**
+   * Inside an encounter the model gets strictly less than its usual authority: it
+   * supplies reply wording only, and never any part of the dispatched events.
+   */
+  const enrichEncounterReply = (text: string, dimension: string, question: string, territoryId: string, kind: 'boss' | 'door') => {
+    if (provider.id === 'disabled') return;
+    const context = compileContext(state, { territoryId, dimension, question }, text, {
+      kind: kind === 'boss' ? 'boss-stage' : 'door',
+      encounter: { kind, heading: encounter?.heading ?? '', step: encounter?.step ?? '', evidenceClaims: encounter?.evidenceClaims ?? [] }
+    });
+    void provider.turn(context).then((result) => { if (result.ok) setReply(result.turn.reply); }).catch(() => undefined);
+  };
+
   const submitEncounter = () => {
     if (!encounter || !answer.trim() || state.sessionStatus === 'paused') return;
+    const submitted = answer;
     if (encounter.kind === 'boss' && bossRun) {
       dispatch({ type: 'BOSS_STAGE_ANSWERED', turn: encounterTurnRecord(bossRun.territoryId, encounter.dimension, encounter.question, answer) });
       setReply('Logged. The map does not get to soften that one for you.');
@@ -66,6 +117,7 @@ export default function App() {
       setReply('The crossing is recorded as a hypothesis, not a verdict.');
     }
     setAnswer('');
+    enrichEncounterReply(submitted, encounter.dimension, encounter.question, encounter.kind === 'boss' && bossRun ? bossRun.territoryId : (doorRun?.territoryIds[0] ?? state.activeTerritory), encounter.kind);
   };
 
   const leaveEncounter = () => { dispatch(encounter?.kind === 'boss' ? { type: 'BOSS_WITHDRAWN' } : { type: 'DOOR_CLOSED' }); setReply('Stepped back. Nothing was lost.'); setAnswer(''); };
