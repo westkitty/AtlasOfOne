@@ -26,6 +26,28 @@ export function createInitialCampaign(): CampaignState {
   };
 }
 
+/**
+ * Whether the campaign has deterministically reached its end state.
+ *
+ * This is a READ of existing engine authority. It awards nothing, mutates
+ * nothing, and does not change how `CAMPAIGN_COMPLETED` is earned.
+ *
+ * `campaignCompleted` is the canonical flag and wins whenever it is set. Until
+ * something in the campaign earns it, the engine's own territory authority is
+ * the criterion: every territory carried to `charted` or `deeply-charted` by
+ * evidence coverage in `reconcileTerritories`. Both are engine-owned and
+ * evidence-derived, so no new threshold is invented here and no model opinion
+ * can reach this decision.
+ *
+ * Used to gate end-state artifacts — the Final Atlas Assessment — which are
+ * meaningless and misleading before the map is actually finished.
+ */
+export function campaignReachedEndState(state: CampaignState): boolean {
+  if (state.campaignCompleted) return true;
+  return state.territories.length > 0
+    && state.territories.every((territory) => territory.status === 'charted' || territory.status === 'deeply-charted');
+}
+
 export function levelForXp(xp: number): number {
   let level = 1;
   LEVEL_THRESHOLDS.forEach((threshold, index) => { if (xp >= threshold) level = index + 1; });

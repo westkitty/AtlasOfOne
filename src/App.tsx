@@ -7,7 +7,7 @@ import { createMockTurn, describeBossStage, describeDoor, doorInsightFrom, encou
 import { type AIProvider, disabledProvider, playerMessageForFailure } from './cartographer/provider';
 import type { CartographerTurn } from './cartographer/schema';
 import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefinition, currentBossStage } from './game/encounters';
-import { applyGameEvents, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
+import { applyGameEvents, campaignReachedEndState, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
 import type { CampaignState, GameEvent, SassLevel, TerritoryStatus } from './game/types';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
 import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
@@ -59,6 +59,13 @@ export default function App() {
   // reports a live provider. Nothing here holds a credential or a model id.
   const [provider, setProvider] = useState<AIProvider>(disabledProvider);
   const prompt = useMemo(() => getMockPrompt(state), [state]);
+  /**
+   * The Final Atlas is an end-state artifact. Deciding availability here keeps
+   * it on the engine's deterministic authority rather than on a feeling about
+   * how much has been said.
+   */
+  const campaignEnded = campaignReachedEndState(state);
+  const chartedTerritories = state.territories.filter((t) => t.status === 'charted' || t.status === 'deeply-charted').length;
   const dispatch = (...events: GameEvent[]) => setState((current) => applyGameEvents(current, events));
 
   useEffect(() => {
@@ -335,7 +342,7 @@ export default function App() {
   };
 
   const generateAssessment = async () => {
-    if (isFinalizing) return;
+    if (isFinalizing || !campaignEnded) return;
     setIsFinalizing(true);
     setMessage('Synthesizing holistic character assessment...');
     try {
@@ -617,9 +624,11 @@ export default function App() {
           <p className="settings-note">Holistic synthesis of mapped coordinates, values, contradictions, and open questions.</p>
         </div>
         <div className="assessment-actions no-print">
-          <button className="primary" data-testid="synthesize-assessment-btn" onClick={generateAssessment} disabled={isFinalizing}>
-            {isFinalizing ? 'Synthesizing...' : state.finalAssessment ? 'Re-synthesize Atlas' : 'Synthesize Final Atlas'}
-          </button>
+          {campaignEnded && (
+            <button className="primary" data-testid="synthesize-assessment-btn" onClick={generateAssessment} disabled={isFinalizing}>
+              {isFinalizing ? 'Synthesizing...' : state.finalAssessment ? 'Re-synthesize Atlas' : 'Synthesize Final Atlas'}
+            </button>
+          )}
           {state.finalAssessment && (
             <button className="print-btn" data-testid="print-assessment-btn" onClick={() => window.print()}>
               Print / Save as PDF
@@ -627,6 +636,12 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {!campaignEnded && (
+        <div className="empty" data-testid="assessment-locked">
+          The final Atlas is written once the map is finished. {chartedTerritories} of {state.territories.length} territories are charted so far — keep mapping, and it will be waiting.
+        </div>
+      )}
 
       {state.finalAssessment && (
         <div className="assessment-body" data-testid="assessment-content">

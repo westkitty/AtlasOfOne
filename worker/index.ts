@@ -1,5 +1,5 @@
 import { cartographerContextSchema } from '../src/cartographer/context';
-import { finalAssessmentSchema, finalizeContextSchema } from '../src/cartographer/finalize';
+import { finalAssessmentSchema, finalizeContextSchema, validateFinalAssessment } from '../src/cartographer/finalize';
 import { DEFAULT_MODEL_ID, DEFAULT_TRANSCRIBE_MODEL_ID, findCandidate } from '../src/cartographer/models';
 import { playerMessageForFailure, type ProviderFailureCode } from '../src/cartographer/provider';
 import { createWorkersAiProvider, type WorkersAiBinding } from '../src/cartographer/workersai';
@@ -299,6 +299,13 @@ export default {
         if (!valid.success) {
           return failure('malformed-output');
         }
+
+        // Shape is not honesty. A schema-valid assessment that names a closed
+        // topic, invents a quotation or narrates progression is refused outright
+        // and never repaired, exactly as on the per-turn path. The caller falls
+        // back to the deterministic local synthesis, so nothing is lost.
+        const semantic = validateFinalAssessment(valid.data, parsed.data);
+        if (!semantic.ok) return failure('semantic-invalid');
 
         return Response.json({ ok: true, assessment: valid.data, modelId });
       } catch (error) {

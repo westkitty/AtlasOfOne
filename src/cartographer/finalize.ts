@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import type { CampaignState, EvidenceRecord, InsightRecord, TurnRecord } from '../game/types';
+import type { CampaignState, EvidenceRecord, InsightRecord } from '../game/types';
+import { createEvidenceVisibility, type EvidenceVisibility } from './context';
+import { findAuthorityFields, PROGRESSION_CLAIMS } from './validate';
 
 export const assessmentDomainSectionSchema = z.object({
   title: z.string(),
@@ -82,7 +84,9 @@ export type FinalizeContext = z.infer<typeof finalizeContextSchema>;
  * CANARY RULE: Private topics and retracted turns/evidence are structurally omitted.
  */
 export function compileFinalizeContext(state: CampaignState): FinalizeContext {
-  const isPrivate = (dim: string) => state.privateTopics.includes(dim);
+  // Same boundary the per-turn context uses, so the two payloads cannot drift.
+  const visibility = createEvidenceVisibility(state);
+  const isPrivate = visibility.isPrivateDimension;
 
   const territorySummaries = state.territories.map((t) => ({
     id: t.id,
@@ -91,18 +95,18 @@ export function compileFinalizeContext(state: CampaignState): FinalizeContext {
     coveredDimensions: t.coveredDimensions.filter((d) => !isPrivate(d))
   }));
 
-  const activeEvidence = state.evidence
-    .filter((e) => e.status === 'active' && !isPrivate(e.dimension))
-    .map((e) => ({
-      dimension: e.dimension,
-      claim: e.claim,
-      basis: e.basis,
-      strength: e.strength,
-      origin: e.origin
-    }));
+  const activeEvidence = visibility.visibleEvidence.map((e) => ({
+    dimension: e.dimension,
+    claim: e.claim,
+    basis: e.basis,
+    strength: e.strength,
+    origin: e.origin
+  }));
 
+  // An Insight is a reading of evidence, so it is exactly as private as the
+  // evidence beneath it. Status alone says nothing about privacy.
   const activeInsights = state.insights
-    .filter((i) => i.status !== 'rejected')
+    .filter((i) => i.status !== 'rejected' && visibility.derivedIsVisible(i.evidenceIds))
     .map((i) => ({
       title: i.title,
       summary: i.summary,
@@ -110,8 +114,10 @@ export function compileFinalizeContext(state: CampaignState): FinalizeContext {
       status: i.status
     }));
 
+  // Provenance, not prose. A contradiction can be entirely about a private
+  // dimension without ever naming it, so its wording is not the boundary.
   const contradictions = state.contradictions
-    .filter((c) => !state.privateTopics.some((p) => c.claim.toLowerCase().includes(p.toLowerCase())))
+    .filter((c) => visibility.derivedIsVisible(c.evidenceIds))
     .map((c) => ({ claim: c.claim, status: c.status }));
 
   const revisions = state.turns
@@ -149,41 +155,74 @@ const DOMAIN_DIMENSIONS: Record<string, string[]> = {
   idealFutureAndAmbition: ['future', 'ambition', 'work', 'legacy', 'purpose']
 };
 
-function filterEvidenceForDomain(evidence: EvidenceRecord[], privateTopics: string[], domainKey: string): string[] {
+/** Does an evidence dimension belong to this assessment domain? */
+function dimensionMatchesDomain(dimension: string, domainKey: string): boolean {
   const allowed = DOMAIN_DIMENSIONS[domainKey] ?? [];
-  return evidence
-    .filter((e) => e.status === 'active' && !privateTopics.includes(e.dimension) && (allowed.includes(e.dimension) || allowed.some((dim) => e.dimension.includes(dim))))
+  return allowed.includes(dimension) || allowed.some((dim) => dimension.includes(dim));
+}
+
+/** Claims from already-visible evidence that belong to this domain. */
+function claimsForDomain(visibleEvidence: EvidenceRecord[], domainKey: string): string[] {
+  return visibleEvidence
+    .filter((e) => dimensionMatchesDomain(e.dimension, domainKey))
     .map((e) => e.claim);
 }
 
-function filterInferencesForDomain(insights: InsightRecord[], domainKey: string): Array<{ hypothesis: string; confidence: 'low' | 'moderate' | 'strong' }> {
-  const allowed = DOMAIN_DIMENSIONS[domainKey] ?? [];
+/**
+ * Inferences for one domain.
+ *
+ * An Insight reaches a domain only when its own provenance is visible AND that
+ * provenance actually sits in the domain. The previous implementation ignored
+ * the domain entirely and repeated the first three Insights under all eight
+ * headings, which both fabricated relevance and carried private material.
+ */
+function inferencesForDomain(
+  insights: InsightRecord[],
+  visibility: EvidenceVisibility,
+  evidenceById: Map<string, EvidenceRecord>,
+  domainKey: string
+): Array<{ hypothesis: string; confidence: 'low' | 'moderate' | 'strong' }> {
   return insights
-    .filter((i) => i.status !== 'rejected')
+    .filter((i) => i.status !== 'rejected' && visibility.derivedIsVisible(i.evidenceIds))
+    .filter((i) => i.evidenceIds.some((id) => {
+      const record = evidenceById.get(id);
+      return Boolean(record) && dimensionMatchesDomain(record!.dimension, domainKey);
+    }))
     .slice(0, 3)
     .map((i) => ({ hypothesis: `${i.title}: ${i.summary}`, confidence: i.confidence }));
 }
 
 /**
  * Local deterministic synthesizer fallback.
- * Operates completely offline, respects all private dimensions, and preserves
- * epistemic separation between evidence, hypotheses, and open questions.
+ *
+ * It runs offline, and it is what the player sees whenever the remote synthesis
+ * is unavailable or refused — so it is held to the same standard as the model:
+ * it reports what the campaign actually recorded and says so plainly when the
+ * campaign recorded nothing.
+ *
+ * It states no personality conclusion, invents no contradiction, estimates no
+ * psychometric profile and fabricates no quotation. An empty axis is reported as
+ * an empty axis. Silence is the honest output for an unmapped campaign, and a
+ * confident paragraph would be a lie with the player's name on it.
  */
 export function generateLocalAssessment(state: CampaignState): FinalAssessment {
-  const privateTopics = state.privateTopics;
-  const activeEvidence = state.evidence.filter((e) => e.status === 'active' && !privateTopics.includes(e.dimension));
-  const confirmedInsights = state.insights.filter((i) => i.status === 'confirmed');
+  const visibility = createEvidenceVisibility(state);
+  const visibleEvidence = visibility.visibleEvidence;
+  const evidenceById = new Map(state.evidence.map((item) => [item.id, item]));
+  const visibleClaimById = new Map(visibleEvidence.map((item) => [item.id, item.claim]));
 
-  const buildSection = (key: string, title: string, fallbackSummary: string, openQ: string): AssessmentDomainSection => {
-    const claims = filterEvidenceForDomain(activeEvidence, privateTopics, key);
-    const inferences = filterInferencesForDomain(state.insights, key);
+  const buildSection = (key: string, title: string, openQ: string): AssessmentDomainSection => {
+    const claims = claimsForDomain(visibleEvidence, key);
+    const inferences = inferencesForDomain(state.insights, visibility, evidenceById, key);
     return {
       title,
       summary: claims.length > 0
         ? `Mapped through ${claims.length} recorded position${claims.length > 1 ? 's' : ''}.`
-        : fallbackSummary,
-      establishedEvidence: claims.length > 0 ? claims : ['No explicit claims recorded on this axis yet.'],
-      supportedInferences: inferences.length > 0 ? inferences : [{ hypothesis: `Initial observations on ${title.toLowerCase()} remain provisional.`, confidence: 'low' }],
+        : 'Not yet sufficiently mapped. No recorded evidence sits on this axis, so Atlas draws no conclusion here.',
+      establishedEvidence: claims.length > 0 ? claims : ['No explicit evidence recorded on this axis yet.'],
+      // Empty is correct and expected. An inference with no evidence under it is
+      // not a weak inference; it is an invention.
+      supportedInferences: inferences,
       openQuestionsAndUncertainty: [openQ]
     };
   };
@@ -191,88 +230,68 @@ export function generateLocalAssessment(state: CampaignState): FinalAssessment {
   const temperament = buildSection(
     'temperament',
     'Personality and Temperament',
-    'Temperament is characterized by responsive nuance and self-awareness.',
     'How do stress and high demands shift baseline interaction style?'
   );
 
   const valuesAndMorals = buildSection(
     'valuesAndMorals',
     'Values and Moral Architecture',
-    'Values emphasize integrity, fairness, and thoughtful agency.',
     'Under acute resource constraints, which foundational values take priority?'
   );
 
   const politicalAndIdeology = buildSection(
     'politicalAndIdeology',
     'Political Constellation and Ideology',
-    'Political view balances social liberty, systemic fairness, and skepticism of unearned authority.',
     'What institutional reforms are viewed as viable short-term compromises?'
   );
 
   const relationshipsAndSocial = buildSection(
     'relationshipsAndSocial',
     'Relationships and Social World',
-    'Relationship dynamics balance deliberate autonomy with intentional loyalty.',
     'What conditions make vulnerability in social circles easiest to sustain?'
   );
 
   const cognitiveStyle = buildSection(
     'cognitiveStyle',
     'Cognitive Style and Revision',
-    'Cognitive approach treats revision as data and resists hasty over-generalization.',
     'Which domains prompt the fastest willingness to reverse a conclusion?'
   );
 
   const interestsAndPreferences = buildSection(
     'interestsAndPreferences',
     'Interests and Aesthetic Preferences',
-    'Expresses specific personal crafts, ideas, and curiosities.',
     'What unexplored mediums or topics generate latent curiosity?'
   );
 
   const fearsAndHopes = buildSection(
     'fearsAndHopes',
     'Fears and Hopes',
-    'Hopes center on meaningful autonomy and constructive connection; aversions focus on stagnation and disingenuousness.',
     'Which protective habits might outlive their original purpose?'
   );
 
   const idealFutureAndAmbition = buildSection(
     'idealFutureAndAmbition',
     'Ideal Future and Ambition',
-    'Ambitions look toward purposeful self-determination and meaningful creative expression.',
     'What steps feel most urgent in shaping the next expedition phase?'
   );
 
-  const contradictionsAndTensions: ContradictionEntry[] = state.contradictions.length > 0
-    ? state.contradictions
-        .filter((c) => !privateTopics.some((p) => c.claim.toLowerCase().includes(p.toLowerCase())))
-        .map((c) => ({
-          tension: c.claim,
-          evidence: activeEvidence.slice(0, 2).map((e) => e.claim),
-          status: c.status === 'open' ? 'open' as const : 'reconciled' as const
-        }))
-    : [{
-        tension: 'Balancing self-reliant autonomy with deep communal interdependence',
-        evidence: activeEvidence.slice(0, 2).map((e) => e.claim),
-        status: 'open'
-      }];
+  // Only contradictions the campaign actually recorded, each carrying its OWN
+  // evidence rather than whichever two claims happened to be first. No default.
+  const contradictionsAndTensions: ContradictionEntry[] = state.contradictions
+    .filter((c) => visibility.derivedIsVisible(c.evidenceIds))
+    .map((c) => ({
+      tension: c.claim,
+      evidence: c.evidenceIds.map((id) => visibleClaimById.get(id)).filter((claim): claim is string => Boolean(claim)),
+      status: c.status === 'open' ? 'open' as const : 'reconciled' as const
+    }));
 
-  const frameworkEstimates: FrameworkEstimate[] = [
-    {
-      framework: 'Big Five Perspective (Working Estimate)',
-      estimate: 'High Openness to experience; High Agreeableness with firm boundary-setting; Moderate-to-high Conscientiousness.',
-      caveat: 'Estimates are descriptive working models, not rigid types, facts, or clinical diagnoses.'
-    },
-    {
-      framework: 'Cognitive & Epistemic Orientation',
-      estimate: 'Empirical-Reflective: updates models readily when presented with concrete examples and self-correction.',
-      caveat: 'Exploratory framework lens; actual reasoning shifts flexibly based on context.'
-    }
-  ];
+  // The deterministic synthesizer has no principled basis for a Big Five or any
+  // other psychometric reading, so it offers none. A schema slot is not evidence.
+  const frameworkEstimates: FrameworkEstimate[] = [];
 
+  // Real player words only. No placeholder is ever presented as a quotation.
   const representativeQuotes = state.turns
-    .filter((t) => t.substantive && !t.retracted && !privateTopics.includes(t.dimension) && t.answer.trim().length > 15)
+    .filter((t) => t.substantive && !t.retracted && !visibility.isPrivateDimension(t.dimension) && t.answer.trim().length > 15)
     .slice(-5)
     .map((t) => `"${t.answer.trim()}"`);
 
@@ -281,7 +300,14 @@ export function generateLocalAssessment(state: CampaignState): FinalAssessment {
     ? uncompletedTerritories.map((t) => `Territory "${t.label}" remains in ${t.status} state, holding unmapped coordinates.`)
     : ['All primary territories charted. Ongoing discovery continues through deeper life revisions.'];
 
-  const whoIsGreyson = `Greyson (${state.player.pronouns}) is a multi-dimensional thinker whose map reveals an architecture of deliberate autonomy, genuine fairness, and reflective inquiry. Rather than conforming to a single static label, Greyson's coordinates demonstrate a capacity to hold tensions with nuance, treat revisions as valuable data, and maintain authentic boundaries while remaining open to meaningful connection.`;
+  const chartedCount = state.territories.length - uncompletedTerritories.length;
+  const coveredDimensions = new Set(visibleEvidence.map((item) => item.dimension));
+
+  // Grounded in counts the campaign can prove, or an explicit statement that it
+  // cannot be written yet. Never a character reading dressed as a summary.
+  const whoIsGreyson = visibleEvidence.length === 0
+    ? `Atlas does not yet have enough mapped evidence to write a responsible synthesis of Greyson (${state.player.pronouns}). Nothing here is a conclusion about who he is — the coordinates simply have not been charted yet.`
+    : `Greyson (${state.player.pronouns}) is described here strictly by what this campaign recorded: ${visibleEvidence.length} visible piece${visibleEvidence.length > 1 ? 's' : ''} of evidence across ${coveredDimensions.size} dimension${coveredDimensions.size > 1 ? 's' : ''}, with ${chartedCount} of ${state.territories.length} territories charted. What follows reports those coordinates and the uncertainty around them, and nothing beyond them.`;
 
   return {
     id: `assessment_${crypto.randomUUID()}`,
@@ -298,7 +324,86 @@ export function generateLocalAssessment(state: CampaignState): FinalAssessment {
     idealFutureAndAmbition,
     contradictionsAndTensions,
     frameworkEstimates,
-    representativeQuotes: representativeQuotes.length > 0 ? representativeQuotes : ['"Coordinates in progress."'],
+    representativeQuotes,
     openQuestions
   };
+}
+
+/**
+ * Semantic validation for a Final Assessment.
+ *
+ * `finalAssessmentSchema` proves the SHAPE is right. It cannot prove the content
+ * is honest, and the final assessment is the single most sensitive artifact
+ * Atlas produces: it is long, it is about a real person, it is kept, and it is
+ * printed. So the same discipline the per-turn path applies in
+ * `validateProviderResponse` is applied here, adapted to this contract.
+ *
+ * A `CartographerTurn` validator cannot be reused directly — the shapes are
+ * unrelated — so the shared primitives are reused instead and the rules are
+ * restated for this contract.
+ *
+ * Like the turn path, a semantic failure is NEVER repaired. The response is
+ * discarded and the caller falls back to the deterministic local synthesis.
+ */
+export type FinalAssessmentValidation = { ok: true } | { ok: false; problems: string[] };
+
+/** Every string anywhere in the assessment, so no field escapes the scan. */
+function collectStrings(value: unknown, out: string[] = []): string[] {
+  if (typeof value === 'string') { out.push(value); return out; }
+  if (Array.isArray(value)) { value.forEach((item) => collectStrings(item, out)); return out; }
+  if (value && typeof value === 'object') { Object.values(value).forEach((item) => collectStrings(item, out)); }
+  return out;
+}
+
+/** Compare quotations by content, ignoring wrapping punctuation and spacing. */
+const normalizeQuote = (value: string) =>
+  value.trim().replace(/^["'“”‘’\s]+|["'“”‘’\s]+$/g, '').replace(/\s+/g, ' ').toLowerCase();
+
+export function validateFinalAssessment(assessment: FinalAssessment, context: FinalizeContext): FinalAssessmentValidation {
+  const problems: string[] = [];
+  const prose = collectStrings(assessment);
+
+  // 1. A topic the player closed must not resurface anywhere in the synthesis.
+  //    The labels travel in the context so the model can avoid them; using one is
+  //    a refusal to avoid it.
+  for (const topic of context.privateTopics) {
+    const needle = topic.trim().toLowerCase();
+    if (!needle) continue;
+    if (prose.some((text) => text.toLowerCase().includes(needle))) {
+      problems.push(`Private topic "${topic}" resurfaced in the final assessment.`);
+    }
+  }
+
+  // 2. A quotation must be the player's words. The eligible set is exactly what
+  //    the finalize context supplied; anything else is invented speech attributed
+  //    to a real person.
+  const eligible = context.representativeQuotes.map(normalizeQuote).filter(Boolean);
+  for (const quote of assessment.representativeQuotes) {
+    const candidate = normalizeQuote(quote);
+    if (!candidate) continue;
+    const grounded = eligible.some((source) => source.includes(candidate) || candidate.includes(source));
+    if (!grounded) problems.push('Representative quote is not grounded in the player\'s recorded answers.');
+  }
+
+  // 3. The model owns no progression and must not narrate any, here either.
+  for (const text of prose) {
+    for (const pattern of PROGRESSION_CLAIMS) {
+      if (pattern.test(text)) problems.push(`Final assessment narrated progression: ${pattern}`);
+    }
+  }
+
+  // 4. Progression-shaped fields are stripped by Zod; an attempt is still refused
+  //    rather than silently accepted.
+  const authorityFields = findAuthorityFields(assessment);
+  if (authorityFields.length) problems.push(`Final assessment carried authority fields: ${authorityFields.join(', ')}.`);
+
+  // 5. MODEL_CONTRACT requires a framework estimate to be visibly a working
+  //    hypothesis. An uncaveated estimate reads as a diagnosis.
+  for (const estimate of assessment.frameworkEstimates) {
+    if (!estimate.caveat.trim()) problems.push(`Framework estimate "${estimate.framework}" carried no caveat.`);
+    if (!estimate.framework.trim() || !estimate.estimate.trim()) problems.push('Framework estimate was empty.');
+  }
+
+  const unique = [...new Set(problems)];
+  return unique.length ? { ok: false, problems: unique } : { ok: true };
 }

@@ -304,11 +304,41 @@ describe('Atlas browser journey', () => {
     await page.setViewportSize(PHONE);
   });
 
-  it('21. synthesizes and renders Final Atlas Assessment on Me screen', async () => {
+  it('21a. an unfinished campaign cannot synthesize a Final Atlas Assessment', async () => {
     await goto('Me');
     expect(await page.isVisible('[data-testid="final-assessment-section"]')).toBe(true);
 
-    // Click synthesize assessment button
+    // The map is not finished, so the end-state artifact is not offered at all.
+    expect(await page.isVisible('[data-testid="assessment-locked"]')).toBe(true);
+    expect(await page.locator('[data-testid="synthesize-assessment-btn"]').count()).toBe(0);
+    expect(await page.locator('[data-testid="assessment-content"]').count()).toBe(0);
+  });
+
+  it('21b. a completed campaign synthesizes and renders the Final Atlas Assessment', async () => {
+    // Reach the end state the way a player legitimately can: import a campaign
+    // the engine already considers complete, through the real import path.
+    const exported = await page.evaluate(async () => {
+      const open = indexedDB.open('atlas-of-one');
+      return new Promise<string>((resolve) => {
+        open.onsuccess = () => {
+          const request = open.result.transaction('campaigns', 'readonly').objectStore('campaigns').get('active');
+          request.onsuccess = () => resolve(JSON.stringify(request.result.state));
+        };
+      });
+    });
+    const completed = { ...JSON.parse(exported), campaignCompleted: true };
+
+    await goto('Me');
+    await page.setInputFiles('.file input', {
+      name: 'synthetic-completed.atlas.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(completed))
+    });
+    await page.waitForSelector('.toast:text-matches("imported and validated")');
+
+    await goto('Me');
+    await expect.poll(() => page.locator('[data-testid="assessment-locked"]').count()).toBe(0);
+
     await page.click('[data-testid="synthesize-assessment-btn"]');
     await expect.poll(() => page.isVisible('[data-testid="assessment-content"]')).toBe(true);
 
