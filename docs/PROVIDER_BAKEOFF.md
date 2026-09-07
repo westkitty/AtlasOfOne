@@ -5,7 +5,7 @@ Authoritative record of provider selection for Phase 3.
 ## Status of this document
 
 **The live bakeoff HAS been run.** Real Workers AI inference was executed across all
-five free-plan-eligible candidates against Cloudflare account `e492e402d5d61b9c04dc9144607e90de`.
+five free-plan-eligible candidates against an authenticated Cloudflare account via supported Wrangler OAuth.
 A total of **212 live inference requests** were executed, spending **6,163.77 neurons**
 (61.6% of the 10,000/day free limit). Zero dollars spent.
 
@@ -15,8 +15,7 @@ acceptance under live measurement due to output token truncation.
 
 ## Live execution details
 
-Authentication was completed via Wrangler OAuth keyring integration with account
-`e492e402d5d61b9c04dc9144607e90de` (`Digitalghosts269@gmail.com's Account`).
+Authentication was completed via supported Wrangler OAuth keyring integration.
 Inference telemetry was recorded directly from the live test run and verified against
 Cloudflare's server-side GraphQL AI Inference analytics.
 
@@ -118,7 +117,7 @@ Executed via `npm run test:live` against authenticated Cloudflare Workers AI.
 
 | Metric | Measured Value |
 |---|---|
-| Cloudflare Account ID | `e492e402d5d61b9c04dc9144607e90de` |
+| Cloudflare Account | Authenticated via Wrangler OAuth |
 | Total Live Inference Requests | **212** |
 | Qwen3 30B Requests | 204 |
 | Total Neurons Consumed | **6,163.77** (of 10,000 free/day) |

@@ -7,15 +7,15 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 10,
+  "state_revision": 11,
   "last_updated": "2026-09-07",
   "current_baseline": {
-    "identity": "local-rev10",
+    "identity": "local-rev11",
     "state": "partially-verified",
     "last_verified": "2026-09-07"
   },
   "scope_boundaries": [
-    "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight across all 8 territories and Mystery Door encounters, local persistence, PWA manifest/offline shell, CI browser workflow, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime, live Workers AI bakeoff and measured provider selection, Phase 4 voice interaction (MediaRecorder capture, explicit voice state machine, local agency command parser, browser speech synthesis, /api/transcribe endpoint), ATLAS_ACCESS_SECRET Worker secret + client credential gate, and Cloudflare Workers production deployment"
+    "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight across all 8 territories and Mystery Door encounters, local persistence, PWA manifest/offline shell, CI browser workflow, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime, live Workers AI bakeoff and measured provider selection, Phase 4 voice interaction (MediaRecorder capture, explicit voice state machine, local agency command parser, browser speech synthesis, /api/transcribe endpoint), ATLAS_ACCESS_SECRET Worker secret + client credential gate, Cloudflare Workers production deployment, and Cloudflare Workers Builds Git repository integration (physical Android device hardware verification unverified pending reachable device UNV-003)"
   ],
   "linked_parent_state": null
 }
@@ -29,18 +29,18 @@
 - **Primary root or artifact:** repository root.
 - **Target environment:** Current evergreen mobile browsers first; installable PWA; Cloudflare Worker deployment live.
 - **Canonical authority:** Current explicit user instructions, then repository source-of-truth documents distilled from supplied planning/source material and accepted asset mapping.
-- **Governed scope:** Phase 1 complete, Phase 2 complete, Phase 3 complete (live Workers AI bakeoff and measured provider selected), and Phase 4 complete (voice mode, transcription endpoint, access secret gate, production deployment).
+- **Governed scope:** Phase 1 complete, Phase 2 complete, Phase 3 complete (live Workers AI bakeoff and measured provider selected), and Phase 4 partial (voice mode, transcription endpoint, access secret gate, production deployment, and Cloudflare Workers Builds Git deployment complete; physical Android device install/verification unverified pending reachable hardware UNV-003).
 - **Explicitly not governed:** Paid-model integration, real Greyson campaign content, 3D/native/account systems.
 
 ## 2. Current Baseline
 
 - **Primary artifact:** `westkitty/AtlasOfOne` on `main`.
-- **Code baseline:** `local-rev10` (Phase 4 Voice + Deployment complete: explicit voice state machine, local voice agency commands, MediaRecorder capture, speech synthesis, `/api/transcribe` with `@cf/openai/whisper-tiny-en`, `ATLAS_ACCESS_SECRET` Worker secret + local client credential gate, production deployed to Cloudflare Workers, 180 unit tests and 49 browser tests passing).
-- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior through the real provider pipeline, deterministic Boss Fight across all 8 territories, Mystery Door behavior, provider boundary, context compiler, PRIVATE exclusion, context boundedness, structured-output validation, bounded repair, model-authority firewall, typed provider degradation, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, 49 desktop-Chrome browser tests across user journey, encounters, provider path, PWA offline/recovery lifecycle, and voice mode, live Workers AI inference bakeoff, and **live production deployment on Cloudflare Workers (Version `2d0324a7-3e61-4585-8112-b0bab63492d6` at `atlas-of-one.atlas-of-one.workers.dev`) with live verified `/api/health` and access secret gating are verified**; real-device physical touch, mobile OS integration, and non-Chrome browsers remain unverified.
-- **Validation identity:** local run on revision 10: `npx tsc --noEmit` clean, 180 unit tests (1 skipped when worker offline), 49 browser-runtime tests in installed Chrome against the production bundle across 5 test suites (`journey`, `encounters`, `provider`, `pwa`, `voice`), a passing production Worker/client/PWA build, and live production HTTP probes.
+- **Code baseline:** `local-rev11` (Phase 4 Voice + Deployment partial: explicit voice state machine, local voice agency commands, MediaRecorder capture, speech synthesis, `/api/transcribe` with `@cf/openai/whisper-tiny-en`, `ATLAS_ACCESS_SECRET` Worker secret + local client credential gate, production deployed to Cloudflare Workers, Cloudflare Workers Builds Git repository integration active to `westkitty/AtlasOfOne` on branch `main`, 180 unit tests and 49 browser tests passing; physical Android device check unverified pending reachable hardware UNV-003).
+- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior through the real provider pipeline, deterministic Boss Fight across all 8 territories, Mystery Door behavior, provider boundary, context compiler, PRIVATE exclusion, context boundedness, structured-output validation, bounded repair, model-authority firewall, typed provider degradation, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, 49 desktop-Chrome browser tests across user journey, encounters, provider path, PWA offline/recovery lifecycle, and voice mode, live Workers AI inference bakeoff, **live production deployment on Cloudflare Workers (Version `2d0324a7-3e61-4585-8112-b0bab63492d6` at `atlas-of-one.atlas-of-one.workers.dev`) with live verified `/api/health` and access secret gating**, and **Cloudflare Workers Builds Git deployment integration connected to `westkitty/AtlasOfOne` on production branch `main`** are verified; real-device physical touch, mobile OS integration, physical Android device hardware (UNV-003), and non-Chrome browsers remain unverified.
+- **Validation identity:** local run on revision 11: `npx tsc --noEmit` clean, 180 unit tests (1 skipped when worker offline), 49 browser-runtime tests in installed Chrome against the production bundle across 5 test suites (`journey`, `encounters`, `provider`, `pwa`, `voice`), a passing production Worker/client/PWA build, Cloudflare dashboard Builds API probe (HTTP 201 Created), and live production HTTP probes.
 - **Active default user route:** Map screen, verified in a real browser.
 - **Delivery state:** GitHub repository and deployed Cloudflare Worker at `https://atlas-of-one.atlas-of-one.workers.dev`.
-- **Live provider state:** Authenticated via Wrangler OAuth keyring (`Digitalghosts269@gmail.com's Account`, account id `e492e402d5d61b9c04dc9144607e90de`). Live bakeoff successfully completed (`@cf/qwen/qwen3-30b-a3b-fp8` measured winner). Live transcription endpoint bound to `@cf/openai/whisper-tiny-en`. `ATLAS_ACCESS_SECRET` configured in production. Zero dollars spent.
+- **Live provider state:** Authenticated via supported Wrangler OAuth keyring. Live bakeoff successfully completed (`@cf/qwen/qwen3-30b-a3b-fp8` measured winner). Live transcription endpoint bound to `@cf/openai/whisper-tiny-en`. `ATLAS_ACCESS_SECRET` configured in production. Cloudflare Workers Builds connected to `westkitty/AtlasOfOne` on branch `main`. Zero dollars spent.
 
 ## 3. Artifact Contract
 
@@ -114,16 +114,17 @@ The current artifact contains the requested source-of-truth documents, React/Typ
 - **VER-039:** **Access secret security boundary (`ATLAS_ACCESS_SECRET`).** `worker/index.ts` protects `/api/turn` and `/api/transcribe` with bearer/header authentication against Worker secret `ATLAS_ACCESS_SECRET`. Client credentials managed in `localStorage` via `src/voice/access.ts` with complete isolation from `CampaignState` and IndexedDB exports. Proven by 8 unit tests in `tests/cartographer/access.test.ts`.
 - **VER-040:** **Real-browser voice suite.** Tested in installed Chrome against the production bundle over 8 checks in `tests/browser/voice.test.ts`: mode switch (Type/Talk), voice card presentation, mic button touch targets (>=44px), graceful microphone permission denial fallback, quiet/serious mode speech synthesis tuning (rate 0.9, volume 0.6), local voice command execution without XP, and access code configuration on the Me screen with zero 320px horizontal overflow.
 - **VER-041:** **Cloudflare Workers production deployment.** Version `2d0324a7-3e61-4585-8112-b0bab63492d6` deployed at `https://atlas-of-one.atlas-of-one.workers.dev` with live verified endpoints: `/api/health` returns 200 OK (`workers-ai` cartographer, `@cf/qwen/qwen3-30b-a3b-fp8`, `@cf/openai/whisper-tiny-en`, `accessProtected: true`); `/api/turn` and `/api/transcribe` return 401 Unauthorized without secret; `/` and `/manifest.webmanifest` return 200 OK.
+- **VER-042:** **Cloudflare Workers Builds Git repository integration.** Connected Worker `atlas-of-one` to GitHub repository `westkitty/AtlasOfOne` on production branch `main` with build command `npm run build` and deploy command `npx wrangler deploy`. Proven by Cloudflare dashboard API returning HTTP 201 Created and confirmed active Git repository integration with disconnect control.
 
 ## 6. Known Not Working
 
-No confirmed defect remains from automated validation across Phase 1 through Phase 4. Real AI inference bakeoff and production voice pipeline are fully implemented and verified.
+No confirmed defect remains from automated validation across Phase 1 through Phase 4. Real AI inference bakeoff, production voice pipeline, and Cloudflare Git deployment are fully implemented and verified. Physical Android device install and verification cannot be executed in this environment due to no reachable device hardware.
 
 ## 7. Implemented but Unverified
 
 UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014, UNV-015, and UNV-016 were exercised and promoted to verified. The following remain genuinely unverified:
 
-- **UNV-003:** PWA installability on physical Android or physical mobile devices, and OS-level touch ergonomics. Checked in this environment via `system_profiler SPUSBDataType` and `adb devices`; no physical Android device was connected. Desktop Chrome browser journey, offline lifecycle, and voice mode are proven (VER-031, VER-040); physical device hardware remains unverified.
+- **UNV-003:** Physical Android device check — NOT VERIFIED — NO REACHABLE DEVICE. PWA installability on physical Android or physical mobile devices, and OS-level touch ergonomics. Checked in this environment via `system_profiler SPUSBDataType`, `adb devices -l`, and `adb mdns services`; zero devices connected or discovered. Desktop Chrome browser journey, offline lifecycle, and voice mode are proven (VER-031, VER-040); physical device hardware remains unverified.
 - **UNV-007:** Behavior on any browser other than installed desktop Chrome. Safari, Firefox and mobile engines are unexercised.
 - **UNV-009:** Real-device touch ergonomics. Touch-target sizes were measured geometrically, not tested by hand.
 - **UNV-010:** Boss Fight and Mystery Door pacing and difficulty as an actual play experience. Correctness is proven; whether the encounters feel like a concentrated synthesis test to a player has not been observed.
@@ -140,7 +141,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **PND-002:** Closed. Provider boundary, context compiler, evidence provenance, structured-output validation, bounded repair, typed failure states, and live Workers AI bakeoff completed with measured winner `@cf/qwen/qwen3-30b-a3b-fp8`.
 - **PND-008:** Closed. Live Workers AI bakeoff executed and documented in `docs/PROVIDER_BAKEOFF.md`.
 - **PND-009:** Decide whether the browser provider journey and the Worker runtime probe join CI (they need Chrome and a workerd runtime respectively), alongside the existing PND-007 decision.
-- **PND-003:** Closed. Phase 4 voice state machine, local agency commands, synthesis, `/api/transcribe` endpoint, `ATLAS_ACCESS_SECRET` Worker secret + client credential gate, production deployment to Cloudflare Workers, and live endpoint verification completed.
+- **PND-003:** Phase 4 voice state machine, local agency commands, synthesis, `/api/transcribe` endpoint, `ATLAS_ACCESS_SECRET` Worker secret + client credential gate, production deployment to Cloudflare Workers, and Cloudflare Workers Builds Git integration to `westkitty/AtlasOfOne` (`main`) verified; physical Android hardware check remains unverified pending reachable device (UNV-003). Phase 4 status: PARTIAL.
 - **PND-004:** Phase 5 adversarial release QA and final assessment.
 - **PND-005:** Intentionally deferred. Detailed canonical turnaround source `sheets/aerron_turnaround_hires.png` is not committed/available in repo and trigger/role remains an unresolved design decision (Level 8 vs all territories charted vs final assessment). Leave pending until source asset and decision are supplied.
 
@@ -217,16 +218,28 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 | ACCESS-001 | ATLAS_ACCESS_SECRET protects /api/turn and /api/transcribe; client isolation | verified | `tests/cartographer/access.test.ts`, 8 tests | Vitest | `local-rev10`, rev 10 | 2026-09-07 | access auth changes |
 | BROWSER-007 | voice mode switch, UI, mic targets, quiet synthesis, and access settings in Chrome | verified | `tests/browser/voice.test.ts`, 8 tests in Chrome | playwright-core + Vitest | `local-rev10`, rev 10 | 2026-09-07 | voice UI changes |
 | DEPLOY-001 | production deployment on Cloudflare Workers with live health and access gate | verified | live deployment at `atlas-of-one.atlas-of-one.workers.dev` | live HTTP probe | `local-rev10`, rev 10 | 2026-09-07 | worker deployment |
+| DEPLOY-002 | Cloudflare Workers Builds Git repository integration on production branch main | verified | dashboard API HTTP 201 Created and active connection to `westkitty/AtlasOfOne` | Cloudflare Dashboard Builds API | `local-rev11`, rev 11 | 2026-09-07 | Git repo/builds integration |
 
 ## 12. Current Change Scope and Impact Radius
 
-- **Allowed to change next:** Turnaround reveal asset sourcing and trigger decision (PND-005), then Phase 5 adversarial release QA and final assessment.
+- **Allowed to change next:** Phase 5 adversarial release QA, final assessment domains, and turnaround reveal asset sourcing (PND-005) when authorized.
 - **Must remain unchanged:** privacy, deterministic progression authority including encounter outcomes, always-available agency controls inside every encounter type, the no-PRIVATE-leak rule for Doors, Aerron→Greyson canonical asset mapping, Andrew-asset exclusion, source gap labels, and explicit non-goals.
 - **Potentially affected behavior:** mock campaign progression, local state persistence, mobile UI, PWA build, canonical sprite presentation.
 - **Mandatory checks:** synthetic tests, production build, repository secret/private-data scan; browser/runtime checks when available.
-- **Repair class:** Rev 10 is authoritative Phase 4 (Voice + Deployment): implemented MediaRecorder voice capture, explicit deterministic voice state machine, local voice agency commands, browser speech synthesis, POST /api/transcribe bound to @cf/openai/whisper-tiny-en, ATLAS_ACCESS_SECRET Worker secret + local client credential gate, production deployment to Cloudflare Workers, and comprehensive unit and real-Chrome browser test suites.
+- **Repair class:** Rev 11 reconciles Phase 4 status (PARTIAL pending reachable physical Android hardware UNV-003), proves Cloudflare Workers Builds Git integration connected to `westkitty/AtlasOfOne` branch `main`, and completes privacy hygiene sanitization of personal account identifiers from repository documentation.
 
 ## 13. Compact Revision Log
+
+### Revision 11 — 2026-09-07
+
+- **Artifact/source identity:** code baseline `local-rev11`.
+- **State deltas:** Reconciled Phase 4 status, verified Cloudflare Git deployment, and sanitized credentials:
+  1. Connected Cloudflare Workers Builds to GitHub repository `westkitty/AtlasOfOne` on production branch `main` with build command `npm run build` and deploy command `npx wrangler deploy` (verified via dashboard API HTTP 201 Created and confirmed active Git integration with Disconnect control).
+  2. Executed autonomous discovery for physical Android devices (`adb devices -l`, `adb mdns services`, `system_profiler SPUSBDataType`); confirmed 0 connected devices and recorded status definitively as `UNV-003: Physical Android device check — NOT VERIFIED — NO REACHABLE DEVICE`.
+  3. Reconciled project-state claims across `OPERATIONAL_STATE.md` and `docs/ACCEPTANCE.md`: Phase 4 is accurately classified as `PARTIAL` rather than complete until physical Android device install/verification can be executed against real hardware.
+  4. Performed privacy hygiene sanitization across `OPERATIONAL_STATE.md` and `docs/PROVIDER_BAKEOFF.md`, removing personal Cloudflare account email and account ID from public tracked documentation.
+- **New evidence:** Cloudflare Workers Builds API HTTP 201 response and active dashboard UI showing `westkitty/AtlasOfOne` connected on branch `main`; `adb` device probe showing empty device list; all 180 unit tests and 49 browser tests passing.
+- **Validation not performed:** real physical mobile device/touch, real Android PWA installation (UNV-003: no reachable hardware), and non-Chrome browsers.
 
 ### Revision 10 — 2026-09-07
 
@@ -240,7 +253,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
   6. Implemented access secret security boundary (`ATLAS_ACCESS_SECRET`) protecting `/api/turn` and `/api/transcribe` via Worker secret, with client credentials stored in `localStorage` (`src/voice/access.ts`), isolated from `CampaignState` and exports, and Me screen settings UI.
   7. Tested typed vs spoken equivalence in `tests/voice/equivalence.test.ts` proving identical deterministic XP, levels, and evidence.
   8. Deployed to production on Cloudflare Workers (`https://atlas-of-one.atlas-of-one.workers.dev`, Version `2d0324a7-3e61-4585-8112-b0bab63492d6`) with `ATLAS_ACCESS_SECRET` configured; verified live HTTP probes across `/api/health`, `/api/turn`, `/api/transcribe`, `/`, and `/manifest.webmanifest`.
-  9. Probed physical Android device availability via USB; none connected, recorded as `UNV-003: Physical Android device check — NOT VERIFIED — NO DEVICE CONNECTED`.
+  9. Probed physical Android device availability via USB; none connected, recorded as `UNV-003: Physical Android device check — NOT VERIFIED — NO REACHABLE DEVICE`.
 - **New evidence:** 180 passed in `npm test` (1 skipped when worker offline); 49 passed in `npm run test:browser` across 5 test suites (`journey`, `encounters`, `provider`, `pwa`, `voice`); production Worker/client build passing cleanly; live production HTTP probes 200/401 verified.
 - **Validation not performed:** real physical mobile device/touch, real Android PWA installation, and non-Chrome browsers.
 
@@ -248,7 +261,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 
 - **Artifact/source identity:** code baseline `local-rev9`.
 - **State deltas:** Completed real Cloudflare Workers AI bakeoff against authenticated Cloudflare inference:
-  1. Authenticated via Wrangler OAuth keyring (`e492e402d5d61b9c04dc9144607e90de`).
+  1. Authenticated via supported Wrangler OAuth keyring.
   2. Fixed live test harness in `tests/live/bakeoff.live.test.ts`: hoisted stage results for dynamic survivor filtering and enforced pre-request stage budget guard.
   3. Executed live bakeoff (`npm run test:live`): 212 real inference requests executed across 1,123.55s (~18.7 min), consuming 6,163.77 neurons (well below the 8,500 harness cap and 10,000 free-tier daily ceiling). 0 API errors (`errorCode: 0`).
   4. Measured candidate findings: Gemma 4 26B, GLM 4.7 Flash, GPT-OSS 20B, and Nemotron 3 120B failed structured output acceptance within `max_tokens = 700` (output truncated mid-JSON). Only `@cf/qwen/qwen3-30b-a3b-fp8` emitted valid, compact, schema-constrained JSON.

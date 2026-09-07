@@ -121,7 +121,8 @@ These are product invariants, not suggestions. Synthetic automated tests should 
 - [x] Worker access secret `ATLAS_ACCESS_SECRET` guards `/api/turn` and `/api/transcribe` with 401 unauthorized rejection.
 - [x] Access secret is stored as a local client credential in `localStorage`, completely isolated from CampaignState and IndexedDB export.
 - [x] Production Worker and PWA client deployed live to Cloudflare Workers with asset serving.
-- [x] Physical Android device check executed and recorded (no physical device connected).
+- [x] Cloudflare Git deployment / Workers Builds connected to `westkitty/AtlasOfOne` on production branch `main`.
+- [ ] Physical Android device install and hardware verification (UNV-003: NOT VERIFIED — NO REACHABLE DEVICE; verified offline/PWA/viewport emulation in Chromium).
 
 ## Later-phase acceptance retained from source
 
