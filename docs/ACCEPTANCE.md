@@ -26,6 +26,20 @@ These are product invariants, not suggestions. Synthetic automated tests should 
 - [ ] Every accepted substantive answer produces deterministic progress.
 - [ ] Vulnerability/pain is not an XP multiplier.
 
+## Boss Fights and Mystery Doors
+
+- [ ] Boss Fight availability derives from deterministic campaign state, never from model output.
+- [ ] A Boss Fight can be completed entirely with the Mock Cartographer.
+- [ ] Boss stages are built only from evidence the player already produced.
+- [ ] The model cannot mark a Boss Fight complete or award its reward.
+- [ ] Mystery Door eligibility, opening, completion and reward are decided by the game engine.
+- [ ] A Mystery Door never reveals PRIVATE material and never requires a private topic.
+- [ ] A Mystery Door may remain unopened indefinitely without blocking campaign completion.
+- [ ] `PASS`, `PRIVATE`, `STOP`, `SERIOUS`, `HELP` and sass remain available inside both encounter types.
+- [ ] Neither encounter can trap the player; withdrawing preserves progress.
+- [ ] Encounter completion occurs in quiet mode with celebration suppressed.
+- [ ] No encounter awards bonus XP for a painful disclosure.
+
 ## Presentation
 
 - [ ] `SERIOUS` can immediately set quiet presentation.
@@ -63,6 +77,7 @@ These are product invariants, not suggestions. Synthetic automated tests should 
 
 - [ ] `npm test` passes.
 - [ ] `npm run build` passes using the Cloudflare Vite plugin.
+- [ ] `npm run test:browser` passes the real-browser user journey.
 - [ ] No secret or access token is committed.
 - [ ] No D1, KV, R2, analytics, account auth, SSR, Next.js, native wrapper, or 3D dependency/config is added.
 - [ ] Worker API is same-origin and returns a health response.

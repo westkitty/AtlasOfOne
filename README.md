@@ -2,7 +2,7 @@
 
 Mobile-first PWA for adaptive, gamified personality cartography. The first campaign is **The Greyson Map**.
 
-This repository currently implements the Phase 1/early Phase 2 mock vertical slice: deterministic game progression, local IndexedDB persistence, Map/Talk/Vault/Me UI, synthetic tests, PWA foundation, and a Cloudflare Worker API boundary. No paid AI service is connected.
+This repository implements the Phase 1/Phase 2 mock vertical slice: deterministic game progression, deterministic Boss Fight and Mystery Door encounters, local IndexedDB persistence, Map/Talk/Vault/Me UI, synthetic tests, a real-browser journey suite, PWA foundation, and a Cloudflare Worker API boundary. No paid AI service is connected.
 
 ## Commands
 
@@ -12,6 +12,7 @@ npm run dev
 npm test
 npm run build
 npm run preview
+npm run test:browser   # real-browser journey; needs Chrome installed
 ```
 
 ## Source of truth

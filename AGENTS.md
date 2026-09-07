@@ -37,6 +37,14 @@ npm test
 npm run build
 ```
 
+The real-browser user journey runs separately and needs Chrome installed locally:
+
+```bash
+npm run test:browser
+```
+
+It drives the production bundle through `playwright-core` with `channel: "chrome"`, so no browser binary is downloaded. Use synthetic answers only — never real Greyson material.
+
 Also inspect the repository for secrets/private data. Do not claim runtime behavior that was not actually exercised.
 
 ## Handoff format

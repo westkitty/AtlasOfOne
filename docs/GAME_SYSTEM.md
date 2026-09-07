@@ -17,6 +17,8 @@ The state includes:
 - turns and evidence
 - insights and contradictions
 - map fragments
+- Boss Fight runs and the active Boss Fight
+- Mystery Door runs and the active Mystery Door
 - private topics/dimensions
 - normal/quiet presentation state
 - session active/paused state
@@ -36,6 +38,13 @@ Meaningful mutation occurs through typed events including:
 - `ABILITY_UNLOCKED`
 - `ACHIEVEMENT_UNLOCKED`
 - `MAP_FRAGMENT_UNLOCKED`
+- `BOSS_STARTED`
+- `BOSS_STAGE_ANSWERED`
+- `BOSS_STAGE_PASSED`
+- `BOSS_WITHDRAWN`
+- `DOOR_OPENED`
+- `DOOR_ANSWERED`
+- `DOOR_CLOSED`
 - `INSIGHT_ADDED`
 - `INSIGHT_CONFIRMED`
 - `INSIGHT_REJECTED`
@@ -95,6 +104,38 @@ Optional game moves may unlock by numeric level. Unlock reconciliation runs afte
 ## Achievements
 
 Achievements are computed from state predicates and de-duplicated. A model may emit an `achievementCandidate` string only as conversational metadata; that string cannot directly create an achievement.
+
+## Boss Fights
+
+A Boss Fight is a deterministic, territory-scoped synthesis encounter defined in `src/game/data.ts` and governed by `src/game/encounters.ts`.
+
+Availability is computed from campaign state alone: the move must be unlocked by level, the territory must already carry at least `minCoveredDimensions` evidenced non-private dimensions, and the boss must not already be resolved. The Cartographer has no say in whether a Boss Fight is offered.
+
+The plan is three stages built only from dimensions the player has already evidenced:
+
+| Stage | What it tests |
+|---|---|
+| `priority` | Which of two mapped commitments wins when they collide, and what decides it |
+| `tradeoff` | The concrete cost of keeping the commitment that won |
+| `contradiction` | Which mapped position holds when it is expensive to hold |
+
+The engine owns stage progress, completion, the fixed XP reward, and the resulting achievement. The mock supplies stage wording only; stage skeletons persist as kind, dimensions and evidence ids, never as model-authored text.
+
+A Boss Fight must never trap the player. `PASS` resolves a stage at no XP cost, withdrawing preserves stage progress for later resumption, `STOP` blocks submission until the session resumes, and marking a stage's dimension `PRIVATE` retires that stage. Completion still occurs in quiet mode; only the celebration is suppressed.
+
+## Mystery Doors
+
+A Mystery Door pairs two territories that each already hold enough active, non-private evidence for a cross-territory question to mean something. Doors surface connections, shared costs and contradictions between mapped regions rather than arbitrary extra questions.
+
+Eligibility, pairing, opening, completion and reward are all deterministic. Door identifiers are stable and order-independent (`door_<a>__<b>` with the territory ids sorted), so the same pairing keeps the same identity across sessions and exports.
+
+Privacy rules are absolute:
+
+- a Door is never built from a private dimension;
+- a private topic is never required to open or complete a Door;
+- marking a topic private, or retracting the answer behind a Door's evidence, retires that unresolved Door.
+
+A Door may be left unopened indefinitely. Campaign completion never depends on one. Completing a Door awards a fixed XP reward and records a cross-territory Insight as a hypothesis, not a verdict.
 
 ## Insight Cards
 
