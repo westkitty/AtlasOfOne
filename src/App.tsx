@@ -1,0 +1,49 @@
+import { useEffect, useMemo, useState } from 'react';
+import { createMockTurn, getMockPrompt, recordsFromMockTurn } from './cartographer/mock';
+import { applyGameEvents, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
+import type { CampaignState, GameEvent, SassLevel } from './game/types';
+import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
+import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
+
+type Screen = 'map'|'talk'|'vault'|'me';
+
+export default function App() {
+  const [state, setState] = useState<CampaignState>(() => createInitialCampaign());
+  const [hydrated, setHydrated] = useState(false);
+  const [screen, setScreen] = useState<Screen>('map');
+  const [reply, setReply] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [message, setMessage] = useState('');
+  const prompt = useMemo(() => getMockPrompt(state), [state]);
+  const dispatch = (...events: GameEvent[]) => setState((current) => applyGameEvents(current, events));
+
+  useEffect(() => { let live = true; void loadCampaign().then((saved) => { if (live && saved) setState(saved); }).catch(() => setMessage('Local save could not be read.')).finally(() => { if (live) setHydrated(true); }); return () => { live = false; }; }, []);
+  useEffect(() => { if (hydrated) void saveCampaign(state).catch(() => setMessage('Automatic save failed. Export before leaving.')); }, [state, hydrated]);
+  useEffect(() => { document.documentElement.dataset.reducedMotion = String(state.settings.reducedMotion); }, [state.settings.reducedMotion]);
+
+  const submit = () => {
+    if (!answer.trim() || state.sessionStatus === 'paused') return;
+    const model = createMockTurn(state, prompt, answer);
+    const records = recordsFromMockTurn(prompt, answer, model);
+    const events: GameEvent[] = [{ type: 'ANSWER_ACCEPTED', turn: records.turnRecord }, ...records.evidence.map((evidence) => ({ type: 'EVIDENCE_ADDED', evidence }) as GameEvent)];
+    if (records.insight) events.push({ type: 'INSIGHT_ADDED', insight: records.insight });
+    setState((current) => applyGameEvents(current, events));
+    setReply(model.reply); setAnswer('');
+  };
+
+  const xp = xpIntoCurrentLevel(state);
+  const activeTerritory = state.territories.find((item) => item.id === state.activeTerritory) ?? state.territories[0];
+  const quest = state.quests.find((item) => item.id === state.activeQuest);
+  const notices = state.presentation === 'normal' ? state.presentationQueue : [];
+
+  const renderMap = () => <section className="screen"><div className="eyebrow">THE GREYSON MAP</div><header><div><h1>Atlas of One</h1><p>One person. More territory than a questionnaire can survive.</p></div><b className="level">L{state.level}</b></header><div className="xp"><span>XP {state.xp}</span><div><i style={{width:`${Math.min(100,(xp.current/xp.required)*100)}%`}} /></div></div><div className="map"><div className="avatar">G</div>{state.territories.map((territory) => <button key={territory.id} className={`territory ${territory.id===state.activeTerritory?'active':''}`} onClick={() => dispatch({type:'ACTIVE_TERRITORY_SET',territoryId:territory.id})}><strong>{territory.label}</strong><small>{territory.status} · {territory.coveredDimensions.length}/{territory.requiredDimensions.length}</small></button>)}</div><article className="card"><span className="eyebrow">CURRENT TERRITORY</span><h2>{activeTerritory.label}</h2><p>{activeTerritory.coveredDimensions.length} dimensions mapped.</p><button className="primary" onClick={() => setScreen('talk')}>Continue encounter</button></article><article className="quest"><b>◆</b><div><span className="eyebrow">CURRENT QUEST</span><strong>{quest?.label ?? 'No active quest'}</strong><small>{quest ? `${quest.progress}/${quest.target} · ${quest.description}` : ''}</small></div></article></section>;
+
+  const renderTalk = () => <section className="screen"><div className="eyebrow">ENCOUNTER · {activeTerritory.label.toUpperCase()}</div><header><div><h1>The Cartographer</h1><p>Mock mode · deterministic game engine</p></div><span className="chip">{state.presentation}</span></header><article className="card prompt">{reply && <p className="reply">{reply}</p>}<h2>{prompt.question}</h2><small>Evidence dimension: {prompt.dimension}</small></article>{state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}<label className="answer">Your coordinate<textarea rows={6} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} /></label><button className="primary full" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'}>Map this answer</button><div className="agency"><button onClick={()=>setReply('Passed. No penalty.')}>PASS</button><button onClick={()=>{dispatch({type:'PRIVATE_TOPIC_ADDED',topic:prompt.dimension});setReply('Private. I will not intentionally return to that dimension.');}}>PRIVATE</button><button onClick={()=>dispatch({type:'SESSION_SET',status:state.sessionStatus==='paused'?'active':'paused'})}>{state.sessionStatus==='paused'?'RESUME':'STOP'}</button><button onClick={()=>{dispatch({type:'PRESENTATION_SET',mode:'quiet'});setReply('Serious mode. Plain language; no fanfare.');}}>SERIOUS</button><button onClick={()=>setMessage('PASS skips. PRIVATE closes a topic. STOP pauses. SERIOUS suppresses fanfare. Sass is always adjustable.')}>HELP</button><button onClick={()=>dispatch({type:'SASS_SET',sass:state.settings.sass==='low'?'medium':state.settings.sass==='medium'?'risks-understood':'low'})}>SASS</button></div></section>;
+
+  const renderVault = () => <section className="screen"><div className="eyebrow">LOCAL EVIDENCE VAULT</div><h1>Vault</h1><p>Evidence, fragments, contradictions, and things the map is not allowed to pretend it knows.</p><h2>Insight Cards</h2>{state.insights.length===0?<div className="empty">No insight cards yet. Correct.</div>:state.insights.slice().reverse().map((insight)=><article className="card" key={insight.id}><span className="eyebrow">{insight.confidence.toUpperCase()} · {insight.status}</span><h3>{insight.title}</h3><p>{insight.summary}</p>{insight.status==='pending'&&<div className="row"><button onClick={()=>dispatch({type:'INSIGHT_CONFIRMED',insightId:insight.id})}>ACCURATE</button><button onClick={()=>dispatch({type:'INSIGHT_REJECTED',insightId:insight.id})}>NOPE</button></div>}</article>)}<h2>Fragments</h2><div className="fragment-grid">{state.territories.map((t)=><div key={t.id}><b>{state.mapFragments.some((f)=>f.territoryId===t.id)?'◆':'◇'}</b><small>{t.label}</small></div>)}</div><h2>Achievements</h2>{state.achievements.filter((a)=>a.unlockedAt).map((a)=><article className="quest" key={a.id}><b>✦</b><div><strong>{a.label}</strong><small>{a.description}</small></div></article>)}</section>;
+
+  const importFile = async (file?: File) => { if (!file) return; try { setState(deserializeCampaign(await file.text())); setMessage('Atlas imported and validated.'); setScreen('map'); } catch (error) { setMessage(error instanceof Error ? `Import rejected: ${error.message}` : 'Import rejected.'); } };
+  const renderMe = () => <section className="screen"><div className="eyebrow">CHARACTER RECORD</div><div className="profile"><div className="portrait">G</div><div><h1>Greyson</h1><p>{state.player.pronouns} · Level {state.level} · {state.xp} XP</p></div></div><div className="stats"><div><b>{state.evidence.filter((e)=>e.status==='active').length}</b><small>Evidence</small></div><div><b>{state.insights.filter((i)=>i.status==='confirmed').length}</b><small>Confirmed</small></div><div><b>{state.mapFragments.length}</b><small>Fragments</small></div><div><b>{state.unlocks.filter((u)=>u.unlockedAt).length}</b><small>Unlocks</small></div></div><article className="card settings"><h2>Cartographer</h2><label>Sass<select value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label></article><article className="card settings"><h2>Your Atlas</h2><button onClick={()=>downloadCampaign(state)}>Export Atlas</button><label className="file">Import Atlas<input type="file" accept="application/json,.json,.atlas" onChange={(e)=>void importFile(e.target.files?.[0])}/></label><button className="danger" onClick={()=>void deleteCampaign().then(()=>setState(createInitialCampaign()))}>Delete local Atlas</button></article><article className="empty"><span className="eyebrow">LEVEL 8 REVEAL</span><h2>Detailed character turnaround</h2><p>Canonical art slot reserved; binary assets were not supplied in this pass.</p></article></section>;
+
+  return <div className="shell">{message&&<div className="toast">{message}<button onClick={()=>setMessage('')}>×</button></div>}{notices.length>0&&<div className="overlay"><article className="unlock"><span className="eyebrow">MAP UPDATED</span><h2>{notices[0].title}</h2><p>{notices[0].detail}</p><button className="primary" onClick={()=>dispatch({type:'PRESENTATION_QUEUE_CLEARED'})}>Continue</button></article></div>}{screen==='map'?renderMap():screen==='talk'?renderTalk():screen==='vault'?renderVault():renderMe()}<nav>{(['map','talk','vault','me'] as Screen[]).map((item)=><button key={item} className={screen===item?'active':''} onClick={()=>setScreen(item)}><span>{item==='map'?'⌖':item==='talk'?'◉':item==='vault'?'◆':'◇'}</span><small>{item==='me'?'Me':item[0].toUpperCase()+item.slice(1)}</small></button>)}</nav></div>;
+}

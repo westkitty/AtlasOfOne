@@ -1,0 +1,53 @@
+import type { CampaignState, EvidenceRecord, InsightRecord, TurnRecord } from '../game/types';
+import type { CartographerTurn } from './schema';
+
+export interface MockPrompt { id: string; territoryId: string; territoryLabel: string; dimension: string; question: string; }
+
+const QUESTIONS: Record<string, string> = {
+  'self-description': 'If you had to describe yourself without job titles or labels, what would you lead with?',
+  temperament: 'When nothing is demanding your attention, what kind of emotional weather is most typical for you?',
+  strengths: 'What is something you reliably do well when a situation actually matters?',
+  vulnerabilities: 'What kind of situation tends to knock you off balance fastest?',
+  'moral architecture': 'When two values conflict, what usually decides which one wins?',
+  loyalty: 'What does someone have to do before loyalty to them stops being owed?',
+  fairness: 'What makes an outcome fair to you: equal treatment, equal power, earned difference, or something else?',
+  autonomy: 'Where is the line between helping someone and controlling them?',
+  authority: 'What, if anything, makes authority legitimate rather than merely powerful?', legitimacy: 'Can a rule be legitimate when the people affected never consented to it?', state: 'What should a state be allowed to do that an ordinary person should not be allowed to do?', democracy: 'What does democracy need besides voting to deserve the name?', economics: 'What should an economic system optimize for before everything else?', property: 'What kind of ownership claim feels strongest to you, and what kind feels weakest?', labor: 'What does a person owe an employer, and what does an employer owe a worker?', justice: 'When harm happens, what should justice be trying to accomplish?', speech: 'Where, if anywhere, should freedom of speech stop?', institutions: 'What makes an institution worth trusting even when you dislike one of its decisions?', borders: 'What moral weight should borders have over a person’s freedom to move?', 'social liberty': 'What private choices should simply be outside collective control?', equality: 'When equality and liberty pull in different directions, what should decide the tradeoff?', environment: 'What obligations do people alive now have to people who will live later?', technology: 'What kind of technological power should never be accepted just because it is convenient?', change: 'When is gradual reform wiser than rupture, and when does gradualism become an excuse?',
+  attachment: 'What makes you feel genuinely close to someone rather than merely familiar with them?', trust: 'What earns trust from you, and what destroys it unusually fast?', conflict: 'During conflict, what matters more: being understood, solving the problem, or protecting the relationship?', 'social world': 'What kind of social environment leaves you more energized rather than depleted?',
+  interests: 'What can hold your attention long after the novelty should have worn off?', 'ordinary preferences': 'What small everyday preference says more about you than it probably should?', curiosity: 'What kinds of questions do you chase even when nobody needs an answer?', motivation: 'What makes effort feel worth spending when nobody is watching?',
+  'decision style': 'When a choice matters, do you trust analysis, instinct, other people, or some combination?', uncertainty: 'What do you do when you need to act before you feel sure?', contradiction: 'What is a belief or tendency in you that seems to pull against another part of you?', revision: 'What kind of evidence can actually make you change your mind?',
+  aversions: 'What do you find yourself avoiding even when you know avoidance has a cost?', fears: 'What possibility has more power over your decisions than you wish it did?', risk: 'What kind of risk feels exciting to you, and what kind feels simply reckless?', boundaries: 'What boundary do you wish people understood without needing it explained twice?',
+  hopes: 'What future possibility would make the next few years feel meaningfully different?', dreams: 'If practical constraints disappeared for a while, what would you try to build or become?', 'ideal future': 'What does an ordinary good day in your ideal future actually look like?', ambition: 'What would you regret not attempting, even if attempting it might fail?'
+};
+
+function fallbackQuestion(dimension: string) { return `What does “${dimension}” mean in your own life when it stops being an abstract word?`; }
+export function getMockPrompt(state: CampaignState): MockPrompt {
+  const territory = state.territories.find((item) => item.id === state.activeTerritory) ?? state.territories[0];
+  const available = territory.requiredDimensions.filter((dimension) => !state.privateTopics.includes(dimension));
+  const uncovered = available.filter((dimension) => !territory.coveredDimensions.includes(dimension));
+  const dimension = uncovered[0] ?? available[0] ?? 'self-description';
+  return { id: `prompt_${territory.id}_${dimension.replaceAll(' ', '-')}`, territoryId: territory.id, territoryLabel: territory.label, dimension, question: QUESTIONS[dimension] ?? fallbackQuestion(dimension) };
+}
+function looksLikeExample(answer: string) { return /\b(for example|for instance|when i|one time|last time|because i|i once)\b/i.test(answer); }
+function looksLikeRevision(answer: string) { return /\b(i changed my mind|i used to|not anymore|actually|i was wrong|i revised|i no longer)\b/i.test(answer); }
+
+export function createMockTurn(state: CampaignState, prompt: MockPrompt, answer: string): CartographerTurn {
+  const trimmed = answer.trim();
+  const quiet = state.presentation === 'quiet';
+  return {
+    reply: quiet ? 'Understood. I’ll keep this plain and treat the answer as a coordinate, not a performance.' : state.settings.sass === 'risks-understood' ? 'Coordinate logged. The map has, regrettably, learned something.' : 'Coordinate logged. The map has a little more shape now.',
+    nextQuestion: getMockPrompt(state).question,
+    presentation: quiet ? 'quiet' : 'normal',
+    evidence: [{ dimension: prompt.dimension, claim: `Synthetic mock evidence recorded for the ${prompt.dimension} dimension.`, basis: looksLikeRevision(trimmed) ? 'revision' : looksLikeExample(trimmed) ? 'example' : 'explicit', strength: trimmed.length > 120 ? 3 : trimmed.length > 40 ? 2 : 1, territories: [prompt.territoryId] }],
+    connections: [], quoteCandidates: [], summaryPatch: `Coverage advanced in ${prompt.territoryLabel}.`, achievementCandidates: []
+  };
+}
+
+export function recordsFromMockTurn(prompt: MockPrompt, answer: string, turn: CartographerTurn): { turnRecord: TurnRecord; evidence: EvidenceRecord[]; insight?: InsightRecord } {
+  const createdAt = new Date().toISOString();
+  const turnId = `turn_${crypto.randomUUID()}`;
+  const turnRecord: TurnRecord = { id: turnId, createdAt, territoryId: prompt.territoryId, dimension: prompt.dimension, question: prompt.question, answer: answer.trim(), substantive: answer.trim().length > 0, behavioralExample: looksLikeExample(answer), revision: looksLikeRevision(answer), retracted: false };
+  const evidence = turn.evidence.map((proposal) => ({ id: `ev_${crypto.randomUUID()}`, dimension: proposal.dimension, claim: proposal.claim, sourceTurnIds: [turnId], basis: proposal.basis, strength: proposal.strength, territories: proposal.territories, counterEvidenceIds: [], status: 'active' as const }));
+  const insight = evidence.length ? { id: `insight_${crypto.randomUUID()}`, title: prompt.dimension.replace(/\b\w/g, (char) => char.toUpperCase()), summary: `Current mock read: this answer adds usable evidence about ${prompt.dimension}.`, evidenceIds: evidence.map((item) => item.id), confidence: evidence[0].strength >= 3 ? 'strong' as const : evidence[0].strength === 2 ? 'moderate' as const : 'low' as const, status: 'pending' as const, createdAt } : undefined;
+  return { turnRecord, evidence, insight };
+}
