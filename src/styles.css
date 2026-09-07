@@ -195,6 +195,7 @@ p { color: var(--muted); line-height: 1.5; margin: .4rem 0; }
   padding: 5px 10px; font-size: .64rem; font-weight: 800;
   letter-spacing: .12em; text-transform: uppercase; color: #d8d2c4;
 }
+.chip.offline { border-color: #4a5a6e; color: #a0b0c2; background: #0f1722; }
 
 /* ---- permanent agency controls ------------------------------------- */
 

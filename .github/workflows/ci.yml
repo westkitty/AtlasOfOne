@@ -20,3 +20,5 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
+      - name: Browser journey
+        run: npx vitest run --config vitest.browser.config.ts

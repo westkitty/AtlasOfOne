@@ -31,6 +31,7 @@ export default function App() {
   const [answer, setAnswer] = useState('');
   const [message, setMessage] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
   // The Cartographer runs on its deterministic local script unless the Worker
   // reports a live provider. Nothing here holds a credential or a model id.
   const [provider, setProvider] = useState<AIProvider>(disabledProvider);
@@ -40,6 +41,22 @@ export default function App() {
   useEffect(() => { let live = true; void loadCampaign().then((saved) => { if (live && saved) setState(saved); }).catch(() => setMessage('Local save could not be read.')).finally(() => { if (live) setHydrated(true); }); return () => { live = false; }; }, []);
   useEffect(() => { if (hydrated) void saveCampaign(state).catch(() => setMessage('Automatic save failed. Export before leaving.')); }, [state, hydrated]);
   useEffect(() => { document.documentElement.dataset.reducedMotion = String(state.settings.reducedMotion); }, [state.settings.reducedMotion]);
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      setMessage('Back online. Local progress preserved.');
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+      setMessage('Offline — local map and campaign progress preserved.');
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   // One probe at startup. A missing or disabled Worker simply leaves the offline
   // script in place; it is never an error the player has to see.
   useEffect(() => {
@@ -78,7 +95,7 @@ export default function App() {
 
   const submit = () => {
     if (!answer.trim() || state.sessionStatus === 'paused') return;
-    if (provider.id === 'disabled') { commitTurn(createMockTurn(state, prompt, answer), answer, 'mock'); return; }
+    if (isOffline || provider.id === 'disabled') { commitTurn(createMockTurn(state, prompt, answer), answer, 'mock'); return; }
     void submitViaProvider(answer);
   };
 
@@ -97,7 +114,7 @@ export default function App() {
    * supplies reply wording only, and never any part of the dispatched events.
    */
   const enrichEncounterReply = (text: string, dimension: string, question: string, territoryId: string, kind: 'boss' | 'door') => {
-    if (provider.id === 'disabled') return;
+    if (isOffline || provider.id === 'disabled') return;
     const context = compileContext(state, { territoryId, dimension, question }, text, {
       kind: kind === 'boss' ? 'boss-stage' : 'door',
       encounter: { kind, heading: encounter?.heading ?? '', step: encounter?.step ?? '', evidenceClaims: encounter?.evidenceClaims ?? [] }
@@ -164,6 +181,7 @@ export default function App() {
         <p>{encounter.step}{encounter.kind==='boss' ? ' · your own mapped positions, put under load' : ' · optional to open, safe to close'}</p>
       </div>
       {quiet && <span className="chip">{state.presentation}</span>}
+      {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
     </header>
     {encounter.kind==='boss' && bossRun && <ol className="stage-track" aria-label={`Boss Fight progress: ${encounter.step}`}>
       {bossRun.stages.map((stage, index) => {
@@ -191,7 +209,7 @@ export default function App() {
 
   const renderMap = () => <section className="screen">
     <div className="eyebrow">THE GREYSON MAP</div>
-    <header><div><h1>Atlas of One</h1><p>One person. More territory than a questionnaire can survive.</p></div></header>
+    <header><div><h1>Atlas of One</h1><p>One person. More territory than a questionnaire can survive.</p></div>{isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}</header>
     {renderProgress()}
     <article className="quest-card">
       <b aria-hidden="true">◆</b>
@@ -233,7 +251,7 @@ export default function App() {
 
   const renderTalk = () => encounter ? renderEncounter() : <section className="screen">
     <div className="eyebrow">ENCOUNTER · {activeTerritory.label.toUpperCase()}</div>
-    <header><div><h1 className="screen-title">The Cartographer</h1><p>Mapping {activeTerritory.label.toLowerCase()} with you, one coordinate at a time.</p></div>{quiet && <span className="chip">{state.presentation}</span>}</header>
+    <header><div><h1 className="screen-title">The Cartographer</h1><p>Mapping {activeTerritory.label.toLowerCase()} with you, one coordinate at a time.</p></div>{quiet && <span className="chip">{state.presentation}</span>}{isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}</header>
     <article className="card prompt">{reply && <p className="reply" role="status">{reply}</p>}<h2>{prompt.question}</h2><small>Evidence dimension: {prompt.dimension}</small></article>
     {state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}
     <label className="answer">Your coordinate<textarea rows={4} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} /></label>

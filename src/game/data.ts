@@ -43,10 +43,14 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementState[] = [
  * a Boss Fight tests mapped material rather than asking for anything new.
  */
 export const BOSS_DEFINITIONS: BossDefinition[] = [
+  { id: 'boss-identity', territoryId: 'identity', label: 'The Mirror of Identity', description: 'Your mapped temperament and self-description are tested against your vulnerabilities.', levelRequired: 5, minCoveredDimensions: 3, xpReward: 40 },
   { id: 'boss-values', territoryId: 'values', label: 'The Tribunal of Values', description: 'Your mapped values are put against each other under pressure.', levelRequired: 5, minCoveredDimensions: 3, xpReward: 40 },
   { id: 'boss-politics', territoryId: 'politics', label: 'The Republic Under Load', description: 'Your political commitments are forced to pay their own costs.', levelRequired: 5, minCoveredDimensions: 4, xpReward: 60 },
+  { id: 'boss-relationships', territoryId: 'relationships', label: 'The Crucible of Trust', description: 'Your mapped bonds, boundaries, and conflict style are put under pressure.', levelRequired: 5, minCoveredDimensions: 3, xpReward: 40 },
+  { id: 'boss-interests', territoryId: 'interests', label: 'The Engine of Curiosity', description: 'Your mapped passions, motivations, and attention are weighed against what actually sustains them.', levelRequired: 5, minCoveredDimensions: 3, xpReward: 40 },
   { id: 'boss-cognition', territoryId: 'cognition', label: 'The Revision Court', description: 'Your decision style is tested against your own contradictions.', levelRequired: 5, minCoveredDimensions: 3, xpReward: 40 },
-  { id: 'boss-fears', territoryId: 'fears', label: 'The Cost of Avoidance', description: 'Your mapped aversions are weighed against what they protect.', levelRequired: 5, minCoveredDimensions: 3, xpReward: 40 }
+  { id: 'boss-fears', territoryId: 'fears', label: 'The Cost of Avoidance', description: 'Your mapped aversions are weighed against what they protect.', levelRequired: 5, minCoveredDimensions: 3, xpReward: 40 },
+  { id: 'boss-future', territoryId: 'future', label: 'The Horizon of Ambition', description: 'Your mapped hopes and ambitions are forced to name what must be sacrificed to reach them.', levelRequired: 5, minCoveredDimensions: 3, xpReward: 40 }
 ];
 
 /** Fixed deterministic reward for resolving one Mystery Door. */

@@ -173,3 +173,45 @@ describe('Boss Fight agency', () => {
     expect(painful.xp).toBe(neutral.xp);
   });
 });
+
+describe('Full territory Boss Fight coverage', () => {
+  it('defines a Boss Fight for every territory in TERRITORY_DEFINITIONS', () => {
+    const allTerritoryIds = [
+      'identity', 'values', 'politics', 'relationships',
+      'interests', 'cognition', 'fears', 'future'
+    ];
+    expect(BOSS_DEFINITIONS).toHaveLength(8);
+    for (const territoryId of allTerritoryIds) {
+      const boss = BOSS_DEFINITIONS.find((b) => b.territoryId === territoryId);
+      expect(boss, `missing BossDefinition for territory: ${territoryId}`).toBeDefined();
+      expect(boss!.levelRequired).toBe(5);
+      expect(boss!.minCoveredDimensions).toBeGreaterThanOrEqual(3);
+      expect(boss!.xpReward).toBeGreaterThan(0);
+    }
+  });
+
+  it('can plan and resolve Boss Fights for all 8 territories deterministically', () => {
+    for (const boss of BOSS_DEFINITIONS) {
+      const state = seededCampaign({ territories: [boss.territoryId], xp: 700 });
+      expect(isBossAvailable(state, boss.id), `Boss should be available for ${boss.territoryId}`).toBe(true);
+
+      const stages = planBossStages(state, boss.id);
+      expect(stages).toHaveLength(3);
+      expect(stages.map((s) => s.kind)).toEqual(['priority', 'tradeoff', 'contradiction']);
+
+      const started = applyGameEvent(state, { type: 'BOSS_STARTED', bossId: boss.id });
+      expect(started.activeBoss).toBe(boss.id);
+
+      const completed = applyGameEvents(started, [
+        { type: 'BOSS_STAGE_PASSED' },
+        { type: 'BOSS_STAGE_PASSED' },
+        { type: 'BOSS_STAGE_PASSED' }
+      ]);
+      expect(completed.activeBoss).toBeNull();
+      const run = bossRunFor(completed, boss.id);
+      expect(run?.status).toBe('complete');
+      expect(completed.xp).toBe(started.xp + boss.xpReward);
+      expect(isBossAvailable(completed, boss.id)).toBe(false);
+    }
+  });
+});

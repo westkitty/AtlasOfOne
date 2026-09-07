@@ -7,15 +7,15 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 7,
+  "state_revision": 8,
   "last_updated": "2026-09-07",
   "current_baseline": {
-    "identity": "8b06185",
+    "identity": "local-rev8",
     "state": "partially-verified",
     "last_verified": "2026-09-07"
   },
   "scope_boundaries": [
-    "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight and Mystery Door encounters, local persistence, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime"
+    "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight across all 8 territories and Mystery Door encounters, local persistence, PWA manifest/offline shell, CI browser workflow, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime"
   ],
   "linked_parent_state": null
 }
@@ -35,11 +35,11 @@
 ## 2. Current Baseline
 
 - **Primary artifact:** `westkitty/AtlasOfOne` on `main`.
-- **Code baseline:** `8b06185` (Phase 3 Cartographer provider boundary). Revision 7 is documented in the immediately following docs-only commit, which changes no code, so the validation evidence below still describes the current tree. The prior code baseline was `b4f26b9`.
-- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior through the real provider pipeline, deterministic Boss Fight/Mystery Door behavior, provider boundary, context compiler, PRIVATE exclusion, context boundedness, structured-output validation, bounded repair, model-authority firewall, typed provider degradation, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, the desktop-Chrome browser journey including the client provider path, and the Worker runtime on its non-AI paths are verified; **real Workers AI inference is entirely unverified**, as are real-device touch, PWA install/offline and non-Chrome browsers.
-- **Validation identity:** local run on `8b06185`: `npx tsc --noEmit` clean, 141 unit tests, 34 browser-runtime tests in installed Chrome against the production bundle, a passing production Worker/client/PWA build, and a live `wrangler dev` workerd runtime probe of `/api/health`, `/api/turn`, method and 404 routing. The prior identity for the 55-test baseline was `b4f26b9`.
+- **Code baseline:** `local-rev8` (Phase 2 closure, full Boss Fight coverage across all 8 territories, PWA/offline runtime verification, CI browser journey workflow, live Worker runtime proof). The prior code baseline was `8b06185` (rev 7).
+- **Baseline state:** `partially-verified` — source, deterministic behavior, synthetic 100-turn campaign behavior through the real provider pipeline, deterministic Boss Fight across all 8 territories, Mystery Door behavior, provider boundary, context compiler, PRIVATE exclusion, context boundedness, structured-output validation, bounded repair, model-authority firewall, typed provider degradation, IndexedDB unit behavior, canonical map-asset structure/dimensions, production build, 41 desktop-Chrome browser tests across user journey, encounters, provider path, and PWA offline/recovery lifecycle, and the Worker runtime non-AI/mock paths are verified; **real Workers AI inference is entirely unverified**, as are real-device physical touch, mobile OS integration, and non-Chrome browsers. Remote GitHub Actions CI execution is unverified until pushed.
+- **Validation identity:** local run on revision 8: `npx tsc --noEmit` clean, 143 unit tests (1 skipped when worker offline), 41 browser-runtime tests in installed Chrome against the production bundle across 4 test suites (`journey`, `encounters`, `provider`, `pwa`), a passing production Worker/client/PWA build, and live `wrangler dev` workerd runtime probes of `/api/health` (200), `/api/turn` (502 network failure without credentials / 503 binding-missing, 400 bad request without canary echo), `GET /api/turn` (405), `/api/nope` (404), and `/` (200 SPA shell).
 - **Active default user route:** Map screen, verified in a real browser.
-- **Delivery state:** GitHub repository; no Cloudflare production deployment asserted. Local commits only for this revision; nothing pushed.
+- **Delivery state:** GitHub repository; no Cloudflare production deployment asserted. Local commits only for this revision; nothing pushed. REMOTE CI RESULT: UNVERIFIED.
 - **Live provider state:** No Cloudflare authentication exists in this environment (`wrangler whoami` reports not authenticated; no API token or account id variable; no wrangler OAuth config). **Zero real Workers AI requests have been made.**
 
 ## 3. Artifact Contract
@@ -105,6 +105,10 @@ Revision 7 adds the Cartographer provider layer in `src/cartographer/`: `provide
 - **VER-029:** The browser provider path is proven in installed Chrome against the production bundle over 7 checks: the startup health probe switches the client to the remote provider, a compiled context is posted to `/api/turn`, the returned turn produces the same deterministic +13 XP as the mock path, the outgoing payload is a bounded context rather than a transcript (no `turns`, no `campaignHistory`, recent window <= 4), a PRIVATE dimension's label travels while its evidence and turns do not, `model-proposed` provenance with a `workers-ai:` provider id lands in IndexedDB, and quota exhaustion shows Atlas-voice degraded copy while the answer is still mapped. The Worker was stubbed; this is not evidence of real inference.
 - **VER-030:** Production bundle inspection confirms `api.cloudflare.com`, `CLOUDFLARE_API_TOKEN`, `playwright` and the `@cf/` model registry are all absent from the client bundle, and no credential name appears in the Worker bundle.
 - **VER-018:** At a 320px viewport there is no horizontal overflow on Map, Talk, Vault or Me (the previous 9px `Me` overflow from the hidden file input is fixed); the four bottom-nav targets and all six permanent controls are >=44px; and the fixed bottom nav does not cover the primary action or the last permanent control on Talk or inside a Mystery Door. Proven by two added browser tests (`journey` 19b, `encounters` Door-at-320px).
+- **VER-031:** **PWA runtime and offline lifecycle proof.** Tested in installed Chrome against the production bundle over 7 checks in `tests/browser/pwa.test.ts`: manifest serves valid metadata (`standalone`, `portrait-primary`, `#10151f`), `sw.js` and `registerSW.js` serve valid service worker assets with workbox precache, offline transition displays a clear offline indicator (`.chip.offline`) and toast notice, all four app screens (Map, Talk, Vault, Me) remain fully navigable and usable offline, coordinates submitted while offline are processed by the deterministic local mock and advance XP, local campaign state is persisted to IndexedDB without network, page reload restores offline progress, and returning online cleanly clears the offline indicator with zero state loss and zero uncaught page errors.
+- **VER-032:** **Full Boss Fight coverage across all 8 territories.** `BOSS_DEFINITIONS` in `src/game/data.ts` now covers `identity` (The Mirror of Identity), `values` (The Tribunal of Values), `politics` (The Republic Under Load), `relationships` (The Crucible of Trust), `interests` (The Engine of Curiosity), `cognition` (The Revision Court), `fears` (The Cost of Avoidance), and `future` (The Horizon of Ambition). Proven by unit tests in `tests/game/boss-fight.test.ts`: each territory has a level 5 BossDefinition requiring >=3 covered dimensions, plans deterministic 3-stage skeletons (`priority`, `tradeoff`, `contradiction`), completes with fixed rewards, and marks runs complete to prevent re-awarding.
+- **VER-033:** **Browser journey wired into CI.** `.github/workflows/ci.yml` now includes a `Browser journey` step running `npx vitest run --config vitest.browser.config.ts` immediately after `npm run build`, using the pre-installed Google Chrome on Ubuntu runners without downloading browser binaries or duplicating builds. Remote CI execution is recorded as unverified until pushed.
+- **VER-034:** **Worker runtime live probe.** `tests/cartographer/worker-live.test.ts` exercises live workerd HTTP handling against a running instance: 200 `/api/health`, 502/503 `/api/turn` with valid compiled context, 400 bad request without echoing the request canary back, 405 `GET /api/turn`, 404 `/api/nope`, and 200 `/` returning the SPA shell. The test skips cleanly during hermetic unit runs when the live worker is offline.
 
 ## 6. Known Not Working
 
@@ -112,10 +116,10 @@ No confirmed defect remains from automated Phase 1/2 validation. Real AI and pro
 
 ## 7. Implemented but Unverified
 
-UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are promoted to VER-013 through VER-015. The following remain genuinely unverified.
+UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are promoted to VER-013 through VER-015. UNV-008 is promoted to VER-033. The following remain genuinely unverified.
 
-- **UNV-003:** PWA installability and offline behavior on Android or any real mobile browser. The journey ran in desktop Chrome at emulated phone viewports; no service-worker offline path, install prompt or device was exercised.
-- **UNV-004:** *Narrowed, not closed.* The Worker's non-AI runtime behavior is now proven in a live workerd runtime (VER-028): health, valid-context degradation, malformed-body rejection, method routing and 404 routing all executed for real. What remains unverified is the **AI-bound** path — `env.AI` present, a real model called — which cannot be exercised without an authenticated Cloudflare account. There is no local emulation of Workers AI: with the `ai` binding declared, `wrangler dev` opens a remote proxy session and fails without `CLOUDFLARE_API_TOKEN`.
+- **UNV-003:** PWA installability on physical Android or physical mobile devices, and OS-level touch ergonomics. The desktop Chrome browser journey and offline lifecycle are proven (VER-031); physical device installation and touch hardware remain unverified.
+- **UNV-004:** *Narrowed, not closed.* The Worker's non-AI runtime behavior is now proven in a live workerd runtime (VER-028, VER-034): health, valid-context degradation, malformed-body rejection, method routing and 404 routing all executed for real. What remains unverified is the **AI-bound** path — `env.AI` present, a real model called — which cannot be exercised without an authenticated Cloudflare account. There is no local emulation of Workers AI: with the `ai` binding declared, `wrangler dev` opens a remote proxy session and fails without `CLOUDFLARE_API_TOKEN`.
 - **UNV-011:** **Real Workers AI inference. Zero live requests have ever been made from this repository.** Every claim about model behavior in `docs/PROVIDER_BAKEOFF.md` is documented evidence from Cloudflare's published pages, not measurement.
 - **UNV-012:** Whether any candidate model actually honours `response_format: { type: 'json_schema' }`. Cloudflare's JSON Mode support page lists a legacy set containing none of the five candidates, while each candidate's own model page lists `response_format` as an input parameter. Only a live probe can settle this. Atlas decodes defensively either way, so the cost of a model ignoring the hint is a higher repair rate rather than a wrong answer.
 - **UNV-013:** The `classifyProviderError` mapping from thrown Workers AI errors to typed failure codes. It is written from Cloudflare's documented error vocabulary and exercised against synthetic `Error` messages, but never against a real Workers AI fault.
@@ -123,7 +127,7 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 - **UNV-015:** The selected default model is a **provisional** choice from documented evidence (context headroom and free-allocation efficiency), not a measured bakeoff winner. Six of the eight documented selection criteria cannot be assessed without live inference.
 - **UNV-016:** The live bakeoff harness itself (`npm run test:live`). Its scoring, ranking and budget-ledger logic are unit-tested, but the harness has never completed a live run.
 - **UNV-007:** Behavior on any browser other than installed desktop Chrome. Safari, Firefox and mobile engines are unexercised.
-- **UNV-008:** The browser journey is not wired into CI; it currently requires a local machine with Chrome installed and is run on demand via `npm run test:browser`. CI still validates only the 55 unit tests and the production build.
+- **UNV-008:** *Closed locally / promoted to VER-033.* Browser journey is now wired into `.github/workflows/ci.yml`. REMOTE CI RESULT: UNVERIFIED pending remote execution on push.
 - **UNV-009:** Real-device touch ergonomics. Touch-target sizes were measured geometrically, not tested by hand.
 - **UNV-010:** Boss Fight and Mystery Door pacing and difficulty as an actual play experience. Correctness is proven; whether the encounters feel like a concentrated synthesis test to a player has not been observed.
 
@@ -134,14 +138,14 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 ## 9. Pending Work
 
 - **PND-001:** Closed. The browser-runtime proof exists and deterministic Boss Fight and Mystery Door flows are implemented, tested and played in a real browser.
-- **PND-006:** Extend encounter coverage: Boss Fights exist for four of eight territories, and Doors present at most three candidate pairings on the Map. Relationships, Interests and Future have no Boss Fight yet.
-- **PND-007:** Decide whether to run the browser journey in CI (GitHub's Ubuntu runners ship Chrome) or keep it a local gate, and record the decision.
+- **PND-006:** Closed. Full Boss Fight coverage across all 8 territories implemented in `BOSS_DEFINITIONS` and proven in `tests/game/boss-fight.test.ts`.
+- **PND-007:** Closed. Browser journey wired into CI workflow in `.github/workflows/ci.yml`.
 - **PND-002:** *Substantially advanced.* Provider boundary, context compiler, evidence provenance, structured-output validation, bounded repair and typed failure states are implemented and tested. What remains is the live half: authenticate a Cloudflare account, run `npm run test:live`, replace the provisional default with the measured winner, and pass the real 100-turn gate.
 - **PND-008:** Run the live Workers AI bakeoff once a Cloudflare account is authenticated, then update `docs/PROVIDER_BAKEOFF.md` with measured evidence and set `liveProbe` per candidate.
 - **PND-009:** Decide whether the browser provider journey and the Worker runtime probe join CI (they need Chrome and a workerd runtime respectively), alongside the existing PND-007 decision.
 - **PND-003:** Phase 4 voice state machine, access gate, Cloudflare deployment, and real-device PWA checks.
 - **PND-004:** Phase 5 adversarial release QA and final assessment.
-- **PND-005:** Integrate the supplied canonical `sheets/aerron_turnaround_hires.png` when the later Character/Vault/final progression reveal is implemented; it is deliberately not shipped in the current runtime subset yet.
+- **PND-005:** Intentionally deferred. Detailed canonical turnaround source `sheets/aerron_turnaround_hires.png` is not committed/available in repo and trigger/role remains an unresolved design decision (Level 8 vs all territories charted vs final assessment). Leave pending until source asset and decision are supplied.
 
 ## 10. Active Decisions, Defaults, and Prohibitions
 
@@ -201,16 +205,33 @@ UNV-001, UNV-002, UNV-005 and UNV-006 were exercised in a real browser and are p
 | MODEL-001 | selected default is a measured bakeoff winner | **unverified** | none; live bakeoff not run | `npm run test:live` | `8b06185`, rev 7 | 2026-09-07 | Cloudflare authentication |
 | MODEL-002 | candidates honour `response_format` json_schema | **unverified** | conflicting documentation only | live probe | `8b06185`, rev 7 | 2026-09-07 | Cloudflare authentication |
 | AI-001 | real Workers AI synthetic turns executed | **unverified — count is 0** | none | `npm run test:live` stage C | `8b06185`, rev 7 | 2026-09-07 | Cloudflare authentication |
+| BROWSER-006 | PWA manifest, service worker assets, offline indicator, offline answering, and online recovery | verified | `pwa.test.ts`, 7 checks in Chrome | playwright-core + Vitest | `local-rev8`, rev 8 | 2026-09-07 | PWA/service-worker changes |
+| ENCOUNTER-001 | deterministic Boss Fight coverage for all 8 territories | verified | `boss-fight.test.ts`, 16 tests | Vitest | `local-rev8`, rev 8 | 2026-09-07 | encounter/data changes |
+| CI-001 | browser journey wired into CI workflow | verified locally | `.github/workflows/ci.yml` | local workflow validation | `local-rev8`, rev 8 | 2026-09-07 | CI workflow changes |
+| WORKER-003 | live Worker HTTP routes verified on workerd | verified | `worker-live.test.ts`, live workerd probe | Vitest + runtime probe | `local-rev8`, rev 8 | 2026-09-07 | Worker routing changes |
 
 ## 12. Current Change Scope and Impact Radius
 
-- **Allowed to change next:** The live bakeoff and provisional-default replacement (PND-008), remaining encounter breadth (PND-006), CI decisions (PND-007, PND-009), then Phase 4.
+- **Allowed to change next:** The live bakeoff and provisional-default replacement (PND-008), turnaround reveal asset sourcing and trigger decision (PND-005), then Phase 4.
 - **Must remain unchanged:** privacy, deterministic progression authority including encounter outcomes, always-available agency controls inside every encounter type, the no-PRIVATE-leak rule for Doors, Aerron→Greyson canonical asset mapping, Andrew-asset exclusion, source gap labels, and explicit non-goals.
 - **Potentially affected behavior:** mock campaign progression, local state persistence, mobile UI, PWA build, canonical sprite presentation.
 - **Mandatory checks:** synthetic tests, production build, repository secret/private-data scan; browser/runtime checks when available.
-- **Repair class:** Rev 7 is additive provider architecture. `src/game/engine.ts`, `src/game/encounters.ts`, `src/game/data.ts` and `src/styles.css` were not touched. `src/game/types.ts` and `src/persistence/schema.ts` gained two additive evidence-provenance fields with Zod defaults under DEC-012. `src/App.tsx` gained the provider path while leaving the no-provider path synchronous and unchanged.
+- **Repair class:** Rev 8 is additive encounter breadth, PWA offline lifecycle, CI workflow, and runtime verification. `src/game/data.ts` gained BossDefinitions for all 8 territories; `src/App.tsx` and `src/styles.css` gained offline indicators and fallback; `.github/workflows/ci.yml` gained the browser journey step; `tests/browser/pwa.test.ts` and `tests/cartographer/worker-live.test.ts` added automated coverage.
 
 ## 13. Compact Revision Log
+
+### Revision 8 — 2026-09-07
+
+- **Artifact/source identity:** code baseline `local-rev8`.
+- **State deltas:** Completed remaining safe Phase-2/verification debt without entering Phase 3 real-AI inference:
+  1. Extended deterministic Boss Fight coverage to all 8 territories (`identity`, `values`, `politics`, `relationships`, `interests`, `cognition`, `fears`, `future`) in `src/game/data.ts`.
+  2. Implemented runtime offline detection, visual offline indicator chip, offline fallback to local mock, and online recovery in `src/App.tsx` and `src/styles.css`.
+  3. Added real-browser PWA and offline lifecycle test suite in `tests/browser/pwa.test.ts` (7 checks) proving manifest, service worker, offline indicators, offline answer submission, offline IndexedDB persistence, reload restoration, and online recovery without state loss.
+  4. Wired browser journey into GitHub Actions CI in `.github/workflows/ci.yml` using pre-installed Google Chrome on Ubuntu runner (`REMOTE CI RESULT: UNVERIFIED` until pushed).
+  5. Probed live Worker runtime (`wrangler dev` workerd) across `/api/health` (200), `/api/turn` (502 network failure without credentials / 503 binding-missing, 400 bad request without canary echo), `GET /api/turn` (405), `/api/nope` (404), and `/` (200 SPA shell) and codified into `tests/cartographer/worker-live.test.ts`.
+  6. Turnaround reveal intentionally deferred (PND-005): canonical source `sheets/aerron_turnaround_hires.png` is not committed/available in repo and trigger/role remains an unresolved design decision. Unit tests went 141 -> 143, browser tests 34 -> 41.
+- **New evidence:** `npx tsc --noEmit` clean; 143 unit tests (1 skipped if worker offline); 41 real-Chrome browser tests against the production bundle across 4 test suites (`journey`, `encounters`, `provider`, `pwa`); passing Worker/client/PWA production build; and live workerd probe of all endpoints.
+- **Validation not performed:** real physical mobile device/touch, real Android PWA installation, any non-Chrome browser, real Workers AI inference, and remote GitHub Actions execution on push.
 
 ### Revision 7 — 2026-09-07
 
