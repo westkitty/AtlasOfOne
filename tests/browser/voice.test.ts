@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, openAgency } from './helper';
 import { serveDist } from './server';
 
 const DIST = join(process.cwd(), 'dist', 'client');
@@ -72,15 +72,22 @@ describe('browser voice mode and access gate', () => {
   });
 
   it('keeps all permanent agency controls available in voice mode', async () => {
-    const agency = page.locator('[data-testid="agency"]');
-    expect(await agency.isVisible()).toBe(true);
+    // PASS sits on the primary row alongside any earned game moves.
+    const pass = page.locator('[data-testid="agency-pass"]');
+    expect(await pass.isVisible()).toBe(true);
+    expect((await pass.boundingBox())?.height).toBeGreaterThanOrEqual(44);
 
-    for (const testId of ['agency-pass', 'agency-private', 'agency-stop', 'agency-serious', 'agency-help', 'agency-sass']) {
+    // The rest are one interaction away and still never progression-gated.
+    await openAgency(page);
+    expect(await page.locator('[data-testid="agency"]').isVisible()).toBe(true);
+    for (const testId of ['agency-private', 'agency-stop', 'agency-serious', 'agency-help', 'agency-sass']) {
       const btn = page.locator(`[data-testid="${testId}"]`);
-      expect(await btn.isVisible()).toBe(true);
+      expect(await btn.isVisible(), testId).toBe(true);
+      expect(await btn.isDisabled(), testId).toBe(false);
       const box = await btn.boundingBox();
-      expect(box?.height).toBeGreaterThanOrEqual(44);
+      expect(box?.height, testId).toBeGreaterThanOrEqual(44);
     }
+    await page.click('[data-testid="more-close"]');
   });
 
   it('has zero horizontal overflow on voice Talk screen at 320px viewport', async () => {

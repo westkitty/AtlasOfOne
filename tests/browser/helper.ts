@@ -120,3 +120,18 @@ export async function completeOnboardingIfPresent(page: Page, timeout = READINES
   await page.click('[data-testid="onboarding-start"]');
   await page.waitForSelector('.map');
 }
+
+/**
+ * Open the permanent-agency surface.
+ *
+ * PASS stays on the primary action row with the earned game moves; PRIVATE,
+ * STOP, SERIOUS, HELP and SASS now live one interaction away behind MORE, so
+ * the control plane stops impersonating the game. They remain always available
+ * and never progression-gated - just not the loudest thing on screen.
+ */
+export async function openAgency(page: Page, timeout = READINESS_TIMEOUT) {
+  const sheet = page.locator('[data-testid="more-sheet"]');
+  if (await sheet.isVisible().catch(() => false)) return;
+  await page.click('[data-testid="action-more"]');
+  await sheet.waitFor({ state: 'visible', timeout });
+}

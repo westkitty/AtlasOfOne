@@ -1,4 +1,4 @@
-import { wakeAtlas } from './helper';
+import { openAgency, wakeAtlas } from './helper';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
@@ -160,8 +160,12 @@ describe('Phase 6 minimal canonical onboarding browser proof', () => {
 
   it('13. permanent controls remain fully available on Talk screen afterward', async () => {
     await page.click('nav button:has(small:text-is("Talk"))');
-    await page.waitForSelector('.agency');
+    await page.waitForSelector('[data-testid="action-bar"]');
+    // PASS is primary; everything else is behind one tap of MORE and still
+    // unconditionally available - onboarding grants no control, it only explains.
     expect(await page.isVisible('[data-testid="agency-pass"]')).toBe(true);
+    await openAgency(page);
+    await page.waitForSelector('.agency');
     expect(await page.isVisible('[data-testid="agency-private"]')).toBe(true);
     expect(await page.isVisible('[data-testid="agency-stop"]')).toBe(true);
     expect(await page.isVisible('[data-testid="agency-serious"]')).toBe(true);

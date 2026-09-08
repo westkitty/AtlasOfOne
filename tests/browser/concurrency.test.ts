@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent, wakeAtlas } from './helper';
+import { completeOnboardingIfPresent, openAgency, wakeAtlas } from './helper';
 import { serveDist } from './server';
 import { applyGameEvents, createInitialCampaign } from '../../src/game/engine';
 import { serializeCampaign } from '../../src/persistence/transfer';
@@ -313,6 +313,7 @@ describe('BUG-002b — STOP and PRIVATE during an in-flight turn', () => {
       expect(session.turnRequests.length).toBe(1);
 
       // The real permanent control, used mid-flight.
+      await openAgency(page);
       await page.click('[data-testid="agency-private"]');
       await page.waitForTimeout(150);
 
@@ -338,6 +339,7 @@ describe('BUG-002b — STOP and PRIVATE during an in-flight turn', () => {
       await page.waitForTimeout(200);
       expect(session.turnRequests.length).toBe(1);
 
+      await openAgency(page);
       await page.click('[data-testid="agency-stop"]');
       await page.waitForTimeout(150);
 

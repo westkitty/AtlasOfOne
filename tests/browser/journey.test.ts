@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type ConsoleMessage, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent, wakeAtlas } from './helper';
+import { completeOnboardingIfPresent, openAgency, wakeAtlas } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -140,6 +140,7 @@ describe('Atlas browser journey', () => {
   it('9. PRIVATE closes a dimension and the mock stops selecting it', async () => {
     await goto('Talk');
     const closed = (await page.textContent('.prompt small'))!.replace('Evidence dimension: ', '').trim();
+    await openAgency(page);
     await page.click('[data-testid="agency-private"]');
     await expect.poll(() => page.textContent('.reply')).toContain('not intentionally return');
     await expect.poll(async () => (await page.textContent('.prompt small'))!.replace('Evidence dimension: ', '').trim()).not.toBe(closed);
@@ -147,18 +148,21 @@ describe('Atlas browser journey', () => {
 
   it('10. STOP pauses and blocks submission until resumed', async () => {
     await goto('Talk');
+    await openAgency(page);
     await page.click('[data-testid="agency-stop"]');
     await page.waitForSelector('.quiet:text-matches("Session paused")');
-    expect(await page.isDisabled('.answer textarea')).toBe(true);
+    expect(await page.isDisabled('.composer textarea')).toBe(true);
     expect(await page.isDisabled('button:text("Map this answer")')).toBe(true);
 
-    await page.click('[data-testid="agency-stop"]');
-    await expect.poll(() => page.isDisabled('.answer textarea')).toBe(false);
+    // RESUME is promoted to the primary row while paused, so recovery is instant.
+    await page.click('[data-testid="action-resume"]');
+    await expect.poll(() => page.isDisabled('.composer textarea')).toBe(false);
   });
 
   it('11-13. SERIOUS enters quiet presentation, still progresses, and suppresses celebration', async () => {
     await goto('Talk');
     await dismissNotices();
+    await openAgency(page);
     await page.click('[data-testid="agency-serious"]');
     await expect.poll(() => page.textContent('.chip')).toBe('quiet');
 
@@ -166,7 +170,7 @@ describe('Atlas browser journey', () => {
     await goto('Talk');
     // Drive enough synthetic turns to cross a level boundary while quiet.
     for (let index = 0; index < 8; index += 1) {
-      await page.fill('.answer textarea', `${SYNTHETIC_TWO} ${index}`);
+      await page.fill('.composer textarea', `${SYNTHETIC_TWO} ${index}`);
       await page.click('button:text("Map this answer")');
       expect(await page.isVisible('.overlay')).toBe(false);
     }
@@ -177,6 +181,7 @@ describe('Atlas browser journey', () => {
 
   it('14. sass stays adjustable at every level and in quiet mode', async () => {
     await goto('Talk');
+    await openAgency(page);
     await page.click('[data-testid="agency-sass"]');
     await goto('Me');
     const select = page.locator('.settings select');
@@ -260,7 +265,11 @@ describe('Atlas browser journey', () => {
       expect(box.width).toBeGreaterThan(0);
     }
     await goto('Talk');
+    // The primary row is game-facing at this width; permanent agency is one tap away.
+    expect(await page.isVisible('[data-testid="action-bar"]')).toBe(true);
+    await openAgency(page);
     expect(await page.isVisible('[data-testid="agency"]')).toBe(true);
+    await page.click('[data-testid="more-close"]');
     await page.setViewportSize(PHONE);
   });
 
@@ -282,9 +291,16 @@ describe('Atlas browser journey', () => {
       expect(overflow, `no horizontal overflow on ${screen} at 320px (offenders: ${offenders})`).toBeLessThanOrEqual(0);
     }
 
-    // Every permanent control is a real 44px+ target.
+    // Every permanent control is a real 44px+ target, on both surfaces it lives on.
     await goto('Talk');
-    for (const control of ['pass', 'private', 'stop', 'serious', 'help', 'sass']) {
+    for (const control of ['pass', 'more']) {
+      const testId = control === 'pass' ? 'agency-pass' : 'action-more';
+      const box = (await page.locator(`[data-testid="${testId}"]`).boundingBox())!;
+      expect(box.height, `${control} height`).toBeGreaterThanOrEqual(44);
+      expect(box.width, `${control} width`).toBeGreaterThanOrEqual(44);
+    }
+    await openAgency(page);
+    for (const control of ['private', 'stop', 'serious', 'help', 'sass']) {
       const box = (await page.locator(`[data-testid="agency-${control}"]`).boundingBox())!;
       expect(box.height, `${control} height`).toBeGreaterThanOrEqual(44);
       expect(box.width, `${control} width`).toBeGreaterThanOrEqual(44);
@@ -293,7 +309,7 @@ describe('Atlas browser journey', () => {
     // The fixed bottom nav must never sit on top of the form controls: once
     // scrolled to the end, the last permanent control clears the nav entirely.
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    const lastControl = (await page.locator('[data-testid="agency-sass"]').boundingBox())!;
+    const lastControl = (await page.locator('[data-testid="agency-status"]').boundingBox())!;
     const navBox = (await page.locator('nav').boundingBox())!;
     expect(lastControl.y + lastControl.height).toBeLessThanOrEqual(navBox.y + 1);
 

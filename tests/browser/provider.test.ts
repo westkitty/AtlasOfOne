@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page, type Route } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent, wakeAtlas } from './helper';
+import { completeOnboardingIfPresent, openAgency, wakeAtlas } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -145,6 +145,7 @@ describe('browser to Worker provider path', () => {
   it('4. a PRIVATE dimension never appears in a later outgoing payload', async () => {
     await goto('Talk');
     const closed = (await page.textContent('.prompt small'))!.replace('Evidence dimension: ', '').trim();
+    await openAgency(page);
     await page.click('[data-testid="agency-private"]');
     await expect.poll(() => page.textContent('.reply')).toContain('not intentionally return');
 

@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, openAgency } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -381,6 +381,7 @@ describe('Talk mode is a continuous conversation', () => {
     try {
       const { page } = session;
       await waitForState(page, 'listening');
+      await openAgency(page);
       await page.click('[data-testid="agency-stop"]');
       await page.waitForTimeout(2500);
       expect(await voiceState(page), 'not listening after STOP').not.toContain('listening');

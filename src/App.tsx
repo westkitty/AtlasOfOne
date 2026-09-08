@@ -3,12 +3,12 @@ import { eventsFromTurn } from './cartographer/apply';
 import { createRemoteProvider, requestFinalAssessment, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
 import { compileFinalizeContext, generateLocalAssessment } from './cartographer/finalize';
-import { createMockTurn, describeBossStage, describeDoor, doorInsightFrom, encounterTurnRecord, getMockPrompt } from './cartographer/mock';
+import { createMockTurn, deeperPrompt, describeBossStage, describeDoor, doorInsightFrom, encounterTurnRecord, getMockPrompt, rerolledPrompt, type MockPrompt } from './cartographer/mock';
 import { type AIProvider, disabledProvider, playerMessageForFailure } from './cartographer/provider';
 import type { CartographerTurn } from './cartographer/schema';
 import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefinition, currentBossStage } from './game/encounters';
 import { applyGameEvents, campaignReachedEndState, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
-import type { CampaignState, GameEvent, SassLevel, TerritoryStatus } from './game/types';
+import type { CampaignState, GameEvent, PresentationNotice, SassLevel, TerritoryStatus } from './game/types';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
 import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
 import { clearAccessSecret, getAccessHeaders, getAccessSecret, setAccessSecret } from './voice/access';
@@ -20,6 +20,54 @@ import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
 
 type Screen = 'map'|'talk'|'vault'|'me';
 const GREYSON_MAP_SPRITE = '/assets/greyson/map/idle-front.png';
+/**
+ * Canonical 48x64 runtime sprites, already in the repository. `right` reuses the
+ * left-facing render mirrored in CSS rather than inventing a sixth drawing.
+ */
+const GREYSON_SPRITES: Record<'front' | 'back' | 'left' | 'right', string> = {
+  front: '/assets/greyson/map/idle-front.png',
+  back: '/assets/greyson/map/idle-back.png',
+  left: '/assets/greyson/map/idle-left.png',
+  right: '/assets/greyson/map/idle-left.png'
+};
+
+/**
+ * Presentation-only cartography.
+ *
+ * These coordinates and edges give the eight existing territories a stable place
+ * in a world instead of a slot in a card grid. Nothing here is game authority:
+ * territory identity, state, coverage and progression all remain owned by
+ * `CampaignState`. A territory missing from this table still renders — it simply
+ * falls back to the centre — so campaign data and layout cannot desynchronise
+ * into a crash.
+ */
+const MAP_VIEW = { width: 320, height: 400 };
+const MAP_NODES: Record<string, { x: number; y: number }> = {
+  politics: { x: 160, y: 56 },
+  values: { x: 72, y: 132 },
+  cognition: { x: 248, y: 132 },
+  identity: { x: 160, y: 206 },
+  relationships: { x: 60, y: 280 },
+  fears: { x: 260, y: 280 },
+  interests: { x: 116, y: 352 },
+  future: { x: 214, y: 352 }
+};
+const MAP_EDGES: [string, string][] = [
+  ['identity', 'values'], ['identity', 'cognition'], ['identity', 'relationships'], ['identity', 'fears'],
+  ['values', 'politics'], ['cognition', 'politics'],
+  ['relationships', 'interests'], ['fears', 'future'], ['interests', 'future']
+];
+const MAP_CENTRE = { x: MAP_VIEW.width / 2, y: MAP_VIEW.height / 2 };
+const nodeAt = (territoryId: string) => MAP_NODES[territoryId] ?? MAP_CENTRE;
+
+/** Eyebrow wording per milestone class, so a level-up cannot read like an error. */
+const MILESTONE_EYEBROW: Record<PresentationNotice['kind'], string> = {
+  level: 'LEVEL UP', unlock: 'NEW ABILITY', quest: 'QUEST COMPLETE',
+  fragment: 'ARTIFACT RECOVERED', territory: 'TERRITORY CHARTED', achievement: 'ACHIEVEMENT'
+};
+const MILESTONE_GLYPH: Record<PresentationNotice['kind'], string> = {
+  level: '▲', unlock: '✦', quest: '◆', fragment: '◈', territory: '★', achievement: '✧'
+};
 
 /** Short player-facing words for each fog-of-war state. */
 const STATUS_WORD: Record<TerritoryStatus, string> = {
@@ -181,7 +229,37 @@ export default function App() {
   // The Cartographer runs on its deterministic local script unless the Worker
   // reports a live provider. Nothing here holds a credential or a model id.
   const [provider, setProvider] = useState<AIProvider>(disabledProvider);
-  const prompt = useMemo(() => getMockPrompt(state), [state]);
+  /**
+   * The question the engine's own selector would ask right now.
+   *
+   * `activeTerritory` is campaign state and the engine relocates the expedition
+   * when a territory runs out of askable dimensions, so this follows the map
+   * rather than looping on an exhausted one.
+   */
+  const basePrompt = useMemo(() => getMockPrompt(state), [state]);
+  /**
+   * A game move may restate the current question without changing which
+   * coordinate is being mapped. The override is presentation only and is
+   * deliberately NOT persisted: a reload returns to the engine's own question,
+   * so a half-finished move can never resurrect as corrupted progression. The
+   * question actually on screen is what gets recorded in `TurnRecord`.
+   */
+  const [promptOverride, setPromptOverride] = useState<{ kind: 'deeper' | 'reroll'; prompt: MockPrompt } | null>(null);
+  const [rerollCount, setRerollCount] = useState(0);
+  const prompt = promptOverride?.prompt ?? basePrompt;
+  /** Compact agency surface, one interaction from the primary action row. */
+  const [moreOpen, setMoreOpen] = useState(false);
+  /**
+   * Transient reaction to a committed turn: how much XP the engine just granted
+   * and where the mark landed. Derived by observing state that has ALREADY been
+   * committed, never by predicting it, so this cannot become a second source of
+   * progression truth.
+   */
+  const [pulse, setPulse] = useState<{ xp: number; territoryId: string; key: number } | null>(null);
+  const turnSnapshot = useRef<{ xp: number; turns: number } | null>(null);
+  /** Which way Greyson faces as he crosses the map; presentation only. */
+  const [facing, setFacing] = useState<'front' | 'back' | 'left' | 'right'>('front');
+  const previousTerritory = useRef<string | null>(null);
   /**
    * The Final Atlas is an end-state artifact. Deciding availability here keeps
    * it on the engine's deterministic authority rather than on a feeling about
@@ -250,6 +328,55 @@ export default function App() {
   useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 6000); return () => window.clearTimeout(timer); }, [message]);
 
   /**
+   * World reaction to a committed answer.
+   *
+   * Fires only on a single new turn, so hydrating a saved campaign with many
+   * turns never replays a reward the player already had. The XP figure is the
+   * engine's committed delta — read after the fact, never computed here.
+   */
+  useEffect(() => {
+    const previous = turnSnapshot.current;
+    turnSnapshot.current = { xp: state.xp, turns: state.turns.length };
+    if (!previous || !hydrated) return;
+    if (state.turns.length !== previous.turns + 1) return;
+    const landed = state.turns[state.turns.length - 1];
+    setPulse({ xp: state.xp - previous.xp, territoryId: landed?.territoryId ?? state.activeTerritory, key: Date.now() });
+  }, [state.turns.length, state.xp, state.activeTerritory, hydrated]);
+
+  useEffect(() => {
+    if (!pulse) return;
+    const timer = window.setTimeout(() => setPulse(null), 1200);
+    return () => window.clearTimeout(timer);
+  }, [pulse]);
+
+  /**
+   * A move restates the current question; it does not change which coordinate is
+   * being mapped. Once the engine moves to a genuinely different question the
+   * override has been answered or superseded, so it is dropped.
+   */
+  const lastBasePromptId = useRef(basePrompt.id);
+  useEffect(() => {
+    if (lastBasePromptId.current === basePrompt.id) return;
+    lastBasePromptId.current = basePrompt.id;
+    setPromptOverride(null);
+    setRerollCount(0);
+  }, [basePrompt.id]);
+
+  /** Greyson turns to face the direction he just travelled. */
+  useEffect(() => {
+    const from = previousTerritory.current;
+    previousTerritory.current = state.activeTerritory;
+    if (!from || from === state.activeTerritory) return;
+    const start = nodeAt(from);
+    const end = nodeAt(state.activeTerritory);
+    if (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y)) setFacing(end.x >= start.x ? 'right' : 'left');
+    else setFacing(end.y < start.y ? 'back' : 'front');
+  }, [state.activeTerritory]);
+
+  // The agency sheet is a transient surface: leaving the screen closes it.
+  useEffect(() => { setMoreOpen(false); }, [screen]);
+
+  /**
    * Turn a Cartographer proposal into deterministic events. This is the ONLY
    * path from model output into campaign state, and it can emit exactly three
    * event types — none of which carries XP, a level, an unlock or a completion.
@@ -263,6 +390,7 @@ export default function App() {
       return applyGameEvents(current, eventsFromTurn(turnPrompt, text, turn, providerId));
     });
     setReply(turn.reply); setAnswer('');
+    setPromptOverride(null); setRerollCount(0);
     if (voiceMode === 'talk' && conversationActive.current) {
       // The effect below speaks the reply together with whatever Atlas is asking
       // next, so the player never has to read the screen to know their cue.
@@ -365,6 +493,40 @@ export default function App() {
   };
 
   const submit = () => submitText(answer);
+
+  /**
+   * Unlocked game moves.
+   *
+   * Both are pure presentation: they dispatch no event, so they cannot award XP,
+   * evidence, coverage or a turn. Only answering the question they put on screen
+   * does, and that runs through the ordinary deterministic path.
+   */
+  const canGoDeeper = Boolean(state.unlocks.find((item) => item.id === 'go-deeper')?.unlockedAt);
+  const canReroll = Boolean(state.unlocks.find((item) => item.id === 'reroll')?.unlockedAt);
+
+  const speakIfConversing = (line: string) => {
+    if (voiceMode === 'talk' && conversationActive.current) { setVoiceState('thinking'); setPendingReply(line); }
+  };
+
+  const invokeGoDeeper = () => {
+    if (!canGoDeeper || state.sessionStatus === 'paused') return;
+    setPromptOverride({ kind: 'deeper', prompt: deeperPrompt(basePrompt) });
+    setMoreOpen(false);
+    const line = 'Going deeper on the same thread. Nothing is scored for asking.';
+    setReply(line);
+    speakIfConversing(line);
+  };
+
+  const invokeReroll = () => {
+    if (!canReroll || state.sessionStatus === 'paused') return;
+    const attempt = rerollCount + 1;
+    setRerollCount(attempt);
+    setPromptOverride({ kind: 'reroll', prompt: rerolledPrompt(basePrompt, attempt) });
+    setMoreOpen(false);
+    const line = 'Reframed. Same coordinate, different way in. Rerolling costs nothing.';
+    setReply(line);
+    speakIfConversing(line);
+  };
 
   const toggleVoiceMode = (mode: VoiceMode) => {
     if (mode === voiceMode) return;
@@ -653,6 +815,21 @@ export default function App() {
   const activeRemaining = activeTerritory.requiredDimensions.length - activeTerritory.coveredDimensions.length;
   const quest = state.quests.find((item) => item.id === state.activeQuest);
   const notices = state.presentation === 'normal' ? state.presentationQueue : [];
+  /**
+   * What the expedition is actually working towards.
+   *
+   * The bootstrap quests both finish inside the first few turns, after which the
+   * old fallback claimed "Every territory charted - nothing outstanding" while
+   * seven territories were still fogged. The standing objective below is derived
+   * from real state and carries no XP: it describes the campaign, it does not
+   * reward it.
+   */
+  const chartedCount = state.territories.filter((t) => t.status === 'charted' || t.status === 'deeply-charted').length;
+  const objective = quest
+    ? { eyebrow: 'CURRENT QUEST', label: quest.label, detail: quest.description, progress: quest.progress, target: quest.target }
+    : campaignEnded
+      ? { eyebrow: 'EXPEDITION COMPLETE', label: 'Every territory charted', detail: 'The Atlas is finished. The final assessment is available on your character record.', progress: state.territories.length, target: state.territories.length }
+      : { eyebrow: 'STANDING OBJECTIVE', label: 'Chart the Atlas', detail: 'Recover a fragment from every territory on the map.', progress: chartedCount, target: state.territories.length };
   const quiet = state.presentation === 'quiet';
 
   // Level and XP shown as one unit so progress is legible on Map and Me.
@@ -712,35 +889,120 @@ export default function App() {
     {renderAgency(()=>{dispatch(encounter.kind==='boss'?{type:'BOSS_STAGE_PASSED'}:{type:'DOOR_CLOSED'});setReply('Passed. No penalty, no cost.');setAnswer('');}, encounter.dimension)}
   </section>;
 
+  /**
+   * The Atlas as a place.
+   *
+   * One SVG composition: fog, paths between regions, territory nodes carrying
+   * their own coverage arc and state glyph, and Greyson standing in whichever
+   * region the expedition currently occupies. Nodes are real buttons — keyboard
+   * reachable and individually labelled — because a map you cannot operate
+   * without a mouse is not accessible, and the state must never be conveyed by
+   * colour alone.
+   */
+  const renderAtlas = (interactive = true) => {
+    const activeNode = nodeAt(state.activeTerritory);
+    return <div className="atlas map" data-testid="atlas-map">
+      <svg viewBox={`0 0 ${MAP_VIEW.width} ${MAP_VIEW.height}`} className="atlas-svg" role="group" aria-label="The Greyson Map">
+        <defs>
+          <filter id="atlas-fog" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="9" />
+          </filter>
+          <radialGradient id="atlas-here">
+            <stop offset="0%" stopColor="var(--gold)" stopOpacity="0.32" />
+            <stop offset="100%" stopColor="var(--gold)" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        <g className="atlas-edges">
+          {MAP_EDGES.map(([from, to]) => {
+            const a = nodeAt(from), b = nodeAt(to);
+            const known = [from, to].some((id) => (state.territories.find((t) => t.id === id)?.status ?? 'fogged') !== 'fogged');
+            return <line key={`${from}-${to}`} className={`atlas-edge${known ? ' is-known' : ''}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
+          })}
+        </g>
+
+        {/* Fog sits above the paths and below the nodes, so unknown country
+            genuinely obscures rather than merely tinting. */}
+        <g className="atlas-fog" aria-hidden="true">
+          {state.territories.filter((t) => t.status === 'fogged').map((t) => {
+            const node = nodeAt(t.id);
+            return <circle key={t.id} cx={node.x} cy={node.y} r={30} filter="url(#atlas-fog)" />;
+          })}
+        </g>
+
+        <circle className="atlas-here-glow" cx={activeNode.x} cy={activeNode.y} r={44} fill="url(#atlas-here)" aria-hidden="true" />
+        {pulse && <circle key={pulse.key} className="atlas-pulse" cx={nodeAt(pulse.territoryId).x} cy={nodeAt(pulse.territoryId).y} r={20} aria-hidden="true" />}
+
+        <g className="atlas-nodes">
+          {state.territories.map((territory) => {
+            const node = nodeAt(territory.id);
+            const isActive = territory.id === state.activeTerritory;
+            const covered = territory.coveredDimensions.length;
+            const total = territory.requiredDimensions.length;
+            const ratio = total > 0 ? covered / total : 0;
+            const circumference = 2 * Math.PI * 17;
+            const label = `${territory.label}: ${isActive ? 'current position, ' : ''}${STATUS_WORD[territory.status]}, ${covered} of ${total} dimensions mapped`;
+            return <g
+              key={territory.id}
+              className={`atlas-node t-${territory.status}${isActive ? ' is-active' : ''}`}
+              role={interactive ? 'button' : 'img'}
+              tabIndex={interactive ? 0 : undefined}
+              aria-label={label}
+              aria-current={isActive ? 'true' : undefined}
+              data-testid={`atlas-node-${territory.id}`}
+              data-status={territory.status}
+              onClick={interactive ? () => dispatch({ type: 'ACTIVE_TERRITORY_SET', territoryId: territory.id }) : undefined}
+              onKeyDown={interactive ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); dispatch({ type: 'ACTIVE_TERRITORY_SET', territoryId: territory.id }); } } : undefined}
+            >
+              <circle className="atlas-node-hit" cx={node.x} cy={node.y} r={26} />
+              <circle className="atlas-node-ring" cx={node.x} cy={node.y} r={17} />
+              {ratio > 0 && <circle
+                className="atlas-node-arc" cx={node.x} cy={node.y} r={17}
+                strokeDasharray={`${(circumference * ratio).toFixed(2)} ${circumference.toFixed(2)}`}
+                transform={`rotate(-90 ${node.x} ${node.y})`}
+              />}
+              <circle className="atlas-node-core" cx={node.x} cy={node.y} r={11} />
+              <text className="atlas-node-glyph" x={node.x} y={node.y} textAnchor="middle" dominantBaseline="central" aria-hidden="true">{STATUS_MARK[territory.status]}</text>
+              <text className="atlas-node-label" x={node.x} y={node.y + 33} textAnchor="middle" aria-hidden="true">{territory.label}</text>
+              <text className="atlas-node-count" x={node.x} y={node.y + 44} textAnchor="middle" aria-hidden="true">{covered}/{total}</text>
+            </g>;
+          })}
+        </g>
+      </svg>
+
+      {/* Greyson is a real inhabitant of the map, not a header decoration. He
+          moves to whichever region the expedition is working in. */}
+      <div
+        className={`avatar atlas-greyson face-${facing}`}
+        data-testid="atlas-greyson"
+        data-territory={state.activeTerritory}
+        style={{ left: `${(activeNode.x / MAP_VIEW.width) * 100}%`, top: `${(activeNode.y / MAP_VIEW.height) * 100}%` }}
+      >
+        <img src={GREYSON_SPRITES[facing]} alt={`Greyson, standing in ${activeTerritory.label}`} draggable={false} />
+      </div>
+      {pulse && <div key={pulse.key} className="atlas-mark" data-testid="atlas-mark" style={{ left: `${(nodeAt(pulse.territoryId).x / MAP_VIEW.width) * 100}%`, top: `${(nodeAt(pulse.territoryId).y / MAP_VIEW.height) * 100}%` }} aria-hidden="true">+{pulse.xp} XP</div>}
+    </div>;
+  };
+
   const renderMap = () => <section className="screen">
     <div className="eyebrow">THE GREYSON MAP</div>
     <header><div><h1>Atlas of One</h1><p>One person. More territory than a questionnaire can survive.</p></div>{isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}</header>
     {renderProgress()}
-    <article className="quest-card">
+    <article className="quest-card" data-testid="objective-card">
       <b aria-hidden="true">◆</b>
       <div>
-        <span className="eyebrow">CURRENT QUEST</span>
-        <strong>{quest?.label ?? 'Every territory charted'}</strong>
-        {quest
-          ? <><small>{quest.description}</small><div className="quest-track"><i style={{width:`${Math.min(100,(quest.progress/quest.target)*100)}%`}} /></div><small className="quest-count">{quest.progress} / {quest.target}</small></>
-          : <small>Nothing outstanding. Open an encounter, or keep mapping.</small>}
+        <span className="eyebrow">{objective.eyebrow}</span>
+        <strong>{objective.label}</strong>
+        <small>{objective.detail}</small>
+        <div className="quest-track"><i style={{width:`${Math.min(100,(objective.progress/Math.max(1,objective.target))*100)}%`}} /></div>
+        <small className="quest-count">{objective.progress} / {objective.target}</small>
       </div>
     </article>
-    <div className="map">
-      <div className="map-here">
-        <div className="avatar"><img src={GREYSON_MAP_SPRITE} alt="Greyson map avatar" draggable={false}/></div>
-        <div><span className="eyebrow">YOU ARE HERE</span><strong>{activeTerritory.label}</strong><small>{STATUS_WORD[activeTerritory.status]}</small></div>
-      </div>
-      <div className="territory-grid">
-        {state.territories.map((territory) => <button key={territory.id} className={`territory t-${territory.status}${territory.id===state.activeTerritory?' active':''}`} aria-current={territory.id===state.activeTerritory?'true':undefined} onClick={() => dispatch({type:'ACTIVE_TERRITORY_SET',territoryId:territory.id})}>
-          <span className="t-mark" aria-hidden="true">{STATUS_MARK[territory.status]}</span>
-          <strong>{territory.label}</strong>
-          <small>{STATUS_WORD[territory.status]} · {territory.coveredDimensions.length}/{territory.requiredDimensions.length}</small>
-        </button>)}
-      </div>
-    </div>
+
+    {renderAtlas()}
+
     <article className="card current-territory">
-      <span className="eyebrow">CURRENT TERRITORY</span>
+      <span className="eyebrow">YOU ARE HERE</span>
       <h2>{activeTerritory.label}</h2>
       <p>{activeTerritory.coveredDimensions.length} of {activeTerritory.requiredDimensions.length} dimensions mapped{activeRemaining>0?` · ${activeRemaining} to go`:' · fully charted'}.</p>
       <button className="primary" onClick={() => setScreen('talk')}>{activeTerritory.coveredDimensions.length===0?'Start mapping':'Continue encounter'}</button>
@@ -754,10 +1016,78 @@ export default function App() {
     </article>}
   </section>;
 
-  const renderTalk = () => encounter ? renderEncounter() : <section className="screen">
+  /**
+   * Permanent agency, one interaction from the primary row.
+   *
+   * These controls are never progression-gated and never removed - they simply
+   * stop impersonating the game. STOP is deliberately first so the control that
+   * has to work fastest is the one the thumb reaches first.
+   */
+  const renderAgencySheet = (privateDimension: string) => moreOpen && <div className="more-sheet" data-testid="more-sheet" role="dialog" aria-label="Agency controls and moves" onKeyDown={(event)=>{ if(event.key==='Escape') setMoreOpen(false); }}>
+    <div className="more-head">
+      <span className="eyebrow">ALWAYS AVAILABLE</span>
+      <button className="more-close" data-testid="more-close" aria-label="Close controls" onClick={()=>setMoreOpen(false)}>×</button>
+    </div>
+    <div className="agency" data-testid="agency" role="group" aria-label="Always-available controls">
+      <button className={`agency-protect${state.sessionStatus==='paused'?' is-active':''}`} data-testid="agency-stop" aria-pressed={state.sessionStatus==='paused'} onClick={()=>{const pausing=state.sessionStatus!=='paused';if(pausing)cancelVoice();dispatch({type:'SESSION_SET',status:pausing?'paused':'active'});}}>{state.sessionStatus==='paused'?'RESUME':'STOP'}</button>
+      <button className="agency-protect" data-testid="agency-private" onClick={()=>{dispatch({type:'PRIVATE_TOPIC_ADDED',topic:privateDimension});setReply('Private. I will not intentionally return to that dimension.');setMoreOpen(false);}}>PRIVATE</button>
+      <button className={`agency-protect${quiet?' is-active':''}`} data-testid="agency-serious" aria-pressed={quiet} onClick={()=>{dispatch({type:'PRESENTATION_SET',mode:'quiet'});setReply('Serious mode. Plain language; no fanfare.');setMoreOpen(false);}}>SERIOUS</button>
+      <button className="agency-util" data-testid="agency-help" onClick={()=>setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}>HELP</button>
+      <button className="agency-util" data-testid="agency-sass" onClick={()=>dispatch({type:'SASS_SET',sass:state.settings.sass==='low'?'medium':state.settings.sass==='medium'?'risks-understood':'low'})}>SASS</button>
+      <button className="agency-util" data-testid="agency-status" onClick={()=>setMessage(`Level ${state.level}, ${state.xp} XP. ${activeTerritory.label}: ${activeTerritory.coveredDimensions.length} of ${activeTerritory.requiredDimensions.length} dimensions mapped. ${state.mapFragments.length} of ${state.territories.length} fragments recovered.`)}>STATUS</button>
+    </div>
+    <p className="more-note">Sass: {state.settings.sass}. None of these cost you progress.</p>
+  </div>;
+
+  /**
+   * The primary action row is the GAME's surface: skip, whatever moves the
+   * player has actually earned, and a door to everything else. It previously
+   * showed six permanent controls and no game moves at all, which made the
+   * control plane look like the product.
+   */
+  const renderActionBar = (onPass: () => void, privateDimension: string) => {
+    const moves: { id: string; label: string; hint: string; run: () => void }[] = [];
+    if (canGoDeeper && !promptOverride) moves.push({ id: 'go-deeper', label: 'GO DEEPER', hint: 'Pursue this thread further', run: invokeGoDeeper });
+    if (canReroll) moves.push({ id: 'reroll', label: 'REROLL', hint: 'Ask this a different way', run: invokeReroll });
+    return <>
+      <div className="action-bar" data-testid="action-bar" role="group" aria-label="Encounter actions">
+        {state.sessionStatus === 'paused'
+          ? <button className="action action-resume" data-testid="action-resume" onClick={()=>dispatch({type:'SESSION_SET',status:'active'})}>RESUME</button>
+          : <button className="action" data-testid="agency-pass" onClick={onPass}>PASS</button>}
+        {moves.slice(0, 2).map((move) => <button key={move.id} className="action action-move" data-testid={`move-${move.id}`} title={move.hint} aria-label={`${move.label}: ${move.hint}`} onClick={move.run} disabled={state.sessionStatus==='paused'}>{move.label}</button>)}
+        <button className="action action-more" data-testid="action-more" aria-expanded={moreOpen} aria-haspopup="dialog" aria-label="More controls, including stop, private and serious" onClick={()=>setMoreOpen((open)=>!open)}>MORE…</button>
+      </div>
+      {renderAgencySheet(privateDimension)}
+    </>;
+  };
+
+  const renderTalk = () => encounter ? renderEncounter() : <section className="screen talk-screen">
     <div className="eyebrow">ENCOUNTER · {activeTerritory.label.toUpperCase()}</div>
-    <header><div><h1 className="screen-title">The Cartographer</h1><p>Mapping {activeTerritory.label.toLowerCase()} with you, one coordinate at a time.</p></div>{quiet && <span className="chip">{state.presentation}</span>}{isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}</header>
-    <article className="card prompt">{reply && <p className="reply" role="status">{reply}</p>}<h2>{prompt.question}</h2><small>Evidence dimension: {prompt.dimension}</small></article>
+    <h1 className="screen-title talk-title">The Cartographer{quiet && <span className="chip">{state.presentation}</span>}{isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}</h1>
+
+    {/* The expedition stays visible while talking, so the conversation reads as
+        something happening inside the world rather than a form on its own. */}
+    <div className="expedition" data-testid="expedition-strip">
+      <img className={`expedition-avatar face-${facing}`} src={GREYSON_SPRITES[facing]} alt="" aria-hidden="true" draggable={false} />
+      <div className="expedition-body">
+        <div className="expedition-head">
+          <strong data-testid="expedition-territory">{activeTerritory.label}</strong>
+          <span className="expedition-status" data-status={activeTerritory.status}><i aria-hidden="true">{STATUS_MARK[activeTerritory.status]}</i> {STATUS_WORD[activeTerritory.status]}</span>
+        </div>
+        <div className="expedition-track"><i style={{width:`${Math.min(100,(activeTerritory.coveredDimensions.length/Math.max(1,activeTerritory.requiredDimensions.length))*100)}%`}} /></div>
+        <div className="expedition-foot">
+          <small>{activeTerritory.coveredDimensions.length}/{activeTerritory.requiredDimensions.length} mapped</small>
+          {/* The reaction sits beside the figure it just changed, rather than
+              floating over the header where it collided with the title. */}
+          <small className="expedition-readout">
+            {pulse && <b key={pulse.key} className="expedition-pulse" data-testid="answer-pulse">+{pulse.xp} XP</b>}
+            <span data-testid="expedition-xp">XP {state.xp} · L{state.level}</span>
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <article className="card prompt">{reply && <p className="reply" role="status">{reply}</p>}<h2 data-testid="prompt-question">{prompt.question}</h2><small>Evidence dimension: {prompt.dimension}{promptOverride ? ` · ${promptOverride.kind === 'deeper' ? 'going deeper' : 'reframed'}` : ''}</small></article>
     {state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}
 
     <div className="mode-switch" role="tablist" aria-label="Input mode">
@@ -766,10 +1096,13 @@ export default function App() {
     </div>
 
     {voiceMode==='type' ? (
-      <>
-        <label className="answer">Your coordinate<textarea rows={4} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="answer-input" /></label>
+      <div className="composer">
+        {/* Label wraps the field, matching the encounter composer. */}
+        <label className="answer">Your coordinate
+          <textarea rows={3} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="answer-input" placeholder="Say it however it actually comes out." />
+        </label>
         <button className="primary full" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'||isSubmitting}>{isSubmitting ? 'Mapping coordinate...' : 'Map this answer'}</button>
-      </>
+      </div>
     ) : (
       <div className="voice-card" data-testid="voice-card">
         <span className={`voice-badge ${voiceState}`} data-testid="voice-status">{voiceStateLabel(voiceState)}</span>
@@ -842,7 +1175,7 @@ export default function App() {
       </div>
     )}
 
-    {renderAgency(()=>setReply('Passed. No penalty.'), prompt.dimension)}
+    {renderActionBar(()=>setReply('Passed. No penalty.'), prompt.dimension)}
   </section>;
 
   const fragmentCount = state.territories.filter((t)=>state.mapFragments.some((f)=>f.territoryId===t.id)).length;
@@ -1341,7 +1674,24 @@ export default function App() {
       renderOnboarding()
     ) : (
       <>
-        {notices.length>0&&<div className="overlay"><article className="unlock"><span className="eyebrow">MAP UPDATED</span><h2>{notices[0].title}</h2><p>{notices[0].detail}</p><button className="primary" onClick={()=>dispatch({type:'PRESENTATION_QUEUE_CLEARED'})}>Continue</button></article></div>}
+        {notices.length>0&&<div className="overlay">
+          {/* One card carries everything the answer earned. Acknowledging it
+              dispatches one acknowledgement PER notice, so nothing is dropped on
+              the way out - the old single-notice card cleared the whole queue and
+              silently destroyed the rest. */}
+          <article className={`milestone kind-${notices[0].kind}${quiet?' is-quiet':''}`} data-testid="milestone" role="dialog" aria-labelledby="milestone-title" aria-describedby="milestone-detail">
+            <span className="eyebrow">{MILESTONE_EYEBROW[notices[0].kind]}</span>
+            <h2 id="milestone-title" data-testid="milestone-title">{notices[0].title}</h2>
+            <p id="milestone-detail">{notices[0].detail}</p>
+            {notices.length>1&&<ul className="milestone-also" data-testid="milestone-also">
+              {notices.slice(1).map((item)=><li key={item.id} data-testid={`milestone-item-${item.kind}`}>
+                <b aria-hidden="true">{MILESTONE_GLYPH[item.kind]}</b>
+                <span><strong>{item.title}</strong><small>{item.detail}</small></span>
+              </li>)}
+            </ul>}
+            <button className="primary" data-testid="milestone-continue" onClick={()=>dispatch(...notices.map((item)=>({type:'PRESENTATION_NOTICE_ACKNOWLEDGED',noticeId:item.id}) as GameEvent))}>Continue</button>
+          </article>
+        </div>}
         {screen==='map'?renderMap():screen==='talk'?renderTalk():screen==='vault'?renderVault():renderMe()}
         <nav aria-label="Main">{(['map','talk','vault','me'] as Screen[]).map((item)=><button key={item} className={screen===item?'active':''} aria-current={screen===item?'page':undefined} onClick={()=>setScreen(item)}><span aria-hidden="true">{item==='map'?'⌖':item==='talk'?'◉':item==='vault'?'▤':'☗'}</span><small>{item==='me'?'Me':item[0].toUpperCase()+item.slice(1)}</small></button>)}</nav>
       </>

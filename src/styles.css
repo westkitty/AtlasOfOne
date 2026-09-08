@@ -90,54 +90,87 @@ p { color: var(--muted); line-height: 1.5; margin: .4rem 0; }
 .quest-track i { display: block; height: 100%; background: var(--gold); }
 .quest-count { font-weight: 800; font-size: .72rem; color: var(--ink) !important; }
 
-/* ---- the map ---------------------------------------------------------- */
+/* ---- the map: one world, not eight cards ------------------------------ */
 
 .map {
-  margin-top: 16px; padding: 14px 12px 16px;
+  position: relative;
+  margin-top: 16px; padding: 10px 8px 12px;
   border: 1px solid var(--line); border-radius: 20px;
+  overflow: hidden;
   background:
-    radial-gradient(140% 80% at 50% 0%, #16202c, transparent 70%),
+    radial-gradient(120% 70% at 50% 8%, #1a2532, transparent 68%),
+    radial-gradient(90% 60% at 20% 90%, #141d2a, transparent 70%),
     var(--panel-2);
 }
-.map-here {
-  display: flex; align-items: center; gap: 14px;
-  padding: 6px 6px 14px; margin-bottom: 12px;
-  border-bottom: 1px dashed var(--line-soft);
-}
-.map-here > div { min-width: 0; }
-.map-here strong { display: block; font: 700 1.15rem/1.2 Georgia, serif; }
-.map-here small { color: var(--muted); }
-.avatar { flex: none; display: grid; place-items: end center; width: 60px; height: 80px; }
+.atlas-svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* Paths between regions. Unknown country keeps its routes hidden. */
+.atlas-edge { stroke: #2b3849; stroke-width: 1; stroke-dasharray: 3 6; opacity: .5; }
+.atlas-edge.is-known { stroke: #55688a; stroke-width: 1.5; stroke-dasharray: none; opacity: .95; }
+
+/* Fog is a soft mass over the unknown, not a hatch swatch. */
+.atlas-fog circle { fill: #0e141d; opacity: .92; }
+
+.atlas-here-glow { pointer-events: none; }
+
+.atlas-node { cursor: pointer; }
+.atlas-node-hit { fill: transparent; }
+.atlas-node-ring { fill: #101823; stroke: #3a4a60; stroke-width: 1.5; }
+.atlas-node-arc { fill: none; stroke: var(--gold); stroke-width: 3; stroke-linecap: round; opacity: .9; }
+.atlas-node-core { fill: #16202c; stroke: #2e3c50; stroke-width: 1; }
+.atlas-node-glyph { fill: var(--muted); font-size: 11px; font-weight: 700; }
+.atlas-node-label { fill: var(--ink); font-size: 9.5px; font-weight: 700; letter-spacing: .02em; }
+.atlas-node-count { fill: var(--muted); font-size: 8px; letter-spacing: .04em; }
+
+/* State reads through form, light, opacity AND glyph - never colour alone. */
+.atlas-node.t-fogged { opacity: .5; }
+.atlas-node.t-fogged .atlas-node-ring { stroke-dasharray: 3 4; stroke: #33425a; }
+.atlas-node.t-fogged .atlas-node-label { fill: var(--muted); font-weight: 600; }
+.atlas-node.t-discovered { opacity: .78; }
+.atlas-node.t-exploring .atlas-node-ring { stroke: #6b7f9d; }
+.atlas-node.t-charted .atlas-node-core { fill: #1d2a3a; stroke: var(--gold-soft); }
+.atlas-node.t-charted .atlas-node-glyph,
+.atlas-node.t-deeply-charted .atlas-node-glyph { fill: var(--gold); }
+.atlas-node.t-deeply-charted .atlas-node-core { fill: #24313f; stroke: var(--gold); }
+.atlas-node.t-deeply-charted .atlas-node-ring { stroke: var(--gold-soft); }
+.atlas-node.is-active .atlas-node-ring { stroke: var(--gold); stroke-width: 2.5; }
+.atlas-node.is-active .atlas-node-label { fill: var(--gold-soft); }
+.atlas-node:focus-visible { outline: none; }
+.atlas-node:focus-visible .atlas-node-hit { fill: none; stroke: var(--gold); stroke-width: 2; }
+
+/* Greyson stands in the region the expedition is working in. */
+.avatar { display: grid; place-items: end center; }
 .avatar img {
   width: 48px; height: 64px; object-fit: contain;
   image-rendering: pixelated;
   filter: drop-shadow(0 6px 4px #0009);
 }
+.atlas-greyson {
+  position: absolute; width: 48px; height: 64px;
+  transform: translate(-50%, -86%);
+  transition: left .65s cubic-bezier(.4, 0, .2, 1), top .65s cubic-bezier(.4, 0, .2, 1);
+  pointer-events: none;
+}
+.atlas-greyson.face-right img { transform: scaleX(-1); }
 
-.territory-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.territory {
-  position: relative;
-  min-height: 66px; text-align: left;
-  border: 1px solid var(--line-soft); border-radius: 12px;
-  background: #151d29; padding: 10px 10px 10px 12px;
-  color: var(--ink); transition: border-color .12s ease, background .12s ease;
+/* The mark a landed coordinate leaves. Visible without motion, animated with it. */
+.atlas-pulse { fill: none; stroke: var(--gold); stroke-width: 2; opacity: 0; animation: atlas-ping 1.1s ease-out; }
+@keyframes atlas-ping {
+  0% { r: 12; opacity: .85; }
+  100% { r: 40; opacity: 0; }
 }
-.territory strong { display: block; font-size: .92rem; }
-.territory small { display: block; margin-top: 4px; color: var(--muted); font-size: .64rem; letter-spacing: .02em; }
-.t-mark {
-  position: absolute; top: 8px; right: 9px;
-  font-size: .8rem; line-height: 1; color: var(--muted);
+.atlas-mark {
+  position: absolute; transform: translate(-50%, -190%);
+  padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--gold-soft); background: #1b2432;
+  color: var(--gold); font-size: .68rem; font-weight: 800; letter-spacing: .04em;
+  pointer-events: none; animation: atlas-rise 1.2s ease-out;
 }
-/* Fog-of-war states: distinguished by opacity, edge treatment AND glyph, not hue alone. */
-.territory.t-fogged { opacity: .58; border-style: dashed; background: repeating-linear-gradient(135deg, #141b26, #141b26 6px, #10161f 6px, #10161f 12px); }
-.territory.t-fogged strong { font-weight: 600; }
-.territory.t-discovered { opacity: .9; }
-.territory.t-exploring { border-left: 3px solid var(--gold); }
-.territory.t-charted { background: #17202d; }
-.territory.t-charted, .territory.t-deeply-charted { border-color: #5a6a83; }
-.territory.t-charted .t-mark, .territory.t-deeply-charted .t-mark { color: var(--gold); }
-.territory.t-deeply-charted { background: linear-gradient(150deg, #1b2431, #141d29); }
-.territory.active { border-color: var(--gold-soft); box-shadow: inset 0 0 0 1px var(--gold-soft); opacity: 1; }
+@keyframes atlas-rise {
+  0% { opacity: 0; transform: translate(-50%, -150%); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -240%); }
+}
 
 /* ---- generic cards ---------------------------------------------------- */
 
@@ -369,6 +402,9 @@ p { color: var(--muted); line-height: 1.5; margin: .4rem 0; }
   display: grid; place-items: center; padding: 22px;
   background: #05080cdd;
   animation: fade-in .16s ease-out;
+  /* A rich turn can queue six milestones at once. The card must never grow
+     past the screen and strand Continue outside the viewport. */
+  overflow-y: auto;
 }
 .unlock {
   width: min(100%, 360px); text-align: center;
@@ -822,3 +858,111 @@ html[data-reduced-motion="true"] .cold-open-sub { animation: none; opacity: 1; }
 }
 html[data-reduced-motion="true"] .mic-bar { transition: none; }
 html[data-reduced-motion="true"] .mic-visualizer.is-static .mic-bar { animation: none; transform: scaleY(.4); }
+
+/* ---- talk: the world stays present ------------------------------------ */
+
+.expedition {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 14px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: linear-gradient(150deg, #16202c, var(--panel-2));
+}
+.expedition-avatar {
+  flex: none; width: 34px; height: 46px; object-fit: contain;
+  image-rendering: pixelated; filter: drop-shadow(0 4px 3px #0009);
+}
+.expedition-avatar.face-right { transform: scaleX(-1); }
+.expedition-body { flex: 1; min-width: 0; }
+.expedition-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.expedition-head strong { font: 700 1rem/1.2 Georgia, serif; }
+.expedition-status { flex: none; font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.expedition-status i { font-style: normal; color: var(--gold); }
+.expedition-status[data-status="fogged"] i { color: var(--muted); }
+.expedition-track { height: 5px; margin: 6px 0 4px; border-radius: 999px; background: #0f1620; overflow: hidden; }
+.expedition-track i { display: block; height: 100%; background: var(--gold); transition: width .45s ease; }
+.expedition-foot { display: flex; justify-content: space-between; gap: 8px; }
+.expedition-foot small { color: var(--muted); font-size: .68rem; letter-spacing: .03em; }
+.expedition-readout { display: inline-flex; align-items: center; gap: 6px; }
+.expedition-pulse {
+  padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--gold-soft); background: #1b2432;
+  color: var(--gold); font-size: .66rem; font-weight: 800; letter-spacing: .04em;
+  animation: pulse-in .3s ease-out;
+}
+@keyframes pulse-in { from { opacity: 0; transform: translateY(-4px); } }
+
+.talk-title {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 2px 0 0; font: 700 1.25rem/1.2 Georgia, serif;
+}
+.composer { margin-top: 12px; }
+.composer .answer { display: block; margin-bottom: 6px; font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-soft); }
+.composer textarea {
+  width: 100%; padding: 12px; border-radius: 14px; resize: vertical;
+  border: 1px solid var(--line); background: #0f1620; color: var(--ink);
+  font: inherit; line-height: 1.5;
+}
+.composer textarea::placeholder { color: #56657c; }
+.composer .primary.full { margin-top: 10px; }
+
+/* ---- action surface: the game's controls, not the app's ---------------- */
+
+.action-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.action {
+  flex: 1 1 0; min-width: 76px; min-height: 46px;
+  padding: 12px 8px; border-radius: 12px;
+  font-size: .7rem; font-weight: 800; letter-spacing: .05em;
+  border: 1px solid var(--line-soft); background: #101823; color: var(--muted);
+}
+.action-move { border-color: var(--gold-soft); background: #1a2331; color: var(--gold-soft); }
+.action-move:disabled { opacity: .45; }
+.action-more { flex: 0 0 auto; min-width: 72px; }
+.action-resume { border-color: var(--gold-soft); background: var(--gold); color: #101823; }
+
+.more-sheet {
+  margin-top: 10px; padding: 12px;
+  border: 1px solid var(--line-soft); border-radius: 16px; background: var(--panel-2);
+}
+.more-head { display: flex; align-items: center; justify-content: space-between; }
+.more-close { border: 0; background: transparent; color: var(--muted); font-size: 1.4rem; line-height: 1; min-height: 44px; min-width: 44px; }
+.more-sheet .agency { margin-top: 8px; }
+.more-note { margin: 10px 2px 0; color: var(--muted); font-size: .72rem; }
+
+/* ---- milestone: one card, everything that was earned ------------------- */
+
+.milestone {
+  width: min(340px, 88vw); padding: 20px 18px;
+  max-height: calc(100vh - 44px); display: flex; flex-direction: column;
+  border: 1px solid var(--gold-soft); border-radius: 20px;
+  background: linear-gradient(160deg, #1d2634, #131b26);
+  box-shadow: 0 24px 60px #000a;
+  text-align: center;
+  animation: milestone-in .32s cubic-bezier(.2, .9, .3, 1.2);
+}
+@keyframes milestone-in { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+.milestone h2 { margin: .3rem 0 .4rem; font: 700 1.5rem/1.15 Georgia, serif; color: var(--gold); }
+.milestone > p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
+.milestone .primary { flex: none; margin-top: 16px; width: 100%; }
+.milestone-also {
+  list-style: none; margin: 14px 0 0; padding: 12px 0 0;
+  border-top: 1px dashed var(--line-soft); text-align: left;
+  min-height: 0; overflow-y: auto;
+}
+.milestone-also li { display: flex; gap: 10px; padding: 6px 0; }
+.milestone-also b { flex: none; color: var(--gold); font-size: .9rem; line-height: 1.4; }
+.milestone-also strong { display: block; font-size: .88rem; }
+.milestone-also small { display: block; color: var(--muted); font-size: .74rem; line-height: 1.4; }
+
+/* Quiet mode keeps the facts and drops the celebration. */
+.milestone.is-quiet { border-color: var(--line-soft); background: var(--panel-2); box-shadow: none; animation: none; }
+.milestone.is-quiet h2 { color: var(--ink); font-size: 1.2rem; }
+.milestone.is-quiet b { color: var(--muted); }
+
+html[data-reduced-motion="true"] .atlas-greyson { transition: none; }
+html[data-reduced-motion="true"] .atlas-mark,
+html[data-reduced-motion="true"] .expedition-pulse { animation: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .atlas-greyson { transition: none; }
+  .atlas-mark, .expedition-pulse { animation: none; opacity: 1; }
+}
