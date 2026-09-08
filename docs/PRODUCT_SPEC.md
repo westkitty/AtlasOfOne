@@ -120,9 +120,41 @@ Deleting/retracting an answer must be able to remove or invalidate derived evide
 - PRIVATE dimensions/topics are not intentionally surfaced again.
 - Export/import and delete foundations are required from the first persisted schema.
 
+## 7b. Opening presentation
+
+Atlas opens **dormant**. A fresh launch — new campaign, returning campaign or
+reload alike — begins in near-black cinematic space with no application chrome:
+no Map, Talk, Vault or Me, no navigation, cards, XP, controls, toasts or
+onboarding choices. The interface appears only after the person deliberately
+engages, and the whole viewport is the activation surface rather than a
+conventional button.
+
+Engagement IS the canonical "Begin" step, so a first-run campaign moves straight
+from waking to the sass choice. Waking brightens decisively — a short
+illumination, not a slow fade — and is effectively instant under reduced motion.
+This state is session-level: it awards nothing, never enters CampaignState, and
+recurs on every launch.
+
 ## 8. Voice and accessibility requirements
 
-Voice is a planned first-class interaction mode, not a substitute for text. The source architecture uses `getUserMedia` + `MediaRecorder` → `/api/transcribe` → transcript, with browser `speechSynthesis` for output and an explicit `IDLE → LISTENING → TRANSCRIBING → THINKING → SPEAKING → LISTENING` state machine.
+Voice is a first-class interaction mode, not a substitute for text. It uses
+`getUserMedia` + `MediaRecorder` → `/api/transcribe` → transcript, with browser
+`speechSynthesis` for output.
+
+**Talk is a continuous turn-taking conversation, not push-to-talk per answer.**
+One activation starts a spoken session: Atlas states the current question aloud,
+then listens on its own. The player finishes a turn by simply stopping talking;
+Atlas answers, establishes what it is asking next, and returns to listening with
+no further tap. The canonical loop is `LISTENING → TRANSCRIBING → THINKING →
+SPEAKING → LISTENING`, and `IDLE` is reserved for a conversation that is not
+running — cancelled, switched to Type, stopped, or failed.
+
+Spoken-turn completion is detected locally from microphone amplitude; no audio is
+transmitted to decide when someone stopped speaking. "Done speaking" remains
+available as a fallback for noisy rooms, accessibility and long pauses. Silence
+before speech never submits an empty turn. While listening, an amplitude-reactive
+visualizer is the primary status indicator, and its reappearance without a tap is
+how the player knows the turn is theirs again.
 
 The application must remain usable by text if voice is unavailable. Voice states must be visibly captioned. Common voice commands should be recognized locally when voice is implemented.
 

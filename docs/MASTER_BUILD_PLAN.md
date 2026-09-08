@@ -53,7 +53,7 @@ The model still never owns game progression.
 
 ## Phase 4 — Voice + deployment (~83%)
 
-- `MediaRecorder` voice capture
+- `MediaRecorder` voice capture, driving a continuous turn-taking Talk conversation with local end-of-turn detection rather than push-to-talk per answer
 - `/api/transcribe`
 - browser speech synthesis
 - explicit voice state machine
@@ -84,6 +84,11 @@ Minimal onboarding:
 5. Start.
 
 Observe product friction only; do not siphon campaign answers into development tools.
+
+The five steps are semantics, not a prescribed card stack. Step 1 is the
+cinematic wake: Atlas opens dormant and the first deliberate engagement IS
+"Begin", after which the player moves straight to the sass choice. No application
+chrome appears before that engagement.
 
 **Onboarding is not the phase.** Building those five steps is implementation
 work, and it is done and browser-verified. Phase 6 is the handoff: Greyson
