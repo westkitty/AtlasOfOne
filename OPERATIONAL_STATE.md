@@ -7,28 +7,28 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 17,
+  "state_revision": 18,
   "last_updated": "2026-09-08",
   "current_baseline": {
-    "identity": "rev17",
+    "identity": "rev18",
     "state": "partially-verified",
     "last_verified": "2026-09-08"
   },
   "application_content_baseline": {
-    "commit": "a78728574beb5e10a4556847637d246c862f75b8",
-    "live_bundle": "assets/index-BfRybavN.js",
+    "commit": "93c29c1ba79a41018987b7c66ae8f6191624ab11",
+    "live_bundle": "assets/index-C-UCvyfo.js",
     "state": "pending-merge-at-write",
-    "note": "The last commit that CHANGED compiled application content — the transcription eligibility guard and the onboarding normalization repair. Per DEC-028 this points at the code/test commit, never at the state commit that describes it and never at the merge that contains it. Deployment and live-bundle confirmation follow the merge."
+    "note": "The last commit that CHANGED compiled application content — the Vault retraction affordance required by PND-004. Per DEC-028 this points at the code/test commit, never at the state commit that describes it and never at the merge that contains it. Deployment and live-bundle confirmation follow the merge."
   },
   "previous_application_content_baseline": {
-    "commit": "b087451255de99a56028663f1d5094feb74ecf5a",
-    "live_bundle": "assets/index-BtWTZwNt.js",
-    "deployment": "c6b02e27-19bd-40ed-bd5f-5b485da67f2d",
-    "main_ci_run": "34182568035",
-    "note": "The encounter submission lock. Superseded by the baseline above once this pass merges and deploys."
+    "commit": "a78728574beb5e10a4556847637d246c862f75b8",
+    "live_bundle": "assets/index-BfRybavN.js",
+    "deployment": "373c63e7-18de-43cd-989f-fa2f161d747e",
+    "main_ci_run": "34185348383",
+    "note": "The transcription eligibility guard and onboarding normalization repair. Superseded by the baseline above once this pass merges and deploys."
   },
   "repository_head_at_write": {
-    "commit": "80337622bfa3f857248cdf2c1f6ce45281656742",
+    "commit": "70d4aa08231631f41412d6fc29c5db7262bb57de",
     "note": "Repository HEAD when this revision was written. Expected to advance when this revision merges; that does not invalidate the application content baseline above."
   },
   "scope_boundaries": [
@@ -46,7 +46,7 @@
 - **Primary root or artifact:** repository root.
 - **Target environment:** Current evergreen mobile browsers first; installable PWA; Cloudflare Worker deployment live.
 - **Canonical authority:** Current explicit user instructions, then repository source-of-truth documents distilled from supplied planning/source material and accepted asset mapping.
-- **Governed scope:** Phase 1 VERIFIED COMPLETE. Phase 2 VERIFIED COMPLETE. Phase 3 PARTIALLY VERIFIED — the provider selection is confirmed by source and by the live `/api/health` response, but the original bakeoff's raw execution metrics remain REPORTED rather than reproducible (UNV-019). Phase 4 PARTIAL — voice, transcription endpoint, access gate, production deployment and Workers Builds Git deployment are done; the physical Android install/device check required by `docs/MASTER_BUILD_PLAN.md` is open (UNV-003), alongside UNV-007, UNV-009 and UNV-017. Phase 5 PARTIAL — the Final Assessment trust boundary and BUG-001 through BUG-005 now carry genuine, mutation-proven regression coverage against real production paths, but the plan's single long-session retraction/export/delete/import/finalization proof has still not been run end to end as one session (PND-004). Phase 6 INCOMPLETE — onboarding is implemented and browser-verified, but Phase 6 is "Give it to Greyson" and completes only through actual use and observed friction (UNV-021). No percentages are recorded; Atlas is not complete.
+- **Governed scope:** Phase 1 VERIFIED COMPLETE. Phase 2 VERIFIED COMPLETE. Phase 3 PARTIALLY VERIFIED — the provider selection is confirmed by source and by the live `/api/health` response, but the original bakeoff's raw execution metrics remain REPORTED rather than reproducible (UNV-019). Phase 4 PARTIAL — voice, transcription endpoint, access gate, production deployment and Workers Builds Git deployment are done; the physical Android install/device check required by `docs/MASTER_BUILD_PLAN.md` is open (UNV-003), alongside UNV-007, UNV-009 and UNV-017. Phase 5 **VERIFIED COMPLETE** — the Final Assessment trust boundary and BUG-001 through BUG-005 carry genuine, mutation-proven regression coverage against real production paths, and the plan's single long-session retraction/export/delete/import/finalization proof has now been run end to end as one continuous browser session (PND-004 closed, VER-061). Building it also closed a product gap: retraction had no player-reachable path until this pass. Phase 6 INCOMPLETE — onboarding is implemented and browser-verified, but Phase 6 is "Give it to Greyson" and completes only through actual use and observed friction (UNV-021). No percentages are recorded; Atlas is not complete.
 
 - **Explicitly not governed:** Paid-model integration, real Greyson campaign content, 3D/native/account systems.
 
@@ -58,28 +58,28 @@ go stale, and a documentation change advances only the first of them.
 ### 2a. Repository / source state
 
 - **Repository:** `westkitty/AtlasOfOne`, branch `main`.
-- **Repository HEAD when this revision was written:** `80337622bfa3f857248cdf2c1f6ce45281656742` — "Merge pull request #5 from westkitty/fix/encounter-submit-double-tap".
+- **Repository HEAD when this revision was written:** `70d4aa08231631f41412d6fc29c5db7262bb57de` — "Merge pull request #6 from westkitty/fix/pre-handoff-small-defects".
 - Repository HEAD advances on every merge, including documentation-only merges. **It is not by itself evidence about what is deployed.** See DEC-028.
 
 ### 2b. Deployed application-content baseline
 
-- **Application content commit:** `a78728574beb5e10a4556847637d246c862f75b8` — the transcription eligibility guard and the onboarding normalization repair (VER-058, VER-059). This is the code/test commit itself, not the state commit that describes it and not the merge that contains it (DEC-028).
-- **Client bundle built from it:** `assets/index-BfRybavN.js` (with `assets/index-DU0P19tK.css`).
-- **Contains:** the Final Assessment trust-boundary hardening (`e940788`), the BUG-001 synchronous submission lock (`cbab040`), the encounter same-task lock (`b087451`), and this pass (`a787285`).
-- **Previous application content:** `b087451` / `assets/index-BtWTZwNt.js`, deployment `c6b02e27`, main CI `34182568035` — superseded once this repair merges and deploys.
+- **Application content commit:** `93c29c1ba79a41018987b7c66ae8f6191624ab11` — the Vault retraction affordance (VER-061). This is the code/test commit itself, not the state commit that describes it and not the merge that contains it (DEC-028).
+- **Client bundle built from it:** `assets/index-C-UCvyfo.js` (with `assets/index-DU0P19tK.css`).
+- **Contains:** the Final Assessment trust-boundary hardening (`e940788`), the BUG-001 synchronous submission lock (`cbab040`), the encounter same-task lock (`b087451`), the transcription eligibility guard and onboarding normalization (`a787285`), and player-reachable retraction (`93c29c1`).
+- **Previous application content:** `a787285` / `assets/index-BfRybavN.js`, deployment `373c63e7`, main CI `34185348383` — superseded once this pass merges and deploys.
 - Revision 15 demonstrated the rule in practice: its own documentation-only merge advanced 2a to `4d41d27` while application content stayed at `4d128a2` and the bundle stayed byte-identical at 453 016 bytes. The bundle identity, not the Git SHA, is the authority on what is running.
 
 ### 2c. Runtime and deployment evidence
 
-- **Last confirmed deployment:** `c6b02e27-19bd-40ed-bd5f-5b485da67f2d` (`2026-09-08T03:10:59Z`) serving `assets/index-BtWTZwNt.js`. Earlier: `d1c13091` (`00:41:44Z`) from the revision-15 documentation merge, which produced a new deployment record while serving byte-identical content — the first live confirmation of DEC-028.
-- **Main CI:** `Atlas validation` run `34182568035` (head `8033762`) success, preceded by `34174123501` (head `4d41d27`) and `34173319642` (head `4d128a2`).
+- **Last confirmed deployment:** `373c63e7-18de-43cd-989f-fa2f161d747e` (`2026-09-08T03:59:07Z`) serving `assets/index-BfRybavN.js`. Earlier: `d1c13091` (`00:41:44Z`) from the revision-15 documentation merge, which produced a new deployment record while serving byte-identical content — the first live confirmation of DEC-028.
+- **Main CI:** `Atlas validation` run `34185348383` (head `70d4aa0`) success, preceded by `34182568035`, `34174123501` and `34173319642`.
 - **Live probes (unauthenticated):** `GET /` 200; `GET /api/health` 200 reporting `workers-ai`, `@cf/qwen/qwen3-30b-a3b-fp8`, `@cf/openai/whisper-tiny-en`, `accessProtected: true`; `POST /api/turn`, `POST /api/transcribe` and `POST /api/finalize` each **401** without a credential.
 - **No live Workers AI inference** has been used in any release, repair or verification. Zero neurons spent.
 
 ### 2d. Shared facts
 
 - **Baseline state:** `partially-verified` — Phase 4, Phase 5 and Phase 6 all retain open required evidence.
-- **Validation identity:** revision 17 against application content `a787285`; local runs recorded in VER-058 through VER-060, earlier runs in VER-053 through VER-057, remote runs in section 2c.
+- **Validation identity:** revision 18 against application content `93c29c1`; local runs recorded in VER-061 and VER-062, earlier runs in VER-053 through VER-060, remote runs in section 2c.
 - **Active default user route:** onboarding on a fresh install, Map on a completed onboarding, verified in a real browser.
 - **Live provider state:** Cloudflare authenticated via supported Wrangler OAuth keyring. Configured Cartographer `@cf/qwen/qwen3-30b-a3b-fp8` and transcription `@cf/openai/whisper-tiny-en`, both confirmed by the production health endpoint. `ATLAS_ACCESS_SECRET` configured in production. Workers Builds connected to `westkitty/AtlasOfOne` on `main`. Zero dollars spent.
 - **Deployment coupling:** Workers Builds auto-deploys `main`, so any push to `main` is a deployment action. A documentation-only merge still triggers a build and a new deployment record while leaving application content byte-identical.
@@ -195,7 +195,19 @@ The current artifact contains the requested source-of-truth documents, React/Typ
   - **What was actually broken was normalization.** Load-time and render carried the same rule separately and disagreed, so cases C, D and E each rendered correctly as past onboarding while `onboardingCompleted` was written back **false** forever. A path can be visually safe and still persist a lie.
   - **Repair.** One authoritative predicate, `hasCompletedOnboarding(campaign, markerSet)` — persisted flag, or durable local marker, or existing turns — used by BOTH load-time normalization and the render gate so they cannot drift again. What it decides is unchanged; only the agreement is new. Case F still shows onboarding for a legacy campaign with no turns, which is indistinguishable from a fresh install.
   - **Mutation proof.** Restoring the nullish chain at load time fails cases C, D and E while leaving visible behaviour green — precisely the shape of the defect.
-- **VER-060:** **Current validation totals.** On application content `a787285`: `npx tsc --noEmit` clean; `npm test` 30 files, **237 passed, 1 skipped** (238); `npm run test:browser` 10 files, **87 passed**; production build passing; `git diff --check` clean. The 1 skip remains `tests/cartographer/worker-live.test.ts` self-skipping with no `wrangler dev` on :8787.
+- **VER-060:** *(Superseded by VER-062.)* Validation totals at revision 17, on application content `a787285`: `npx tsc --noEmit` clean; `npm test` 30 files, **237 passed, 1 skipped** (238); `npm run test:browser` 10 files, **87 passed**; production build passing; `git diff --check` clean. The 1 skip remains `tests/cartographer/worker-live.test.ts` self-skipping with no `wrangler dev` on :8787.
+
+- **VER-061:** **PND-004 — the continuous long-session lifecycle, and the product gap it exposed.** `tests/browser/phase5-long-session.test.ts` is ONE browser context, ONE page and ONE state lineage; its six stages are sequential parts of a single session, not independent tests. Setup places a prepared campaign on disk before the session becomes visible; every transition after that goes through the real UI.
+  - **A product gap was found first.** `ANSWER_RETRACTED` existed in the event vocabulary and the engine handled it, but **nothing in `src/App.tsx` ever dispatched it**, so the `docs/PRODUCT_SPEC.md` requirement that "Deleting/retracting an answer must be able to remove or invalidate derived evidence" was unreachable by a player. PND-004 is a user-journey proof, so satisfying it from a test would have proved the engine and hidden the gap. The smallest coherent affordance was added to the Vault — recorded answers listed newest first, each with a "Take this back" control, retracted answers kept and labelled. No new screen, no journal subsystem, no CSS.
+  - **Fixture.** 45 turns, 45 evidence records, level 7, all eight territories deeply charted, built through deterministic engine helpers. The retraction target is deliberately REDUNDANT — an extra answer on an already-covered dimension — so retracting it retires evidence without dropping the campaign out of its end state. That is what lets stage 1 prove invalidation while stage 5 still has something to finalize.
+  - **Stage 1 retraction:** exactly one answer retracted, history preserved (the words remain in `turns`), its derived evidence moved to `retracted` while the other 44 stayed active, the canary left the eligible set, XP and level unchanged, coverage recomputed and unchanged, still end-state eligible. Survives reload.
+  - **Stage 2 export:** the real Export control, the real browser download, read from disk. The file carries retraction as STATUS rather than by erasure, and every anchor equals the post-retraction state. No assessment.
+  - **Stage 3 delete:** the real two-tap flow. Old campaign gone, XP 0, app still usable.
+  - **Stage 4 import:** the EXACT downloaded bytes. Every anchor restores exactly, the retraction is not resurrected, settings and unlocks return, and the campaign is still end-state eligible. Survives reload.
+  - **Stage 5 finalization:** the real Synthesize control on the deterministic local synthesizer (`/api/health` stubbed `disabled`; `/api/finalize` and `/api/turn` aborted at the route). Assessment created with `provider: 'local-synthesizer'`, zero progression change, and the retracted canary absent from the entire assessment including its quotations. Survives reload and re-renders.
+  - **Mutation proof.** Removing the Vault control fails stages 1, 2, 4 and 5 — and stage 5 fails specifically because **the canary reaches the Final Assessment**, which shows the retraction path is load-bearing rather than decorative.
+  - **No Workers AI, no credentials, no neurons.** UNV-018 is untouched.
+- **VER-062:** **Current validation totals.** On application content `93c29c1`: `npx tsc --noEmit` clean; `npm test` 30 files, **237 passed, 1 skipped** (238); `npm run test:browser` 11 files, **93 passed**; the PND-004 chain 6/6 twice consecutively; production build passing; `git diff --check` clean.
 
 ## 6. Known Not Working
 
@@ -223,12 +235,12 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **UNV-019:** Raw execution evidence for the original live Workers AI bakeoff. The run emitted `console.log` only and committed no artifact, so its request/neuron/timing/privacy-canary figures are REPORTED historical results. See `docs/PROVIDER_BAKEOFF.md`. The provider *selection* is separately confirmed by source and by the live `/api/health` response, and is not in doubt.
 - **UNV-020:** **RESOLVED.** *(Was: remote CI and deployment behaviour of the `e940788` chain was unobserved, since it had never been pushed.)* Now directly observed across three releases: PR CI before production (runs `34169263408`, `34171654836`, `34173031003`), main CI after each merge (`34171916491`, `34173319642`), automatic Workers Builds deployment landing 29-48s after each push to `main`, live application-content verification by bundle identity, and unauthenticated protected-route probes returning 401 on all three inference routes. Retained as a resolved ID rather than deleted, so the promotion stays auditable.
 - **UNV-022:** **RESOLVED — reproduced, then repaired.** *(Was, at revision 15: an inspection-level risk that `submitEncounter` guards on closure-read `isSubmitting` around a synchronous encounter dispatch, NOT reproduced and explicitly not called a defect.)* PND-014 tested it against the real application and the risk was real, though the two encounter types differed and are recorded separately in VER-056. **Boss Fight was a genuine defect**: one submission answered two stages, awarded ordinary answer XP twice, wrote two turn records and started two enrichment requests. **Mystery Door progression was already safe** because `DOOR_ANSWERED` bails out with no active run, but it still issued two `/api/turn` enrichment requests for one crossing, which is duplicate quota spend. Both are closed by the `encounterInFlight` microtask-boundary lock in `b087451`, with mutation evidence.
-- **UNV-023:** **An existing Atlas file cannot be imported before first-run onboarding.** Fresh onboarding hides the main navigation, so a brand-new browser or device cannot reach the Me-screen Import control until onboarding is completed. Observed while proving KNOWN-005 and deliberately NOT repaired: no acceptance criterion and no build-plan item requires importing before first run, so building an onboarding import path here would have been inventing a requirement. It is recorded because it plausibly bites during the actual handoff — a new phone, or cleared site data, means completing onboarding before restoring a campaign. Resolve it as a Phase 6 friction observation with a real person, not by speculation.
+- **UNV-023:** **An existing Atlas file cannot be imported before first-run onboarding.** Fresh onboarding hides the main navigation, so a brand-new browser or device cannot reach the Me-screen Import control until onboarding is completed. Observed while proving KNOWN-005 and deliberately NOT repaired: no acceptance criterion and no build-plan item requires importing before first run, so building an onboarding import path here would have been inventing a requirement. It is recorded because it plausibly bites during the actual handoff — a new phone, or cleared site data, means completing onboarding before restoring a campaign. Resolve it as a Phase 6 friction observation with a real person, not by speculation. **Evidence updated at revision 18:** the PND-004 journey deleted and re-imported inside one session WITHOUT hitting this, because `localStorage.atlas_onboarding_completed` survives a campaign delete, so navigation and the Me-screen import stayed reachable throughout. UNV-023 therefore concerns a genuinely fresh profile — a new device, a new browser, or cleared site data — and not the delete-then-restore path. It remains open and unrepaired.
 - **UNV-021:** The actual Greyson session. Phase 6 is "Give it to Greyson"; the onboarding implementation is not the phase. No handoff has occurred and no product friction has been observed.
 
 ## 8. Unknown or Evidence-Stale State
 
-- **UNK-003:** `docs/ACCEPTANCE.md` Phase 6 still leaves "Pre-existing campaigns (with turns or existing state) backward-compatible bypass" unchecked and annotated as CONTRADICTED by KNOWN-005. VER-059 disproves that annotation: the bypass works and is now proven. The checkbox was NOT edited here because this pass was scoped to `OPERATIONAL_STATE.md`; it should be corrected in the next documentation pass.
+- **UNK-003:** **CLOSED.** `docs/ACCEPTANCE.md` no longer carries the disproven KNOWN-005 CONTRADICTED claim. Revision 18 also propagated the other stale acceptance statements whose replacement truth is already proven: the obsolete production/local-candidate scope note, stale test totals, the Phase 4 transcription wording (KNOWN-004 closed, UNV-017 preserved), the Phase 5 async-hammer box, the Final Assessment trust-boundary block header, and the long-session checkbox. Nine criteria remain legitimately open there.
 - **UNK-002:** The available source requires all territories/levels but does not enumerate canonical names/details for each; political dimensions and a Level 8 reveal are explicit. Bootstrap labels/thresholds are reversible and documented as non-canonical defaults.
 
 ## 9. Pending Work
@@ -240,7 +252,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **PND-008:** Closed. Live Workers AI bakeoff executed and documented in `docs/PROVIDER_BAKEOFF.md`.
 - **PND-009:** Decide whether the browser provider journey and the Worker runtime probe join CI (they need Chrome and a workerd runtime respectively), alongside the existing PND-007 decision.
 - **PND-003:** Phase 4 voice state machine, local agency commands, synthesis, `/api/transcribe` endpoint, `ATLAS_ACCESS_SECRET` Worker secret + client credential gate, production deployment to Cloudflare Workers, and Cloudflare Workers Builds Git integration to `westkitty/AtlasOfOne` (`main`) verified; physical Android hardware check remains unverified pending reachable device (UNV-003). Phase 4 status: PARTIAL.
-- **PND-004:** **Reopened (partial).** Phase 5 adversarial release QA delivered the archetype, network-degradation, persistence-torture and defensive-security suites, and the Final Assessment engine. The regression-protection gap is now closed (KNOWN-002 resolved, VER-054). One part of the phase remains undone: the plan's single long-session retraction/export/delete/import/finalization proof has never been run end to end as one session — several narrower suites are still standing in for it. Phase 5 status: PARTIAL, on this item alone.
+- **PND-004:** **CLOSED / VERIFIED.** The single long-session retraction → export → delete → import → finalization proof has been run end to end as one continuous browser session (VER-061), and building it exposed and closed a real product gap: retraction had no player-reachable path. With the regression-protection gap already closed (KNOWN-002, VER-054), **Phase 5 is VERIFIED COMPLETE.**
 - **PND-010:** **Open.** The Phase 6 onboarding IMPLEMENTATION is complete and browser-verified (5-step sequence, 0 XP, 0 unlocks, agency controls preview, dual persistence via IndexedDB + localStorage), and the production access secret is rotated into the macOS Keychain and the Worker secret. Phase 6 itself is "Give it to Greyson" and is NOT complete: it closes only through the actual handoff and observed product friction (UNV-021). The backward-compatible bypass for pre-existing campaigns does work and is now proven end to end (VER-059); the revision-15 claim that it did not was wrong and is corrected under KNOWN-005.
 - **PND-011:** Closed. Real regression protection for BUG-001 through BUG-004 exists in `tests/browser/concurrency.test.ts`, driving the real application rather than a component-test double. The investigation also found and repaired a live BUG-001 defect. See VER-054.
 - **PND-012:** Closed. `e940788` was reviewed through PR #1, CI-gated before release, merged as `9e00c6d`, and deployed automatically by Workers Builds. KNOWN-001 is resolved.
@@ -346,6 +358,9 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 | TRANSCRIBE-002 | `/api/transcribe` refuses a model outside the free-plan registry | verified | `tests/cartographer/transcribe.test.ts` (16 checks): unknown and paid-shaped overrides return 503 with a call-counting binding recording ZERO `AI.run` calls; default and `@cf/openai/whisper` each reach the binding exactly once; mutation-proven | Vitest | `a787285`, rev 17 | 2026-09-08 | worker transcribe changes |
 | HEALTH-001 | `/api/health` reports only a transcription model Atlas would actually execute | verified | ineligible override reports `transcribeModel: null` rather than advertising a model that would be refused | Vitest | `a787285`, rev 17 | 2026-09-08 | health schema changes |
 | ONBOARD-002 | load-time normalization and the render gate agree on first-run completion | verified | `tests/browser/onboarding-continuity.test.ts` (6 cases) against real IndexedDB with legacy rows built at the migration boundary; mutation-proven | playwright-core + Vitest | `a787285`, rev 17 | 2026-09-08 | onboarding or persistence changes |
+| LIFECYCLE-001 | one continuous retraction → export → delete → import → finalization session | verified | `tests/browser/phase5-long-session.test.ts`, 6 sequential stages in one browser context; 45-turn campaign; exact downloaded file re-imported; deterministic local finalization; mutation-proven | playwright-core + Vitest | `93c29c1`, rev 18 | 2026-09-08 | persistence, transfer or finalization changes |
+| RETRACT-001 | a player can retract a recorded answer from the Vault | verified | `src/App.tsx` Vault control dispatching `ANSWER_RETRACTED`; before `93c29c1` no UI dispatched it at all despite PRODUCT_SPEC requiring it | playwright-core + Vitest | `93c29c1`, rev 18 | 2026-09-08 | Vault or retraction changes |
+| RETRACT-002 | retracted material cannot reach the Final Assessment | verified | PND-004 stage 5; removing the retraction control makes the canary appear in the assessment | playwright-core + Vitest | `93c29c1`, rev 18 | 2026-09-08 | finalize or retraction changes |
 | GAME-002 | a campaign can reach `campaignCompleted` through play | known-broken | no production code dispatches `CAMPAIGN_COMPLETED` (KNOWN-003) | source inspection | `4d128a2`, rev 15 | 2026-09-08 | endgame design decision |
 | QA-006 | BUG-001 duplicate provider request | verified — real defect found and repaired | one submission starts exactly one `/api/turn`; `submitInFlight` ref lock; removing it fails the test | playwright-core + Vitest | `4d128a2`, rev 15 | 2026-09-08 | submission-path changes |
 | BROWSER-010 | first-run hydration readiness in the browser harness | verified | `tests/browser/hydration-race.test.ts` (3 checks); deterministic pre-hydration pin plus throttled regression guard; old helper observed failing | playwright-core + Vitest | `4d128a2`, rev 15 | 2026-09-08 | onboarding/hydration or helper changes |
@@ -361,9 +376,22 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **Must remain unchanged:** privacy firewall (never siphon, inspect, screenshot, log, summarize, or transmit real campaign answers), deterministic progression authority including encounter outcomes, always-available agency controls inside every encounter type, the no-PRIVATE-leak rule for Doors, Aerron→Greyson canonical asset mapping, Andrew-asset exclusion, source gap labels, and explicit non-goals.
 - **Potentially affected behavior:** mock campaign progression, local state persistence, mobile UI, PWA build, canonical sprite presentation.
 - **Mandatory checks:** synthetic tests, production build, repository secret/private-data scan; browser/runtime checks when available.
-- **Repair class:** Rev 17 records one bounded pre-handoff pass, `a787285`. KNOWN-004 was the defect it was described as and is closed fail-closed; KNOWN-005's dead-code observation was right but its stated user-facing consequence was wrong, and it is closed as a state-normalization repair with the ledger corrected. Application content advances from `b087451` to `a787285`. Open items deliberately left visible: KNOWN-003, KNOWN-006, PND-004, PND-005, PND-009, PND-013 (KNOWN-003 remainder), UNV-003, UNV-004, UNV-007, UNV-009, UNV-010, UNV-017, UNV-018, UNV-019, UNV-021, UNV-023 and UNK-002.
+- **Repair class:** Rev 18 records the Phase 5 final gate, `93c29c1`. PND-004 is proven as one continuous session and Phase 5 is promoted to VERIFIED COMPLETE. The pass also closed a product gap — player-reachable retraction — and propagated the bounded acceptance corrections that revisions 15–18 had earned. Application content advances from `a787285` to `93c29c1`. Open items deliberately left visible: KNOWN-003, KNOWN-006, PND-005, PND-009, PND-013 remainder, UNV-003, UNV-004, UNV-007, UNV-009, UNV-010, UNV-017, UNV-018, UNV-019, UNV-021, UNV-023 and UNK-002.
 
 ## 13. Compact Revision Log
+
+### Revision 18 — 2026-09-08
+
+- **Artifact/source identity:** application content baseline `93c29c1ba79a41018987b7c66ae8f6191624ab11` — the code/test commit itself, per DEC-028. Client bundle built from it: `assets/index-C-UCvyfo.js`. Repository HEAD at write: `70d4aa0`.
+- **State deltas:**
+  1. **PND-004 CLOSED.** One continuous browser session proves the whole lineage: 45-turn campaign → real Vault retraction → real export → real delete → import of the EXACT downloaded file → restored retraction → deterministic local finalization → assessment persistence. Six sequential stages, one context, one page (VER-061, LIFECYCLE-001).
+  2. **A product gap was found and closed on the way.** `ANSWER_RETRACTED` existed in the engine but no UI ever dispatched it, so a stated PRODUCT_SPEC requirement was unreachable by a player. The smallest coherent affordance was added to the Vault (RETRACT-001). Mutation proof: removing it makes the retracted canary reach the Final Assessment (RETRACT-002).
+  3. **Phase 5 promoted from PARTIAL to VERIFIED COMPLETE.** PND-004 was its last open item, no new Phase 5 blocker was created, and the defect it exposed was repaired within the same pass.
+  4. **Bounded acceptance propagation.** `docs/ACCEPTANCE.md` corrected only where replacement truth is already proven: the obsolete production/local-candidate scope note, stale totals, Phase 4 transcription wording (KNOWN-004 closed, UNV-017 preserved), the async-hammer box (KNOWN-002 resolved), the Final Assessment block header (deployed, UNV-018 preserved), the long-session checkbox, and the Phase 6 bypass claim that revision 17 disproved. Nine criteria remain legitimately open. UNK-003 CLOSED.
+  5. **UNV-023 evidence updated, still open.** The delete-then-import path did NOT hit it, because the localStorage completion marker survives a campaign delete and navigation stayed reachable. It concerns a genuinely fresh profile, which this journey does not exercise.
+  6. **Counts refreshed** to 237 unit passed / 1 skipped across 30 files and **93 browser passed across 11 suites** (VER-062). VER-060 marked superseded.
+- **New evidence:** the PND-004 chain 6/6 twice consecutively; one mutation run failing at four stages as expected; `tsc` clean; 237 unit passed / 1 skipped; 93 browser passed; build passing; `git diff --check` clean.
+- **Validation not performed:** no live Workers AI inference, no `/api/finalize` request, no credentials, no neurons, no manual deploy, no secret rotation, no Cloudflare configuration change. KNOWN-003 remains untouched as a product decision. Phase 4 remains PARTIAL and Phase 6 remains INCOMPLETE.
 
 ### Revision 17 — 2026-09-08
 

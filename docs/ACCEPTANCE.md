@@ -11,12 +11,10 @@ One convention applies to the whole file.
 
 Before revision 14 this file mixed two conventions — Phase 1–3 criteria were left `[ ]` by historical habit while Phase 4–6 used `[x]` — which made long-proven invariants read as unverified and unproven ones read as settled. Every box below has been re-scored conservatively against evidence that actually exists.
 
-Two scopes are in play and are marked where they differ:
-
-- **PRODUCTION** — commit `60ce565`, the deployed Worker and client.
-- **LOCAL CANDIDATE** — commit `e940788`, locally verified, **not pushed and not deployed**.
-
-A criterion satisfied only in the local candidate is checked and labelled *(local candidate `e940788`; not deployed)*, because the box records verification, not delivery.
+Scope: everything checked below is verified against the deployed application
+unless its note says otherwise. `OPERATIONAL_STATE.md` holds the current
+application-content baseline and its deployment evidence; this file records
+whether a criterion is *proven*, not which commit is live.
 
 ## Agency and privacy
 
@@ -65,7 +63,7 @@ A criterion satisfied only in the local candidate is checked and labelled *(loca
 ## Evidence
 
 - [x] Evidence records identify source turn IDs, dimension, claim, basis, strength/confidence, territories, and status. *(`EvidenceRecord` in `src/game/types.ts`; VER-007; provenance fields per MODEL_CONTRACT.)*
-- [x] Retraction marks/removes derived evidence from the retracted answer and recomputes territory coverage. *(VER-007; `ANSWER_RETRACTED` marks derived evidence `retracted` and `reconcileTerritories` re-derives coverage; re-proven at rev 14 by final-assessment-trust check 3.)*
+- [x] Retraction marks/removes derived evidence from the retracted answer and recomputes territory coverage, and is reachable by the player from the Vault. *(VER-061 adds the real UI path, which did not exist before; VER-007; `ANSWER_RETRACTED` marks derived evidence `retracted` and `reconcileTerritories` re-derives coverage; re-proven at rev 14 by final-assessment-trust check 3.)*
 - [ ] Insight status can be confirmed or rejected without deleting history. *(Open: `INSIGHT_CONFIRMED`/`INSIGHT_REJECTED` exist in the engine and confirmed/rejected Insights are consumed by the context compiler, but no test exercises the transition itself. Implemented, unverified.)*
 - [ ] Contradictions/revisions remain representable rather than silently overwritten. *(Open and partial: revisions are represented — `TurnRecord.revision` and evidence `basis: 'revision'` are tested. `ContradictionRecord` is representable in the schema and correctly handled by consumers, but NO engine event ever creates one, so the contradiction half is untested and unreachable in play. Same class of gap as KNOWN-003.)*
 
@@ -91,10 +89,10 @@ A criterion satisfied only in the local candidate is checked and labelled *(loca
 
 ## Build/security
 
-- [x] `npm test` passes. *(Rev 14 on `e940788`: 235 passed, 1 skipped, 31 files.)*
-- [x] `npm run build` passes using the Cloudflare Vite plugin. *(Rev 14: Worker + client + PWA, 11 precache entries.)*
-- [x] `npm run test:browser` passes the real-browser user journey. *(Rev 14: 66 passed across 6 suites in installed Chrome.)*
-- [x] No secret or access token is committed. *(VER-016; full-history scan at rev 14 — the built bundles contain only the identifiers `atlas_access_secret` and `ATLAS_ACCESS_SECRET`, never a value.)*
+- [x] `npm test` passes. *(237 passed, 1 skipped, 30 files.)*
+- [x] `npm run build` passes using the Cloudflare Vite plugin. *(Worker + client + PWA, 11 precache entries.)*
+- [x] `npm run test:browser` passes the real-browser user journey. *(93 passed across 11 suites in installed Chrome.)*
+- [x] No secret or access token is committed. *(VER-016; full-history scan — the built bundles contain only the identifiers `atlas_access_secret` and `ATLAS_ACCESS_SECRET`, never a value.)*
 - [x] No D1, KV, R2, analytics, account auth, SSR, Next.js, native wrapper, or 3D dependency/config is added. *(VER-016; `wrangler.jsonc` declares only `ai` and `assets`. The `.wrangler/state/v3/{d1,kv,r2}` directories are gitignored miniflare scaffolding, not bindings.)*
 - [x] Worker API is same-origin and returns a health response. *(VER-028 workerd probe; live production `/api/health` returns 200.)*
 - [x] Paid AI service is not connected in Phase 1/2. *(DEC-003/DEC-014 — still true at rev 14: Workers AI Free is the only provider and no paid overflow exists.)*
@@ -133,7 +131,7 @@ A criterion satisfied only in the local candidate is checked and labelled *(loca
 - [x] Browser MediaRecorder capture is mobile-first, requires explicit player action, and discards audio blobs immediately after use. *(DEC-021; `src/voice/capture.ts` clears chunks on success, abort and error paths.)*
 - [x] Browser speech synthesis reads Cartographer responses in voice mode, cancellable on STOP, mode toggle, navigation, or unmount. *(VER-040.)*
 - [x] Quiet/serious presentation mode suppresses celebratory voice inflection with subdued volume and rate. *(VER-040 — rate 0.9, volume 0.6.)*
-- [x] Same-origin `POST /api/transcribe` endpoint converts audio to text using free-plan eligible Workers AI model without logging audio or transcripts. *(VER-038, 9 unit checks; the configured model `@cf/openai/whisper-tiny-en` is free-plan eligible and is confirmed by the live `/api/health` response. Two caveats: the endpoint does NOT enforce eligibility on an `ATLAS_TRANSCRIBE_MODEL_ID` override — KNOWN-004 — and it has never been exercised against real audio, so accuracy, latency and cost are unmeasured, and the model is English-only — UNV-017.)*
+- [x] Same-origin `POST /api/transcribe` endpoint converts audio to text using free-plan eligible Workers AI model without logging audio or transcripts. *(VER-038, 9 unit checks; the configured model `@cf/openai/whisper-tiny-en` is free-plan eligible and is confirmed by the live `/api/health` response. Eligibility on an `ATLAS_TRANSCRIBE_MODEL_ID` override is now enforced fail-closed before any binding call — KNOWN-004 resolved, VER-058. One caveat remains: it has never been exercised against real audio, so accuracy, latency and cost are unmeasured, and the model is English-only — UNV-017.)*
 - [x] Worker access secret `ATLAS_ACCESS_SECRET` guards `/api/turn` and `/api/transcribe` with 401 unauthorized rejection. *(VER-039, 8 unit checks; confirmed live in production for `/api/turn`, `/api/transcribe` and `/api/finalize`, with `accessProtected: true` on `/api/health`.)*
 - [x] Access secret is stored as a local client credential in `localStorage`, completely isolated from CampaignState and IndexedDB export. *(VER-039; `src/voice/access.ts`; the secret appears in no state type, schema or export path.)*
 - [x] Production Worker and PWA client deployed live to Cloudflare Workers with asset serving. *(VER-041; re-confirmed at rev 14 — deployed asset hashes match a local build of `60ce565`.)*
@@ -143,34 +141,33 @@ A criterion satisfied only in the local candidate is checked and labelled *(loca
 ## Adversarial Release QA and Final Assessment (Phase 5)
 
 - [x] Adversarially tested all player archetypes (short, long, contradictory, private, serious, political, revision-heavy, voice command protection). *(VER-043, 8 checks against real engine and context code.)*
-- [ ] Asynchronous hammer and race condition safety: double-submit (BUG-001), stale closure overwrite (BUG-002), cross-campaign import race (BUG-003), voice capture state desync (BUG-004). *(Open — KNOWN-002. The REPAIRS exist in `src/App.tsx` and were read directly. The tests do NOT protect them: each check in `tests/adversarial/async-hammer.test.ts` declares its own local guard variable and tests that reproduction, no test imports `src/App.tsx`, and the browser suite has no concurrency check. Deleting every shipped guard leaves all five tests green. Tracked as PND-011. This box may be checked only once a test exercises the shipped guards.)*
+- [x] Asynchronous hammer and race condition safety: double-submit (BUG-001), stale closure overwrite (BUG-002), cross-campaign import race (BUG-003), voice capture state desync (BUG-004). *(KNOWN-002 resolved. `tests/browser/concurrency.test.ts` drives the real application with mutation proof for every guard; the former self-referential fixture was deleted. BUG-001 turned out to be a live defect — two same-task clicks started two `/api/turn` requests — and was repaired with a synchronous lock. See VER-054.)*
 - [x] Network degradation resilience: 401, 413, 429 quota, 429 rate limit, 502/503/504 gateway failures, malformed JSON, and network timeouts degrade safely to local deterministic Cartographer. *(VER-045, 7 checks against the real client and worker.)*
 - [x] Persistence torture & migration: corrupted JSON rejected, schema version mismatch rejected, missing keys rejected, assessment round-trip preserved. *(VER-046, 5 checks.)*
 - [x] Streaming defensive security bounds on `/api/turn` and `/api/transcribe`: chunked transfer bypass closed with strict byte counting (BUG-005), auth gates enforced, forged progression stripped, and private/retracted canaries structurally excluded from the PER-TURN payload. *(VER-047, 8 checks importing the real `worker/index`. This is the one BUG whose repair has genuine regression protection. The equivalent guarantee for the FINALIZE payload is scored separately below — it did not hold at this revision.)*
 - [x] Final Atlas Assessment synthesis engine: `POST /api/finalize` + deterministic offline generator `generateLocalAssessment(state)` in `src/cartographer/finalize.ts`. *(VER-048.)*
 - [x] Zero progression authority: Final Assessment emits `FINAL_ASSESSMENT_SET` with 0 XP, 0 level change, and 0 territory/unlock change. *(FINAL-001; re-proven at rev 14 including on the semantic-refusal path.)*
 - [x] Browser presentation and print export: Final Assessment UI rendered on Me screen, 0 horizontal overflow at 320px, and `@media print` styles format clean Save as PDF. *(BROWSER-008, journey checks 21a/21b and 22.)*
-- [ ] Long-session end-to-end proof: one continuous session covering retraction, export, delete, import and finalization. *(Open. `docs/MASTER_BUILD_PLAN.md` Phase 5 calls for this as a single run; several narrower suites are currently standing in for it. Each part is individually proven — VER-013 checks 15-18, VER-046, FINAL-001 — but not as one sustained session.)*
+- [x] Long-session end-to-end proof: one continuous session covering retraction, export, delete, import and finalization. *(PND-004 closed. `tests/browser/phase5-long-session.test.ts` is one browser context and one page carrying a single state lineage: a 45-turn campaign with all eight territories deeply charted, a real Vault retraction, a real export whose downloaded bytes are re-imported after a real delete, and deterministic local finalization from the restored state. The retracted answer's canary reaches neither the eligible evidence nor the assessment. See VER-061.)*
 
-## Final Assessment trust boundary (Phase 5A — local candidate `e940788`, NOT deployed)
+## Final Assessment trust boundary (Phase 5A — deployed)
 
-Every box in this block is verified in the local candidate only. In production
-(`60ce565`) each of these is still **unfixed** — see KNOWN-001. Each was
-mutation-tested: the repair was reverted, the named check was observed to fail,
-and the file was restored.
+Every box in this block is verified and shipped: `e940788` was released and
+KNOWN-001 is resolved. Each was mutation-tested — the repair was reverted, the
+named check was observed to fail, and the file was restored.
 
-- [x] Derived Insight privacy follows `evidenceIds`, not prose. *(local candidate `e940788`; not deployed — final-assessment-trust check 1.)*
-- [x] Derived Contradiction privacy follows `evidenceIds`, not prose. *(local candidate `e940788`; not deployed — check 2 uses a contradiction whose wording never names the private dimension.)*
-- [x] Material derived from retracted or otherwise non-visible evidence is structurally excluded from finalization. *(local candidate `e940788`; not deployed — check 3, which also asserts the material IS visible before retraction.)*
-- [x] A derived record with no evidence provenance is withheld rather than assumed safe. *(local candidate `e940788`; not deployed — check 4.)*
-- [x] Zero-evidence state produces no invented personality claim, no default contradiction, no framework estimate and no placeholder quotation. *(local candidate `e940788`; not deployed — check 5 names all eleven previously shipped fabrications.)*
-- [x] Domain inferences reach a domain only when their own evidence sits in it. *(local candidate `e940788`; not deployed — check 6. Previously the first three Insights were repeated under all eight headings.)*
-- [x] `whoIsGreyson` is evidence-grounded or explicitly states that evidence is insufficient. *(local candidate `e940788`; not deployed — checks 5 and 6.)*
-- [x] Remote Final Assessment receives semantic validation beyond Zod shape validation, covering the complete assessment. *(local candidate `e940788`; not deployed — checks 8-12 through the real Worker route, including an acceptance check so the validator is not a blanket refusal.)*
-- [x] An invented quotation is rejected. *(local candidate `e940788`; not deployed — check 9.)*
-- [x] A reference to a topic the player closed is rejected. *(local candidate `e940788`; not deployed — check 10.)*
-- [x] A semantic refusal falls back safely and mutates no campaign state or progression. *(local candidate `e940788`; not deployed — check 13.)*
-- [x] Final Assessment is unavailable before the campaign reaches its deterministic end state. *(local candidate `e940788`; not deployed — browser check 21a; gate reads `campaignReachedEndState`. Note KNOWN-003: nothing dispatches `CAMPAIGN_COMPLETED`, so the territory-coverage fallback carries the gate in practice.)*
+- [x] Derived Insight privacy follows `evidenceIds`, not prose. *(final-assessment-trust check 1.)*
+- [x] Derived Contradiction privacy follows `evidenceIds`, not prose. *(check 2 uses a contradiction whose wording never names the private dimension.)*
+- [x] Material derived from retracted or otherwise non-visible evidence is structurally excluded from finalization. *(check 3, which also asserts the material IS visible before retraction.)*
+- [x] A derived record with no evidence provenance is withheld rather than assumed safe. *(check 4.)*
+- [x] Zero-evidence state produces no invented personality claim, no default contradiction, no framework estimate and no placeholder quotation. *(check 5 names all eleven previously shipped fabrications.)*
+- [x] Domain inferences reach a domain only when their own evidence sits in it. *(check 6. Previously the first three Insights were repeated under all eight headings.)*
+- [x] `whoIsGreyson` is evidence-grounded or explicitly states that evidence is insufficient. *(checks 5 and 6.)*
+- [x] Remote Final Assessment receives semantic validation beyond Zod shape validation, covering the complete assessment. *(checks 8-12 through the real Worker route, including an acceptance check so the validator is not a blanket refusal.)*
+- [x] An invented quotation is rejected. *(check 9.)*
+- [x] A reference to a topic the player closed is rejected. *(check 10.)*
+- [x] A semantic refusal falls back safely and mutates no campaign state or progression. *(check 13.)*
+- [x] Final Assessment is unavailable before the campaign reaches its deterministic end state. *(browser check 21a; gate reads `campaignReachedEndState`. Note KNOWN-003: nothing dispatches `CAMPAIGN_COMPLETED`, so the territory-coverage fallback carries the gate in practice.)*
 - [ ] The `/api/finalize` semantic validator behaves acceptably against the real model. *(Open — UNV-018. Never exercised against live Workers AI, so the practical rejection rate is unmeasured. The failure mode is safe: fallback to the deterministic local synthesis.)*
 
 ## Greyson Onboarding and First-Run Handoff (Phase 6)
@@ -182,7 +179,7 @@ phase itself. Phase 6 is INCOMPLETE.
 - [x] Canonical minimal onboarding flow: 5-step sequence (1. Begin, 2. Sass: Low/Medium/Risks, 3. Mode: Talk/Type, 4. Agency controls: Pass/Private/Stop/Serious, 5. Start). *(VER-050, 4 unit checks; VER-051, 14 browser checks.)*
 - [x] Zero progression impact: onboarding completes with 0 XP, Level 1, 0 unlocks, 0 territories. *(VER-050; `ONBOARDING_COMPLETED` touches only `settings` and the completion flag.)*
 - [x] Dual local persistence: `state.onboardingCompleted` (IndexedDB) + `localStorage.atlas_onboarding_completed` prevents re-prompting after a local delete and re-import. *(VER-050; VER-051 check 12.)*
-- [ ] Pre-existing campaigns (with turns or existing state) backward-compatible bypass. *(Open — CONTRADICTED. KNOWN-005: the `saved.turns.length > 0` branch in `src/App.tsx` is unreachable, because `false ?? x` is `false` and the Zod `.default(false)` means the field is never `undefined`. A campaign imported on a second device or browser re-shows onboarding. No progression is lost.)*
+- [x] Pre-existing campaigns (with turns or existing state) backward-compatible bypass. *(The earlier CONTRADICTED annotation was wrong: the visible bypass always worked, because the render gate carries its own `turns.length === 0` term. What was actually broken was state normalization — the flag was written back false — and that is repaired with one shared predicate used by both load and render. Proven across six persistence cases in `tests/browser/onboarding-continuity.test.ts`. See VER-059.)*
 - [x] Real-browser verification: 0 horizontal overflow at 320px, >=44px touch targets, keyboard activation, reload persistence in Chrome. *(VER-051, 14 checks.)*
 - [x] Production access secret rotated, loaded as a Worker secret, and stored in the macOS Keychain. *(VER-041 lineage; corroborated at rev 14 by a `Secret Change` deployment event immediately preceding the `60ce565` deployment, and by `accessProtected: true` on live `/api/health`.)*
 - [ ] Physical Android device install and hardware verification. *(Open — UNV-003 / KNOWN-006: no reachable device.)*
