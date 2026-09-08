@@ -57,6 +57,26 @@ export default function App() {
    * exclude. `isSubmitting` is kept for presentation.
    */
   const submitInFlight = useRef(false);
+  /**
+   * Same-task exclusion for encounter submissions.
+   *
+   * `submitEncounter` is deliberately NOT shaped like `submitViaProvider`. Its
+   * deterministic state application is synchronous and its provider enrichment is
+   * non-authoritative and fire-and-forget, so a lock held until the enrichment
+   * response returned would block the next legitimate Boss stage for no reason.
+   *
+   * What must be excluded is narrower: a second click dispatched inside the SAME
+   * browser task, before React rerenders and before the closure-read
+   * `isSubmitting` can possibly be true. Releasing in a `finally` would not do
+   * that — the release would run synchronously, still inside the same task, and
+   * the second click would sail straight through.
+   *
+   * So the release is scheduled on the microtask boundary. Microtasks drain after
+   * the current task and before any later user event, which is exactly the window
+   * that needs covering: the duplicate tap is excluded, and the next real tap —
+   * necessarily a separate task — is not.
+   */
+  const encounterInFlight = useRef(false);
   const pendingCaptureCancelled = useRef(false);
   // Voice state machine & access code state
   const [voiceMode, setVoiceMode] = useState<VoiceMode>('type');
@@ -342,7 +362,8 @@ export default function App() {
   };
 
   const submitEncounter = () => {
-    if (!encounter || !answer.trim() || state.sessionStatus === 'paused' || isSubmitting) return;
+    if (!encounter || !answer.trim() || state.sessionStatus === 'paused' || isSubmitting || encounterInFlight.current) return;
+    encounterInFlight.current = true;
     setIsSubmitting(true);
     try {
       const submitted = answer;
@@ -357,6 +378,9 @@ export default function App() {
       setAnswer('');
       enrichEncounterReply(submitted, encounter.dimension, encounter.question, encounter.kind === 'boss' && bossRun ? bossRun.territoryId : (doorRun?.territoryIds[0] ?? state.activeTerritory), encounter.kind);
     } finally {
+      // Released at the task boundary, never synchronously here — see the ref's
+      // comment. Scheduled from `finally` so a throw cannot strand the encounter.
+      queueMicrotask(() => { encounterInFlight.current = false; });
       setIsSubmitting(false);
     }
   };
