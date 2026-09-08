@@ -94,6 +94,12 @@ export default function App() {
    */
   const [awake, setAwake] = useState(false);
   const [waking, setWaking] = useState(false);
+  /**
+   * Dormant Atlas shows nothing but a faint mark — no name, no tagline, no
+   * instruction. Identity is something the player DISCOVERS by waking it, so it
+   * belongs to the reveal, not to the resting state.
+   */
+  const [revealing, setRevealing] = useState(false);
   /** Smoothed 0..1 microphone loudness while capture is live. Never persisted. */
   const [micLevel, setMicLevel] = useState(0);
   const [micMeterLive, setMicMeterLive] = useState(false);
@@ -1283,11 +1289,19 @@ export default function App() {
    * moves straight to the sass choice rather than being asked to begin twice.
    */
   const wake = () => {
-    if (awake) return;
+    if (awake || revealing) return;
     setOnboardingStep((step) => (step === 1 ? 2 : step));
-    setWaking(true);
-    setAwake(true);
-    window.setTimeout(() => setWaking(false), 400);
+    // The mark blooms and the name arrives with it. Reduced motion gets the same
+    // reveal without the decoration — essentially immediate, never a wait.
+    const quiet = state.settings.reducedMotion
+      || (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    setRevealing(true);
+    window.setTimeout(() => {
+      setRevealing(false);
+      setWaking(true);
+      setAwake(true);
+      window.setTimeout(() => setWaking(false), 400);
+    }, quiet ? 140 : 760);
   };
 
   /**
@@ -1297,12 +1311,17 @@ export default function App() {
    * or click through.
    */
   if (!awake || !hydrated) {
-    return <div className="shell cold-open">
+    return <div className={`shell cold-open${revealing ? ' is-revealing' : ''}`}>
       <div className="cold-open-scene">
+        {/* Dormant environmental presence, not a control: no name, no tagline,
+            no instruction until the player has actually engaged. */}
         <span className="cold-open-mark" aria-hidden="true" />
-        <h1 className="cold-open-title">Atlas of One</h1>
-        <p className="cold-open-sub">The Greyson Map</p>
-        <p className="cold-open-hint">Touch anywhere to begin</p>
+        {revealing && (
+          <>
+            <h1 className="cold-open-title">Atlas of One</h1>
+            <p className="cold-open-sub">The Greyson Map</p>
+          </>
+        )}
       </div>
       {/* The whole viewport is the activation surface, so nothing reads as a
           conventional button while still being a real, focusable, named one. */}
@@ -1310,7 +1329,7 @@ export default function App() {
         type="button"
         className="cold-open-surface"
         data-testid="cold-open"
-        aria-label="Wake Atlas of One and begin"
+        aria-label="Wake Atlas of One"
         onClick={wake}
       />
     </div>;

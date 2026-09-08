@@ -742,18 +742,34 @@ html[data-reduced-motion="true"] *::after { transition-duration: .01ms !importan
 }
 .cold-open-surface:focus-visible { outline: 2px solid var(--gold); outline-offset: -6px; }
 
+/* Dormant: a faint glint, nothing that reads as a logo, loader or button. */
 .cold-open-mark {
-  width: 46px; height: 46px; margin-bottom: 6px; border-radius: 50%;
-  border: 1px solid rgba(217, 197, 143, .34);
-  box-shadow: 0 0 26px rgba(217, 197, 143, .12), inset 0 0 18px rgba(217, 197, 143, .07);
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid rgba(217, 197, 143, .16);
+  box-shadow: 0 0 22px rgba(217, 197, 143, .05), inset 0 0 14px rgba(217, 197, 143, .03);
+  transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
 }
+/* The wake: the mark blooms and the identity arrives with it. */
+.cold-open.is-revealing .cold-open-scene { animation: none; }
+.cold-open.is-revealing .cold-open-mark {
+  border-color: rgba(241, 221, 165, .75);
+  box-shadow: 0 0 46px rgba(217, 197, 143, .4), inset 0 0 24px rgba(217, 197, 143, .18);
+  transform: scale(1.12);
+}
+.cold-open-title, .cold-open-sub { opacity: 0; animation: cold-reveal 300ms ease-out forwards; }
 .cold-open-title {
-  margin: 0;
+  margin: 14px 0 0;
   font-family: Georgia, 'Times New Roman', serif; font-size: 1.55rem; letter-spacing: .015em;
-  color: rgba(243, 237, 219, .82);
+  color: rgba(243, 237, 219, .92);
 }
-.cold-open-sub { margin: 0; font-size: .74rem; letter-spacing: .22em; text-transform: uppercase; color: rgba(217, 197, 143, .5); }
-.cold-open-hint { margin: 26px 0 0; font-size: .74rem; letter-spacing: .08em; color: rgba(152, 167, 186, .45); }
+.cold-open-sub {
+  margin: 2px 0 0; font-size: .74rem; letter-spacing: .22em; text-transform: uppercase;
+  color: rgba(217, 197, 143, .6); animation-delay: 90ms;
+}
+@keyframes cold-reveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
 
 @keyframes cold-breathe {
   0%, 100% { filter: brightness(1); }
@@ -769,11 +785,16 @@ html[data-reduced-motion="true"] *::after { transition-duration: .01ms !importan
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cold-open-scene { animation: none; }
-  .shell.is-waking { animation: none; }
+  .cold-open-scene, .shell.is-waking { animation: none; }
+  .cold-open-mark { transition: none; }
+  /* The reveal still happens; only its decoration is removed. */
+  .cold-open-title, .cold-open-sub { animation: none; opacity: 1; }
 }
 html[data-reduced-motion="true"] .cold-open-scene,
 html[data-reduced-motion="true"] .shell.is-waking { animation: none; }
+html[data-reduced-motion="true"] .cold-open-mark { transition: none; }
+html[data-reduced-motion="true"] .cold-open-title,
+html[data-reduced-motion="true"] .cold-open-sub { animation: none; opacity: 1; }
 
 /* ---- live microphone visualizer ---------------------------------- */
 /* Functional recording feedback, not decoration: it stays under reduced

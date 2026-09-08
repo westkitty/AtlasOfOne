@@ -36,13 +36,19 @@ afterAll(async () => {
 });
 
 describe('Phase 6 minimal canonical onboarding browser proof', () => {
-  it('1. new campaign opens on the cinematic cold open, not on application chrome', async () => {
+  it('1. a dormant launch shows no chrome, no branding and no instruction', async () => {
     await page.waitForSelector('[data-testid="cold-open"]');
     expect(await page.isVisible('[data-testid="cold-open"]')).toBe(true);
-    // Step 1 IS the wake. No conventional Begin card, and no chrome yet.
+
+    // Step 1 IS the wake. Nothing legible may appear before engagement — no
+    // application chrome, and no name, tagline or instruction either.
     expect(await page.locator('nav[aria-label="Main"]').count()).toBe(0);
-    expect(await page.textContent('h1')).toBe('Atlas of One');
-    expect(await page.isVisible('nav')).toBe(false);
+    expect(await page.locator('h1').count(), 'no title before engagement').toBe(0);
+    const visibleText = (await page.textContent('.shell'))?.trim() ?? '';
+    expect(visibleText, 'the dormant screen carries no copy at all').toBe('');
+
+    // Only the faint environmental mark remains, and it is not a control.
+    expect(await page.locator('.cold-open-mark').count()).toBe(1);
   });
 
   it('2. 320px viewport has zero horizontal overflow during onboarding', async () => {
@@ -61,8 +67,16 @@ describe('Phase 6 minimal canonical onboarding browser proof', () => {
     expect(box!.width).toBeGreaterThanOrEqual(44);
   });
 
-  it('4. waking Atlas advances straight to Screen 2: Choose sass, with no second Begin', async () => {
+  it('3b. waking reveals the identity, then hands over to Atlas', async () => {
     await page.click('[data-testid="cold-open"]');
+    // Identity is discovered by waking it, not presented beforehand.
+    await page.waitForSelector('.cold-open-title', { timeout: 5_000 });
+    expect(await page.textContent('.cold-open-title')).toBe('Atlas of One');
+    expect(await page.textContent('.cold-open-sub')).toBe('The Greyson Map');
+    await page.waitForSelector('[data-testid="onboarding-step-2"]', { timeout: 10_000 });
+  });
+
+  it('4. Atlas is on Screen 2 after waking, with no second Begin', async () => {
     await page.waitForSelector('[data-testid="onboarding-step-2"]');
     expect(await page.textContent('h2')).toContain('Cartographer Sass');
     expect(await page.isVisible('[data-testid="onboarding-sass-low"]')).toBe(true);

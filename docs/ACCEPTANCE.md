@@ -91,7 +91,7 @@ whether a criterion is *proven*, not which commit is live.
 
 - [x] `npm test` passes. *(237 passed, 1 skipped, 30 files.)*
 - [x] `npm run build` passes using the Cloudflare Vite plugin. *(Worker + client + PWA, 11 precache entries.)*
-- [x] `npm run test:browser` passes the real-browser user journey. *(104 passed across 12 suites in installed Chrome.)*
+- [x] `npm run test:browser` passes the real-browser user journey. *(105 passed across 12 suites in installed Chrome.)*
 - [x] No secret or access token is committed. *(VER-016; full-history scan — the built bundles contain only the identifiers `atlas_access_secret` and `ATLAS_ACCESS_SECRET`, never a value.)*
 - [x] No D1, KV, R2, analytics, account auth, SSR, Next.js, native wrapper, or 3D dependency/config is added. *(VER-016; `wrangler.jsonc` declares only `ai` and `assets`. The `.wrangler/state/v3/{d1,kv,r2}` directories are gitignored miniflare scaffolding, not bindings.)*
 - [x] Worker API is same-origin and returns a health response. *(VER-028 workerd probe; live production `/api/health` returns 200.)*
@@ -128,6 +128,8 @@ Accepted after real first-impression observation; implemented in `31b01b0`, not
 yet deployed at the time of writing.
 
 - [x] Every launch opens dormant: near-black cinematic space with no Map, Talk, Vault, Me, navigation, cards, XP, controls, toasts or onboarding choices. *(`tests/browser/onboarding.test.ts` check 1; `hydration-race.test.ts` asserts no chrome can be painted even while hydration is pending.)*
+- [x] The dormant screen carries no branding, tagline or instruction either — only a faint atmospheric mark. *(`onboarding.test.ts` check 1 asserts the shell's entire text content is empty and no `h1` exists before engagement.)*
+- [x] Identity is revealed BY the wake: the mark blooms and the name arrives with the illumination, before Atlas hands over. *(`onboarding.test.ts` check 3b.)*
 - [x] The application tree is not rendered before engagement, so nothing underneath is focusable or clickable. *(The cold open returns early; the app tree does not exist yet.)*
 - [x] The first deliberate interaction — pointer or keyboard — wakes Atlas, and the whole viewport is the activation surface rather than a conventional button. *(`onboarding.test.ts` checks 3, 4 and keyboard activation.)*
 - [x] Waking IS "Begin": a new campaign goes straight to the sass choice with no second Begin. *(`onboarding.test.ts` check 4; the unreachable Begin card was removed.)*

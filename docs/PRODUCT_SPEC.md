@@ -123,11 +123,17 @@ Deleting/retracting an answer must be able to remove or invalidate derived evide
 ## 7b. Opening presentation
 
 Atlas opens **dormant**. A fresh launch — new campaign, returning campaign or
-reload alike — begins in near-black cinematic space with no application chrome:
-no Map, Talk, Vault or Me, no navigation, cards, XP, controls, toasts or
-onboarding choices. The interface appears only after the person deliberately
-engages, and the whole viewport is the activation surface rather than a
-conventional button.
+reload alike — begins in near-black cinematic space with no application chrome
+and **no branding, tagline or instruction**: no Map, Talk, Vault or Me, no
+navigation, cards, XP, controls, toasts or onboarding choices, and no name or
+prompt to touch anything. One extremely subtle atmospheric mark may remain,
+reading as dormant environmental presence rather than a logo, loader or button.
+The whole viewport is the activation surface.
+
+Identity is **discovered by waking it**: on engagement the mark blooms, "Atlas of
+One" and "The Greyson Map" arrive with that illumination, and Atlas then hands
+over to onboarding or the existing campaign. The player learns what they woke
+after interacting with it, not before.
 
 Engagement IS the canonical "Begin" step, so a first-run campaign moves straight
 from waking to the sass choice. Waking brightens decisively — a short
