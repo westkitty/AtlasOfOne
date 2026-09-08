@@ -147,6 +147,28 @@ export const TRANSCRIBE_MODEL_CANDIDATES = [
 
 export const DEFAULT_TRANSCRIBE_MODEL_ID = '@cf/openai/whisper-tiny-en';
 
+export type TranscribeModelCandidate = (typeof TRANSCRIBE_MODEL_CANDIDATES)[number];
+
+/**
+ * The transcription registry lookup, mirroring `findCandidate` for the turn path.
+ *
+ * `TRANSCRIBE_MODEL_CANDIDATES` is the single authority on which speech models
+ * Atlas may reach. The Worker must consult this rather than keeping a second
+ * hand-written allow-list, so adding or retiring a model is one edit in one file.
+ */
+export const findTranscribeCandidate = (id: string): TranscribeModelCandidate | undefined =>
+  TRANSCRIBE_MODEL_CANDIDATES.find((candidate) => candidate.id === id);
+
+/**
+ * Whether a transcription model id may be executed at all.
+ *
+ * Fail-closed by construction: an unknown id is refused just as firmly as a
+ * known paid one, because the zero-dollar rule in AGENTS.md is about what Atlas
+ * may *spend*, and an id we cannot price is an id we cannot vouch for.
+ */
+export const transcribeModelIsEligible = (id: string): boolean =>
+  findTranscribeCandidate(id)?.freePlanEligible === true;
+
 export const findCandidate = (id: string): ModelCandidate | undefined =>
   MODEL_CANDIDATES.find((candidate) => candidate.id === id);
 

@@ -1,6 +1,6 @@
 import { cartographerContextSchema } from '../src/cartographer/context';
 import { finalAssessmentSchema, finalizeContextSchema, validateFinalAssessment } from '../src/cartographer/finalize';
-import { DEFAULT_MODEL_ID, DEFAULT_TRANSCRIBE_MODEL_ID, findCandidate } from '../src/cartographer/models';
+import { DEFAULT_MODEL_ID, DEFAULT_TRANSCRIBE_MODEL_ID, findCandidate, transcribeModelIsEligible } from '../src/cartographer/models';
 import { playerMessageForFailure, type ProviderFailureCode } from '../src/cartographer/provider';
 import { createWorkersAiProvider, type WorkersAiBinding } from '../src/cartographer/workersai';
 
@@ -176,12 +176,18 @@ export default {
 
     if (url.pathname === '/api/health') {
       const enabled = env.ATLAS_AI_ENABLED !== 'false' && Boolean(env.AI);
+      // `transcribeModel` already reports null whenever transcription cannot run,
+      // so the field means "the model Atlas would actually execute" rather than
+      // "whatever is configured". An ineligible override would be refused at
+      // request time, so reporting it here would be an operational lie.
+      const transcribeModelId = env.ATLAS_TRANSCRIBE_MODEL_ID ?? DEFAULT_TRANSCRIBE_MODEL_ID;
+      const transcribeReady = enabled && transcribeModelIsEligible(transcribeModelId);
       return Response.json({
         ok: true,
         service: 'atlas-of-one',
         cartographer: enabled ? 'workers-ai' : 'disabled',
         model: enabled ? (env.ATLAS_MODEL_ID ?? DEFAULT_MODEL_ID) : null,
-        transcribeModel: enabled ? (env.ATLAS_TRANSCRIBE_MODEL_ID ?? DEFAULT_TRANSCRIBE_MODEL_ID) : null,
+        transcribeModel: transcribeReady ? transcribeModelId : null,
         accessProtected: Boolean(env.ATLAS_ACCESS_SECRET)
       });
     }
@@ -233,6 +239,11 @@ export default {
       if (!env.AI) return failure('binding-missing');
 
       const modelId = env.ATLAS_TRANSCRIBE_MODEL_ID ?? DEFAULT_TRANSCRIBE_MODEL_ID;
+      // Same fail-closed gate the turn path applies, refused BEFORE any binding
+      // call exists. An id outside the free-plan transcription registry — unknown
+      // or paid — cannot create provider work by misconfiguration.
+      if (!transcribeModelIsEligible(modelId)) return failure('not-configured');
+
       try {
         const bytes = new Uint8Array(buffer);
         const result = await env.AI.run(modelId, { audio: [...bytes] }) as { text?: string };

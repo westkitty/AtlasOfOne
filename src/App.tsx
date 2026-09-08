@@ -30,6 +30,27 @@ const STATUS_MARK: Record<TerritoryStatus, string> = {
   fogged: '▓', discovered: '○', exploring: '◔', charted: '◆', 'deeply-charted': '★'
 };
 
+/**
+ * Whether a campaign is already past first-run onboarding.
+ *
+ * Three independent signals mean the same thing, and any one of them settles it:
+ * the persisted flag, the durable local marker, or the campaign simply having
+ * mapped coordinates already. A campaign with turns has demonstrably been used,
+ * whatever its flag says — that is what makes a pre-onboarding-era record
+ * backward compatible.
+ *
+ * This exists as one predicate because load-time normalization and the render
+ * gate previously carried the rule separately and disagreed: the render gate
+ * included `turns.length === 0`, while the load-time chain
+ * `saved.onboardingCompleted ?? isCompletedLocally ?? (saved.turns.length > 0)`
+ * could never reach its third operand — the first two are booleans after schema
+ * normalization, and `false ?? x` is `false`. Players were sent to the right
+ * screen but the flag was written back false forever. Proven in
+ * `tests/browser/onboarding-continuity.test.ts`.
+ */
+const hasCompletedOnboarding = (campaign: { onboardingCompleted?: boolean; turns: unknown[] }, markerSet: boolean) =>
+  campaign.onboardingCompleted === true || markerSet || campaign.turns.length > 0;
+
 export default function App() {
   const [state, setState] = useState<CampaignState>(() => createInitialCampaign());
   const [hydrated, setHydrated] = useState(false);
@@ -108,7 +129,7 @@ export default function App() {
       .then((saved) => {
         if (live && saved) {
           const isCompletedLocally = typeof window !== 'undefined' && window.localStorage?.getItem('atlas_onboarding_completed') === 'true';
-          const onboardingCompleted = saved.onboardingCompleted ?? isCompletedLocally ?? (saved.turns.length > 0);
+          const onboardingCompleted = hasCompletedOnboarding(saved, isCompletedLocally);
           setState({ ...saved, onboardingCompleted });
           if (saved.settings.voiceMode === 'talk') setVoiceMode('talk');
         }
@@ -1018,7 +1039,7 @@ export default function App() {
   );
 
   const isCompletedLocally = typeof window !== 'undefined' && window.localStorage?.getItem('atlas_onboarding_completed') === 'true';
-  const showOnboarding = hydrated && !state.onboardingCompleted && !isCompletedLocally && state.turns.length === 0;
+  const showOnboarding = hydrated && !hasCompletedOnboarding(state, isCompletedLocally);
 
   return <div className="shell">
     {message&&<div className="toast" role="status">{message}<button aria-label="Dismiss" onClick={()=>setMessage('')}>×</button></div>}
