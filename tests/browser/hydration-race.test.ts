@@ -70,11 +70,12 @@ async function throttledFirstRun(): Promise<Page> {
 }
 
 describe('first-run hydration race', () => {
-  it('the app paints normal navigation while the first-run decision is still unsettled', async () => {
+  it('the cold open owns first paint and HOLDS through hydration, so no chrome can flash', async () => {
     // Deterministic rather than raced: hold the IndexedDB open permanently
     // pending, so `loadCampaign()` never settles and `hydrated` stays false for
-    // the whole test. This pins the app in the pre-hydration state instead of
-    // trying to catch it there, so the assertion cannot depend on machine speed.
+    // the whole test. Before the cinematic cold open, that state painted the
+    // normal map and navigation — which is what made the old harness ask a
+    // non-waiting question and get a false negative.
     const context = await browser.newContext({ viewport: PHONE });
     const page = await context.newPage();
     try {
@@ -100,18 +101,21 @@ describe('first-run hydration race', () => {
       await page.goto(host.url, { waitUntil: 'load' });
       await page.waitForSelector('.shell');
 
-      // The trap the old harness fell into: with `.shell` on screen the app looks
-      // like an ordinary onboarded session, because `showOnboarding` needs
-      // `hydrated` and `hydrated` is still false.
-      expect(await page.isVisible('nav[aria-label="Main"]'), 'nav is painted pre-hydration').toBe(true);
-      expect(await page.isVisible('.map'), 'the map is painted pre-hydration').toBe(true);
-      expect(
-        await page.isVisible('[data-testid="onboarding-begin"]'),
-        'onboarding is absent, so a non-waiting check answers "no onboarding" here'
-      ).toBe(false);
+      // The cold open owns the screen and keeps it while hydration is pending.
+      expect(await page.isVisible('[data-testid="cold-open"]'), 'cold open owns first paint').toBe(true);
+      expect(await page.locator('nav[aria-label="Main"]').count(), 'no navigation painted').toBe(0);
+      expect(await page.locator('.map').count(), 'no map painted').toBe(0);
+      expect(await page.locator('[data-testid="onboarding-step-2"]').count(), 'no onboarding choices yet').toBe(0);
 
-      // And the helper refuses to guess in this state rather than continuing.
-      await expect(completeOnboardingIfPresent(page, 2_000)).rejects.toThrow(/never settled its first-run decision/);
+      // Even a deliberate wake cannot reveal chrome before hydration settles,
+      // so the class of race the old helper fell into no longer exists.
+      await page.click('[data-testid="cold-open"]');
+      await page.waitForTimeout(600);
+      expect(await page.isVisible('[data-testid="cold-open"]'), 'still dormant while unhydrated').toBe(true);
+      expect(await page.locator('nav[aria-label="Main"]').count()).toBe(0);
+
+      // And the helper refuses to guess rather than continuing.
+      await expect(completeOnboardingIfPresent(page, 2_000)).rejects.toThrow();
     } finally {
       await context.close();
     }
@@ -130,7 +134,7 @@ describe('first-run hydration race', () => {
       await completeOnboardingIfPresent(page);
 
       // After the helper returns, the suite must be able to drive the app.
-      expect(await page.locator('[data-testid="onboarding-begin"]').count(), 'onboarding is behind us').toBe(0);
+      expect(await page.locator('[data-testid="onboarding-step-2"]').count(), 'onboarding is behind us').toBe(0);
       expect(await page.isVisible('nav[aria-label="Main"]')).toBe(true);
       expect(await page.isVisible('.map')).toBe(true);
 
@@ -161,7 +165,7 @@ describe('first-run hydration race', () => {
       await completeOnboardingIfPresent(page);
 
       expect(await page.isVisible('nav[aria-label="Main"]')).toBe(true);
-      expect(await page.locator('[data-testid="onboarding-begin"]').count()).toBe(0);
+      expect(await page.locator('[data-testid="onboarding-step-2"]').count()).toBe(0);
     } finally {
       await context.close();
     }

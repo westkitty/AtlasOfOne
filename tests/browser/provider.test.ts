@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page, type Route } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, wakeAtlas } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -89,6 +89,7 @@ beforeAll(async () => {
 
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   await completeOnboardingIfPresent(page);
   // Let the health probe resolve and flip the client onto the remote provider.
   // `expect.poll` is unavailable in a hook, so this waits explicitly.

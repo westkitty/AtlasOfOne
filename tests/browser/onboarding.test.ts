@@ -1,3 +1,4 @@
+import { wakeAtlas } from './helper';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
@@ -35,9 +36,11 @@ afterAll(async () => {
 });
 
 describe('Phase 6 minimal canonical onboarding browser proof', () => {
-  it('1. new campaign displays Screen 1: Begin', async () => {
-    await page.waitForSelector('[data-testid="onboarding-step-1"]');
-    expect(await page.isVisible('[data-testid="onboarding-begin"]')).toBe(true);
+  it('1. new campaign opens on the cinematic cold open, not on application chrome', async () => {
+    await page.waitForSelector('[data-testid="cold-open"]');
+    expect(await page.isVisible('[data-testid="cold-open"]')).toBe(true);
+    // Step 1 IS the wake. No conventional Begin card, and no chrome yet.
+    expect(await page.locator('nav[aria-label="Main"]').count()).toBe(0);
     expect(await page.textContent('h1')).toBe('Atlas of One');
     expect(await page.isVisible('nav')).toBe(false);
   });
@@ -51,15 +54,15 @@ describe('Phase 6 minimal canonical onboarding browser proof', () => {
   });
 
   it('3. critical targets are >= 44px on onboarding screens', async () => {
-    const beginBtn = page.locator('[data-testid="onboarding-begin"]');
+    const beginBtn = page.locator('[data-testid="cold-open"]');
     const box = await beginBtn.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.height).toBeGreaterThanOrEqual(44);
     expect(box!.width).toBeGreaterThanOrEqual(44);
   });
 
-  it('4. Screen 1: Begin advances to Screen 2: Choose sass', async () => {
-    await page.click('[data-testid="onboarding-begin"]');
+  it('4. waking Atlas advances straight to Screen 2: Choose sass, with no second Begin', async () => {
+    await page.click('[data-testid="cold-open"]');
     await page.waitForSelector('[data-testid="onboarding-step-2"]');
     expect(await page.textContent('h2')).toContain('Cartographer Sass');
     expect(await page.isVisible('[data-testid="onboarding-sass-low"]')).toBe(true);
@@ -132,9 +135,13 @@ describe('Phase 6 minimal canonical onboarding browser proof', () => {
 
   it('12. onboarding completion survives reload locally in IndexedDB', async () => {
     await page.reload({ waitUntil: 'load' });
+    // Every launch is a cold open, including a reload — so wake, then verify the
+    // completed campaign comes back rather than replaying onboarding.
+    await page.waitForSelector('[data-testid="cold-open"]');
+    await wakeAtlas(page);
     await page.waitForSelector('.map');
     expect(await page.isVisible('.map')).toBe(true);
-    expect(await page.isVisible('[data-testid="onboarding-step-1"]')).toBe(false);
+    expect(await page.locator('[data-testid="cold-open"]').count()).toBe(0);
   });
 
   it('13. permanent controls remain fully available on Talk screen afterward', async () => {

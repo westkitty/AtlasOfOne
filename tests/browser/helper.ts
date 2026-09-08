@@ -51,9 +51,29 @@ const ONBOARDING_DONE_KEY = 'atlas_onboarding_completed';
 
 const READINESS_TIMEOUT = 30_000;
 
+/**
+ * Wake Atlas out of its cinematic cold open.
+ *
+ * The cold open owns first paint AND holds until hydration has settled, so
+ * waiting for its surface is itself a real settled-state wait — the app cannot
+ * be mid-hydration behind it. After the tap the first-run decision is already
+ * made, which is why `completeOnboardingIfPresent` can then race two states
+ * that are only true post-hydration rather than sampling a moving target.
+ */
+export async function wakeAtlas(page: Page, timeout = READINESS_TIMEOUT) {
+  const surface = page.locator('[data-testid="cold-open"]');
+  if ((await surface.count()) === 0) return;
+  await surface.waitFor({ state: 'visible', timeout });
+  await surface.click();
+  await surface.waitFor({ state: 'detached', timeout });
+}
+
 export async function completeOnboardingIfPresent(page: Page, timeout = READINESS_TIMEOUT) {
+  // Every launch begins dormant, so wake first or nothing below is on screen.
+  await wakeAtlas(page, timeout);
+
   const onboardingReady = page
-    .waitForSelector('[data-testid="onboarding-begin"]', { state: 'visible', timeout })
+    .waitForSelector('[data-testid="onboarding-step-2"]', { state: 'visible', timeout })
     .then(() => 'onboarding' as const);
 
   const alreadyOnboarded = page
@@ -93,7 +113,7 @@ export async function completeOnboardingIfPresent(page: Page, timeout = READINES
     return;
   }
 
-  await page.click('[data-testid="onboarding-begin"]');
+  // No second Begin: the wake tap was it.
   await page.click('[data-testid="onboarding-next-sass"]');
   await page.click('[data-testid="onboarding-next-mode"]');
   await page.click('[data-testid="onboarding-next-agency"]');

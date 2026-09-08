@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, wakeAtlas } from './helper';
 import { serveDist } from './server';
 import { applyGameEvents, createInitialCampaign } from '../../src/game/engine';
 import { serializeCampaign } from '../../src/persistence/transfer';
@@ -99,6 +99,7 @@ async function newSession(options: { holdTurns?: boolean } = {}): Promise<Sessio
 
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   await completeOnboardingIfPresent(page);
   // The client only switches to the remote provider once the health probe lands.
   await page.waitForFunction(() => document.querySelector('.shell') !== null);
@@ -451,13 +452,14 @@ describe('BUG-004 — a cancelled transcription cannot submit', () => {
 
       await page.goto(host.url, { waitUntil: 'load' });
       await page.waitForSelector('.shell');
+  await wakeAtlas(page);
       await completeOnboardingIfPresent(page);
       await page.waitForTimeout(400);
 
       await gotoScreen(page, 'Talk');
+      // Talk starts the conversation on its own: Atlas speaks, then listens.
       await page.click('[data-testid="mode-talk"]');
-      await page.click('[data-testid="mic-button"]');
-      await page.waitForSelector('[data-testid="mic-stop"]');
+      await page.waitForSelector('[data-testid="mic-stop"]', { timeout: 30_000 });
 
       // Stop recording; Atlas enters transcription and the response is held.
       await page.click('[data-testid="voice-submit-done"]');

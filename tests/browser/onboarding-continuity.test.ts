@@ -4,7 +4,7 @@ import { chromium, type Browser, type BrowserContext, type Page } from 'playwrig
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { serializeCampaign } from '../../src/persistence/transfer';
 import { seededCampaign } from '../fixtures/synthetic';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, wakeAtlas } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -111,17 +111,19 @@ async function boot(options: { row?: unknown; marker?: boolean } = {}): Promise<
   // A first navigation is needed before IndexedDB for this origin is reachable.
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
 
   if (options.row !== undefined) {
     await seedRawRow(page, options.row);
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   }
 
   // Let hydration settle either way before observing.
   await page.waitForTimeout(700);
 
-  const onboardingVisible = await page.isVisible('[data-testid="onboarding-begin"]');
+  const onboardingVisible = await page.isVisible('[data-testid="onboarding-step-2"]');
   const navVisible = await page.isVisible('nav[aria-label="Main"]');
   const stored = await readRawRow(page);
 
@@ -164,6 +166,7 @@ describe('KNOWN-005 — first-run continuity across real persistence', () => {
     try {
       await page.goto(host.url, { waitUntil: 'load' });
       await page.waitForSelector('.shell');
+  await wakeAtlas(page);
       await completeOnboardingIfPresent(page);
       await page.waitForTimeout(400);
 
@@ -171,9 +174,10 @@ describe('KNOWN-005 — first-run continuity across real persistence', () => {
       await page.evaluate(() => window.localStorage.removeItem('atlas_onboarding_completed'));
       await page.reload({ waitUntil: 'load' });
       await page.waitForSelector('.shell');
+  await wakeAtlas(page);
       await page.waitForTimeout(700);
 
-      expect(await page.isVisible('[data-testid="onboarding-begin"]'), 'onboarding is skipped').toBe(false);
+      expect(await page.isVisible('[data-testid="onboarding-step-2"]'), 'onboarding is skipped').toBe(false);
       expect(await page.isVisible('nav[aria-label="Main"]')).toBe(true);
       expect((await readRawRow(page))!.onboardingCompleted, 'flag stays true').toBe(true);
     } finally {

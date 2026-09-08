@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type ConsoleMessage, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, wakeAtlas } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -54,6 +54,7 @@ beforeAll(async () => {
 
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   await completeOnboardingIfPresent(page);
 }, 120_000);
 
@@ -121,6 +122,7 @@ describe('Atlas browser journey', () => {
 
     const levelBefore = await levelOf();
     await page.reload({ waitUntil: 'load' });
+    await wakeAtlas(page);
     await page.waitForSelector('.map');
     await expect.poll(xpOf).toBe(before);
     expect(await levelOf()).toBe(levelBefore);
@@ -211,6 +213,7 @@ describe('Atlas browser journey', () => {
     await expect.poll(xpOf).toBe(0);
 
     await page.goto(host.url, { waitUntil: 'load' });
+    await wakeAtlas(page);
     await page.waitForSelector('.map');
     expect(await xpOf()).toBe(0);
 

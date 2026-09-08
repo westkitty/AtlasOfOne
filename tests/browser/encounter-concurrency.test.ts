@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { availableBosses, availableDoors } from '../../src/game/encounters';
 import { serializeCampaign } from '../../src/persistence/transfer';
 import { seededCampaign } from '../fixtures/synthetic';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, wakeAtlas } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -82,6 +82,7 @@ async function newSeededSession(): Promise<Session> {
 
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   await completeOnboardingIfPresent(page);
   // Let the health probe land so the client selects the remote provider.
   await page.waitForTimeout(400);

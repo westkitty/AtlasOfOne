@@ -53,19 +53,15 @@ describe('browser voice mode and access gate', () => {
     expect(talkBox?.height).toBeGreaterThanOrEqual(44);
   });
 
-  it('switches to Talk mode and presents the voice interaction surface', async () => {
+  it('switches to Talk mode and immediately begins the conversation', async () => {
     await page.click('[data-testid="mode-talk"]');
     await page.waitForSelector('[data-testid="voice-card"]');
 
+    // Talk is a conversation, not a recorder: one activation and Atlas starts
+    // talking, rather than sitting Ready waiting for a microphone tap.
     const statusBadge = page.locator('[data-testid="voice-status"]');
     expect(await statusBadge.isVisible()).toBe(true);
-    expect(await statusBadge.textContent()).toBe('Ready');
-
-    const micBtn = page.locator('[data-testid="mic-button"]');
-    expect(await micBtn.isVisible()).toBe(true);
-    const micBox = await micBtn.boundingBox();
-    expect(micBox?.width).toBeGreaterThanOrEqual(44);
-    expect(micBox?.height).toBeGreaterThanOrEqual(44);
+    expect(await statusBadge.textContent()).not.toBe('Ready');
   });
 
   it('keeps all permanent agency controls available in voice mode', async () => {

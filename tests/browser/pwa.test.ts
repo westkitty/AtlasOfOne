@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, wakeAtlas } from './helper';
 import { serveDist } from './server';
 
 const DIST = join(process.cwd(), 'dist', 'client');
@@ -35,6 +35,7 @@ beforeAll(async () => {
   page.on('pageerror', (error: Error) => pageErrors.push(error.message));
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   await completeOnboardingIfPresent(page);
 }, 120_000);
 
@@ -123,6 +124,7 @@ describe('Offline runtime behavior and recovery', () => {
     // Full page reload to prove local IndexedDB restored all offline progress
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.shell');
+  await wakeAtlas(page);
     const xpReloaded = await xpOf();
     expect(xpReloaded).toBe(xpBefore);
   });
