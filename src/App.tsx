@@ -613,6 +613,14 @@ export default function App() {
   const fragmentCount = state.territories.filter((t)=>state.mapFragments.some((f)=>f.territoryId===t.id)).length;
   const unlockedAchievements = state.achievements.filter((a)=>a.unlockedAt);
   const pendingInsights = state.insights.filter((i)=>i.status==='pending');
+  /**
+   * Substantive answers, newest first, so a player can find and take back
+   * something they said. Retracted answers stay listed and labelled: the
+   * Product Specification requires that retraction invalidate derived evidence
+   * while history remains visible, so this hides nothing.
+   */
+  const recordedAnswers = state.turns.filter((turn) => turn.substantive).slice().reverse();
+
   const renderVault = () => <section className="screen">
     <div className="eyebrow">LOCAL EVIDENCE VAULT</div>
     <h1>Vault</h1>
@@ -642,6 +650,23 @@ export default function App() {
       <h2>Contradictions <span className="count">{state.contradictions.length}</span></h2>
       {state.contradictions.map((c)=><article className="card" key={c.id}><h3>{c.claim}</h3><small>{c.status}</small></article>)}
     </section>}
+
+    <section className="vault-section">
+      <h2>Recorded answers <span className="count">{recordedAnswers.length}</span></h2>
+      {recordedAnswers.length===0
+        ? <div className="empty">Nothing recorded yet. Answers show up here once you have mapped a coordinate.</div>
+        : <>
+          <p className="section-note">Taking an answer back keeps it in your history and retires the evidence drawn from it. Nothing is deleted and no progress is punished.</p>
+          {recordedAnswers.map((turn)=><article className="card" key={turn.id} data-testid={`answer-${turn.id}`}>
+            <span className="eyebrow">{turn.dimension.toUpperCase()}{turn.retracted?' · TAKEN BACK':''}</span>
+            <h3>{turn.question}</h3>
+            <p>{turn.answer.length>180?`${turn.answer.slice(0,180)}…`:turn.answer}</p>
+            {turn.retracted
+              ? <small>Taken back. Kept in history; its evidence is retired.</small>
+              : <button data-testid={`retract-${turn.id}`} onClick={()=>{dispatch({type:'ANSWER_RETRACTED',turnId:turn.id});setMessage('Answer taken back. The evidence drawn from it is retired.');}}>Take this back</button>}
+          </article>)}
+        </>}
+    </section>
 
     <section className="vault-section">
       <h2>Achievements <span className="count">{unlockedAchievements.length} / {state.achievements.length}</span></h2>
