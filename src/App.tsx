@@ -43,6 +43,20 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const currentRequestId = useRef(0);
+  /**
+   * Synchronous mutual exclusion for provider submissions.
+   *
+   * `isSubmitting` is React state, so it is read from the render closure and does
+   * not update until the next render. Two clicks dispatched in the SAME browser
+   * task therefore both observe `false` and both start a request — proven against
+   * the real button in `tests/browser/concurrency.test.ts`. Deduplicating the
+   * response afterwards is not enough: the second request has already been sent,
+   * which is duplicate provider work and duplicate neuron spend.
+   *
+   * A ref mutates synchronously, so it is the only thing here that can actually
+   * exclude. `isSubmitting` is kept for presentation.
+   */
+  const submitInFlight = useRef(false);
   const pendingCaptureCancelled = useRef(false);
   // Voice state machine & access code state
   const [voiceMode, setVoiceMode] = useState<VoiceMode>('type');
@@ -170,6 +184,9 @@ export default function App() {
         commitTurn(createMockTurn(state, turnPrompt, text), text, 'mock', turnPrompt);
       }
     } finally {
+      // Released on every path — success, typed failure, throw, or a response
+      // that arrived after an import invalidated it — so Atlas is never stranded.
+      submitInFlight.current = false;
       if (reqId === currentRequestId.current) {
         setIsSubmitting(false);
       }
@@ -177,8 +194,11 @@ export default function App() {
   };
 
   const submitText = (text: string) => {
-    if (!text.trim() || state.sessionStatus === 'paused' || isSubmitting) return;
+    if (!text.trim() || state.sessionStatus === 'paused' || isSubmitting || submitInFlight.current) return;
     if (isOffline || provider.id === 'disabled') { commitTurn(createMockTurn(state, prompt, text), text, 'mock', prompt); return; }
+    // Claimed synchronously, before the first await, so a second click in the
+    // same task sees it.
+    submitInFlight.current = true;
     void submitViaProvider(text, prompt);
   };
 
@@ -597,6 +617,7 @@ export default function App() {
         setActiveCapture(null);
       }
       setVoiceState('idle');
+      submitInFlight.current = false;
       setIsSubmitting(false);
       setState(deserializeCampaign(await file.text()));
       setMessage('Atlas imported and validated.');
