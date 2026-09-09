@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, openAgency, wakeAtlas, navigateTo } from './helper';
 import { serveDist } from './server';
 import { applyGameEvents, createInitialCampaign } from '../../src/game/engine';
 import { serializeCampaign } from '../../src/persistence/transfer';
@@ -99,6 +99,7 @@ async function newSession(options: { holdTurns?: boolean } = {}): Promise<Sessio
 
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   await completeOnboardingIfPresent(page);
   // The client only switches to the remote provider once the health probe lands.
   await page.waitForFunction(() => document.querySelector('.shell') !== null);
@@ -140,11 +141,10 @@ async function persistedCampaign(page: Page): Promise<Record<string, any>> {
   return JSON.parse(raw);
 }
 
-const xpOf = async (page: Page) => Number((await page.textContent('.xp span'))!.replace(/\D/g, ''));
+const xpOf = async (page: Page) => Number(await page.getAttribute('[data-testid="hud-progress"]', 'data-xp'));
 
 async function gotoScreen(page: Page, screen: string) {
-  while (await page.isVisible('.overlay')) await page.click('.overlay button:text("Continue")');
-  await page.click(`nav button:has(small:text-is("${screen}"))`);
+  await navigateTo(page, screen);
 }
 
 /** A valid, distinctly recognisable Campaign B export built by production code. */
@@ -203,7 +203,7 @@ describe('BUG-001 — one submission may start at most one provider request', ()
       // Two real clicks dispatched in ONE browser task, before React can rerender
       // and before `disabled` can be applied. This is the actual double-tap.
       await page.evaluate(() => {
-        const button = document.querySelector<HTMLButtonElement>('button.primary.full');
+        const button = document.querySelector<HTMLButtonElement>('[data-testid="submit-answer"]');
         if (!button) throw new Error('submit button missing');
         button.click();
         button.click();
@@ -213,7 +213,7 @@ describe('BUG-001 — one submission may start at most one provider request', ()
       // Deduplicating the RESPONSE is not enough: two requests means Atlas did
       // duplicate provider work and could spend duplicate neuron budget.
       expect(session.turnRequests.length, 'exactly one provider request was started').toBe(1);
-      expect(await page.textContent('button.primary.full')).toContain('Mapping coordinate');
+      expect(await page.textContent('[data-testid="submit-answer"]')).toContain('Mapping coordinate');
 
       await session.releaseTurn(0, 'Synthetic reply A.', 'Decides by asking who carries the cost.');
 
@@ -233,14 +233,18 @@ describe('BUG-001 — one submission may start at most one provider request', ()
       const { page } = session;
       await gotoScreen(page, 'Talk');
       await page.fill('[data-testid="answer-input"]', SYNTHETIC_A);
-      await page.click('button.primary.full');
+      await page.click('[data-testid="submit-answer"]');
       await page.waitForTimeout(200);
       await session.releaseTurn(0, 'Synthetic reply A.', 'First claim.');
 
       // Clear any celebratory notice exactly as a player would before continuing.
-      while (await page.isVisible('.overlay')) await page.click('.overlay button:text("Continue")');
+      // Milestones are brief, non-blocking banners that clear themselves, so this
+  // waits them out rather than clicking a modal away.
+  if (await page.isVisible('[data-testid="milestone"]').catch(() => false)) {
+    await page.locator('[data-testid="milestone"]').waitFor({ state: 'detached', timeout: 20_000 }).catch(() => undefined);
+  }
       await page.fill('[data-testid="answer-input"]', SYNTHETIC_B);
-      await page.click('button.primary.full');
+      await page.click('[data-testid="submit-answer"]');
       await page.waitForTimeout(200);
       expect(session.turnRequests.length, 'a second submission is not stranded by the lock').toBe(2);
       await session.releaseTurn(1, 'Synthetic reply B.', 'Second claim.');
@@ -262,7 +266,7 @@ describe('BUG-002 — an obsolete response cannot mutate the newer campaign', ()
 
       // Request A, held open.
       await page.fill('[data-testid="answer-input"]', SYNTHETIC_A);
-      await page.click('button.primary.full');
+      await page.click('[data-testid="submit-answer"]');
       await page.waitForTimeout(200);
       expect(session.turnRequests.length).toBe(1);
 
@@ -278,7 +282,7 @@ describe('BUG-002 — an obsolete response cannot mutate the newer campaign', ()
       // Request B on the imported campaign.
       await gotoScreen(page, 'Talk');
       await page.fill('[data-testid="answer-input"]', SYNTHETIC_B);
-      await page.click('button.primary.full');
+      await page.click('[data-testid="submit-answer"]');
       await page.waitForTimeout(200);
       expect(session.turnRequests.length).toBe(2);
 
@@ -307,11 +311,12 @@ describe('BUG-002b — STOP and PRIVATE during an in-flight turn', () => {
       const { page } = session;
       await gotoScreen(page, 'Talk');
       await page.fill('[data-testid="answer-input"]', SYNTHETIC_A);
-      await page.click('button.primary.full');
+      await page.click('[data-testid="submit-answer"]');
       await page.waitForTimeout(200);
       expect(session.turnRequests.length).toBe(1);
 
       // The real permanent control, used mid-flight.
+      await openAgency(page);
       await page.click('[data-testid="agency-private"]');
       await page.waitForTimeout(150);
 
@@ -333,10 +338,11 @@ describe('BUG-002b — STOP and PRIVATE during an in-flight turn', () => {
       const { page } = session;
       await gotoScreen(page, 'Talk');
       await page.fill('[data-testid="answer-input"]', SYNTHETIC_A);
-      await page.click('button.primary.full');
+      await page.click('[data-testid="submit-answer"]');
       await page.waitForTimeout(200);
       expect(session.turnRequests.length).toBe(1);
 
+      await openAgency(page);
       await page.click('[data-testid="agency-stop"]');
       await page.waitForTimeout(150);
 
@@ -360,7 +366,7 @@ describe('BUG-003 — a cross-campaign import is not contaminated by an in-fligh
       const { page } = session;
       await gotoScreen(page, 'Talk');
       await page.fill('[data-testid="answer-input"]', SYNTHETIC_A);
-      await page.click('button.primary.full');
+      await page.click('[data-testid="submit-answer"]');
       await page.waitForTimeout(200);
       expect(session.turnRequests.length).toBe(1);
 
@@ -451,13 +457,14 @@ describe('BUG-004 — a cancelled transcription cannot submit', () => {
 
       await page.goto(host.url, { waitUntil: 'load' });
       await page.waitForSelector('.shell');
+  await wakeAtlas(page);
       await completeOnboardingIfPresent(page);
       await page.waitForTimeout(400);
 
       await gotoScreen(page, 'Talk');
+      // Talk starts the conversation on its own: Atlas speaks, then listens.
       await page.click('[data-testid="mode-talk"]');
-      await page.click('[data-testid="mic-button"]');
-      await page.waitForSelector('[data-testid="mic-stop"]');
+      await page.waitForSelector('[data-testid="mic-stop"]', { timeout: 30_000 });
 
       // Stop recording; Atlas enters transcription and the response is held.
       await page.click('[data-testid="voice-submit-done"]');
@@ -483,7 +490,7 @@ describe('BUG-004 — a cancelled transcription cannot submit', () => {
       // And the campaign is still usable by typing.
       expect(await page.isVisible('[data-testid="answer-input"]')).toBe(true);
       await page.fill('[data-testid="answer-input"]', SYNTHETIC_B);
-      await page.click('button.primary.full');
+      await page.click('[data-testid="submit-answer"]');
       await page.waitForTimeout(400);
       expect(turnRequests.length, 'a legitimate typed submission still works').toBe(1);
     } finally {

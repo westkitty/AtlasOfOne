@@ -7,28 +7,28 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 18,
+  "state_revision": 19,
   "last_updated": "2026-09-08",
   "current_baseline": {
-    "identity": "rev18",
+    "identity": "rev19",
     "state": "partially-verified",
     "last_verified": "2026-09-08"
   },
   "application_content_baseline": {
-    "commit": "93c29c1ba79a41018987b7c66ae8f6191624ab11",
-    "live_bundle": "assets/index-C-UCvyfo.js",
-    "state": "pending-merge-at-write",
+    "commit": "31b01b080b89fe2cd61168c280f65e24755bce3d",
+    "live_bundle": "assets/index-DjpTENkf.js",
+    "state": "pending-human-review",
     "note": "The last commit that CHANGED compiled application content — the Vault retraction affordance required by PND-004. Per DEC-028 this points at the code/test commit, never at the state commit that describes it and never at the merge that contains it. Deployment and live-bundle confirmation follow the merge."
   },
   "previous_application_content_baseline": {
-    "commit": "a78728574beb5e10a4556847637d246c862f75b8",
-    "live_bundle": "assets/index-BfRybavN.js",
-    "deployment": "373c63e7-18de-43cd-989f-fa2f161d747e",
-    "main_ci_run": "34185348383",
-    "note": "The transcription eligibility guard and onboarding normalization repair. Superseded by the baseline above once this pass merges and deploys."
+    "commit": "93c29c1ba79a41018987b7c66ae8f6191624ab11",
+    "live_bundle": "assets/index-C-UCvyfo.js",
+    "deployment": "4578a6d4-9b6d-486d-bf11-ee0f94992929",
+    "main_ci_run": "34186545117",
+    "note": "The Vault retraction affordance. This is what is DEPLOYED; the baseline above is not, pending human review."
   },
   "repository_head_at_write": {
-    "commit": "70d4aa08231631f41412d6fc29c5db7262bb57de",
+    "commit": "0b475573b9ccc06fa58d7362e93450194eb15d23",
     "note": "Repository HEAD when this revision was written. Expected to advance when this revision merges; that does not invalidate the application content baseline above."
   },
   "scope_boundaries": [
@@ -207,7 +207,17 @@ The current artifact contains the requested source-of-truth documents, React/Typ
   - **Stage 5 finalization:** the real Synthesize control on the deterministic local synthesizer (`/api/health` stubbed `disabled`; `/api/finalize` and `/api/turn` aborted at the route). Assessment created with `provider: 'local-synthesizer'`, zero progression change, and the retracted canary absent from the entire assessment including its quotations. Survives reload and re-renders.
   - **Mutation proof.** Removing the Vault control fails stages 1, 2, 4 and 5 — and stage 5 fails specifically because **the canary reaches the Final Assessment**, which shows the retraction path is load-bearing rather than decorative.
   - **No Workers AI, no credentials, no neurons.** UNV-018 is untouched.
-- **VER-062:** **Current validation totals.** On application content `93c29c1`: `npx tsc --noEmit` clean; `npm test` 30 files, **237 passed, 1 skipped** (238); `npm run test:browser` 11 files, **93 passed**; the PND-004 chain 6/6 twice consecutively; production build passing; `git diff --check` clean.
+- **VER-062:** *(Superseded by VER-064.)* Validation totals at revision 18, on application content `93c29c1`: `npx tsc --noEmit` clean; `npm test` 30 files, **237 passed, 1 skipped** (238); `npm run test:browser` 11 files, **93 passed**; the PND-004 chain 6/6 twice consecutively; production build passing; `git diff --check` clean.
+
+- **VER-063:** **Cinematic cold open, live microphone visualizer and conversational Talk mode — IMPLEMENTED AND LOCALLY VERIFIED IN `31b01b0`, NOT MERGED, NOT DEPLOYED.** Accepted product direction after real first-impression observation; held at a human visual-review gate.
+  - **Cold open.** Atlas opened by presenting its whole interface at once — prompt card, mode tabs, voice panel, six agency controls, a toast and bottom navigation — before the player had chosen anything. It now opens dormant — no chrome, and no name, tagline or instruction either, just a faint atmospheric mark — and the application tree is not rendered at all until a deliberate engagement, so nothing underneath is focusable or clickable. The gate is `!awake || !hydrated`, which also closes the VER-053 hydration race *by construction*: the dark state owns first paint and holds until the campaign has loaded, so the interface can never be painted and replaced. Waking is the canonical Begin — the unreachable Begin card was deleted — and illumination is a 260ms bloom, skipped under reduced motion. Session-level only: awards nothing, never enters CampaignState, recurs on every launch.
+  - **Live microphone.** `capture.ts` owns an AnalyserNode on the SAME MediaStream the recorder uses. No second recording, nothing retained, nothing transmitted. RMS is curved so speech lifts into the visible range without silence reading as loud, with fast attack and slow release. `levelMonitoringAvailable` is honest when Web Audio is missing, and recording still works behind a static indicator.
+  - **Talk is a conversation.** It was dictation: tap, record, tap Done, hear a reply, return to idle, tap again. One activation now starts a spoken session — Atlas states the question, listens, answers, establishes the next prompt and listens again with no tap between turns. End-of-turn is detected locally from the same analyser (onset 0.18 over a 0.11 floor as hysteresis, 1400ms sustained silence, 45s bound that never fabricates an answer). Manual Done remains as a fallback.
+  - **Race protection.** `conversationActive` is a ref, not React state, and every start/stop bumps a generation token each async continuation captures — the DEC-029 lesson applied to a loop that now restarts itself. A finishing utterance or late transcription from an obsolete cycle does nothing.
+  - **Two defects found while testing.** The STOP agency button paused the session without ending the voice loop, so the microphone reopened after STOP; and the Interrupt button cancelled the whole session rather than handing over the turn. Both repaired.
+  - **Deliberately deferred:** acoustic barge-in (speaking over the Cartographer untouched) needs echo handling so synthesis cannot retrigger itself through the microphone. Tap-to-interrupt covers the need. Recorded as an open acceptance criterion rather than silently skipped.
+  - **Evidence:** `tests/browser/voice-conversation.test.ts` (11 checks) drives the real App with deterministic `getUserMedia`, `MediaRecorder`, `AudioContext` and `speechSynthesis`, amplitude flowing through the real analyser path; the central check completes two spoken turns with no microphone interaction between them. Cold-open behaviour is proven in `onboarding.test.ts`, `hydration-race.test.ts` and `onboarding-continuity.test.ts`.
+- **VER-064:** **Current validation totals.** On application content `31b01b0`: `npx tsc --noEmit` clean; `npm test` 30 files, **237 passed, 1 skipped**; `npm run test:browser` 12 files, **105 passed**; production build passing; `git diff --check` clean.
 
 ## 6. Known Not Working
 
@@ -235,6 +245,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **UNV-019:** Raw execution evidence for the original live Workers AI bakeoff. The run emitted `console.log` only and committed no artifact, so its request/neuron/timing/privacy-canary figures are REPORTED historical results. See `docs/PROVIDER_BAKEOFF.md`. The provider *selection* is separately confirmed by source and by the live `/api/health` response, and is not in doubt.
 - **UNV-020:** **RESOLVED.** *(Was: remote CI and deployment behaviour of the `e940788` chain was unobserved, since it had never been pushed.)* Now directly observed across three releases: PR CI before production (runs `34169263408`, `34171654836`, `34173031003`), main CI after each merge (`34171916491`, `34173319642`), automatic Workers Builds deployment landing 29-48s after each push to `main`, live application-content verification by bundle identity, and unauthenticated protected-route probes returning 401 on all three inference routes. Retained as a resolved ID rather than deleted, so the promotion stays auditable.
 - **UNV-022:** **RESOLVED — reproduced, then repaired.** *(Was, at revision 15: an inspection-level risk that `submitEncounter` guards on closure-read `isSubmitting` around a synchronous encounter dispatch, NOT reproduced and explicitly not called a defect.)* PND-014 tested it against the real application and the risk was real, though the two encounter types differed and are recorded separately in VER-056. **Boss Fight was a genuine defect**: one submission answered two stages, awarded ordinary answer XP twice, wrote two turn records and started two enrichment requests. **Mystery Door progression was already safe** because `DOOR_ANSWERED` bails out with no active run, but it still issued two `/api/turn` enrichment requests for one crossing, which is duplicate quota spend. Both are closed by the `encounterInFlight` microtask-boundary lock in `b087451`, with mutation evidence.
+- **UNV-024:** **Acoustic barge-in is not implemented.** A player can interrupt the Cartographer with the Interrupt control, and the conversation survives it; what does NOT work is simply speaking over the Cartographer with no touch. Deliberately deferred rather than attempted: doing it safely requires echo handling so `speechSynthesis` output cannot retrigger the loop through the microphone, which is a research problem and not a small change. Recorded so the gap is visible rather than assumed.
 - **UNV-023:** **An existing Atlas file cannot be imported before first-run onboarding.** Fresh onboarding hides the main navigation, so a brand-new browser or device cannot reach the Me-screen Import control until onboarding is completed. Observed while proving KNOWN-005 and deliberately NOT repaired: no acceptance criterion and no build-plan item requires importing before first run, so building an onboarding import path here would have been inventing a requirement. It is recorded because it plausibly bites during the actual handoff — a new phone, or cleared site data, means completing onboarding before restoring a campaign. Resolve it as a Phase 6 friction observation with a real person, not by speculation. **Evidence updated at revision 18:** the PND-004 journey deleted and re-imported inside one session WITHOUT hitting this, because `localStorage.atlas_onboarding_completed` survives a campaign delete, so navigation and the Me-screen import stayed reachable throughout. UNV-023 therefore concerns a genuinely fresh profile — a new device, a new browser, or cleared site data — and not the delete-then-restore path. It remains open and unrepaired.
 - **UNV-021:** The actual Greyson session. Phase 6 is "Give it to Greyson"; the onboarding implementation is not the phase. No handoff has occurred and no product friction has been observed.
 
@@ -288,6 +299,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **DEC-024:** Access secret `ATLAS_ACCESS_SECRET` is stored as a Cloudflare Worker secret and locally in `localStorage` (`atlas_access_secret`). It is never stored in `CampaignState`, IndexedDB, or campaign export JSON files. The player enters the code manually; there is no fragment-based invitation link, and none has ever existed in this repository.
 - **DEC-025:** Structural visibility for DERIVED records — Insights and Contradictions — is decided by evidence provenance (`evidenceIds`), never by reading their prose. A derived record is a reading of evidence and is exactly as private as the evidence beneath it, and a claim can be entirely about a private dimension without ever naming it. `createEvidenceVisibility` in `src/cartographer/context.ts` is the single definition, shared by the per-turn context and the finalize context so the two cannot drift apart. A derived record with no evidence ids is withheld rather than assumed safe. Introduced in `e940788`.
 - **DEC-026:** The Final Atlas Assessment is an end-state artifact and is gated on `campaignReachedEndState` in `src/game/engine.ts`: `campaignCompleted` if set, otherwise every territory carried to `charted`/`deeply-charted` by evidence coverage. The helper only reads existing engine authority; it invents no threshold, awards nothing, and does not change how `CAMPAIGN_COMPLETED` is earned. The fallback criterion carries the gate in practice because nothing currently dispatches `CAMPAIGN_COMPLETED` (KNOWN-003). Introduced in `e940788`.
+- **DEC-032:** Atlas opens dormant on every launch and renders no application tree until a deliberate engagement, and Talk is a continuous turn-taking conversation rather than push-to-talk per answer. Both are accepted product direction from real first-impression observation, not polish. Two consequences are load-bearing: the cold open gates on `!awake || !hydrated`, so the hydration race of VER-053 is closed by construction rather than by careful waiting; and conversation lifecycle lives in a ref plus a generation token, never in React state, because a loop that restarts itself is exactly where a stale closure would reopen a microphone (DEC-029).
 - **DEC-031:** Every Workers AI route resolves its model id through the registry that owns it and refuses anything that registry does not vouch for, before any binding call exists. `/api/turn` and `/api/finalize` use `findCandidate`; `/api/transcribe` uses `transcribeModelIsEligible`. An UNKNOWN id is refused exactly as firmly as a known paid one, because the zero-dollar rule is about what Atlas may spend and an id that cannot be priced cannot be vouched for. No route may keep its own allow-list; adding or retiring a model is one edit in `src/cartographer/models.ts`. `/api/health` follows the same principle for reporting: `transcribeModel` names the model Atlas would actually execute, or `null`.
 - **DEC-030:** The encounter submission boundary excludes a same-task duplicate with `encounterInFlight`, a ref claimed synchronously and **released on the microtask boundary**, not in `finally`. This differs from DEC-029 on purpose. Encounter state application is synchronous and its provider enrichment is non-authoritative and fire-and-forget, so a lock held until a response returned would block the next legitimate Boss stage for nothing; but a `finally` release runs synchronously inside the same task and would let the second click straight through. A microtask drains after the current task and before any later user event, which is exactly the window that needs covering. Proven by mutation in VER-056: the synchronous-release variant fails the same-task tests identically to having no lock at all.
 - **DEC-028:** Repository HEAD and deployed application content are tracked as separate identities. A documentation-only merge advances repository HEAD and produces a new Cloudflare deployment record while leaving the compiled bundle byte-identical, so a Git SHA alone never establishes what is running. The authority on deployed application behaviour is the live client bundle identity (currently `assets/index-fUzHTQZI.js`), corroborated by content inspection of that bundle. Section 2 is structured around this split, and no revision of this file may require it to contain the SHA of the merge that will contain it.
@@ -376,9 +388,24 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **Must remain unchanged:** privacy firewall (never siphon, inspect, screenshot, log, summarize, or transmit real campaign answers), deterministic progression authority including encounter outcomes, always-available agency controls inside every encounter type, the no-PRIVATE-leak rule for Doors, Aerron→Greyson canonical asset mapping, Andrew-asset exclusion, source gap labels, and explicit non-goals.
 - **Potentially affected behavior:** mock campaign progression, local state persistence, mobile UI, PWA build, canonical sprite presentation.
 - **Mandatory checks:** synthetic tests, production build, repository secret/private-data scan; browser/runtime checks when available.
-- **Repair class:** Rev 18 records the Phase 5 final gate, `93c29c1`. PND-004 is proven as one continuous session and Phase 5 is promoted to VERIFIED COMPLETE. The pass also closed a product gap — player-reachable retraction — and propagated the bounded acceptance corrections that revisions 15–18 had earned. Application content advances from `a787285` to `93c29c1`. Open items deliberately left visible: KNOWN-003, KNOWN-006, PND-005, PND-009, PND-013 remainder, UNV-003, UNV-004, UNV-007, UNV-009, UNV-010, UNV-017, UNV-018, UNV-019, UNV-021, UNV-023 and UNK-002.
+- **Repair class:** Rev 19 records accepted product direction implemented in `31b01b0` and held at a human visual-review gate: the cinematic cold open, the real microphone visualizer, and Talk as a continuous conversation. It is NOT merged and NOT deployed; deployed application content remains `93c29c1` / `assets/index-C-UCvyfo.js`. Open items deliberately left visible: KNOWN-003, KNOWN-006, PND-005, PND-009, PND-013 remainder, UNV-003, UNV-004, UNV-007, UNV-009, UNV-010, UNV-017, UNV-018, UNV-019, UNV-021, UNV-023, UNV-024 and UNK-002.
 
 ## 13. Compact Revision Log
+
+### Revision 19 — 2026-09-08
+
+- **Artifact/source identity:** application content baseline `31b01b080b89fe2cd61168c280f65e24755bce3d` — **unmerged and undeployed**, awaiting human visual review. Client bundle built from it: `assets/index-DjpTENkf.js`. Deployed content remains `93c29c1` / `assets/index-C-UCvyfo.js`. Repository HEAD at write: `0b47557`.
+- **State deltas:**
+  1. **Cold open (VER-063).** Atlas now opens dormant with no application chrome, no branding and no instruction — a faint mark only — and the app tree is not rendered until deliberate engagement. Identity is revealed BY the wake rather than presented beforehand. Gating on `!awake || !hydrated` also closes the VER-053 hydration race by construction.
+  2. **Waking is Begin.** The five-step onboarding semantics are preserved; the now-unreachable Begin card was deleted rather than left as dead UI.
+  3. **Real microphone visualizer.** Amplitude comes from an AnalyserNode on the recorder's own stream — no second recording, nothing retained or transmitted — with an honest fallback when Web Audio is unavailable.
+  4. **Talk became a conversation.** One activation, then LISTENING → TRANSCRIBING → THINKING → SPEAKING → LISTENING, with local end-of-turn detection and manual Done as fallback. Proven by two spoken turns with no microphone interaction between them.
+  5. **Two defects found while testing and repaired:** the STOP button paused without ending the voice loop, so the microphone reopened; and Interrupt cancelled the session instead of handing over the turn.
+  6. **UNV-024 opened:** acoustic barge-in deliberately deferred, with the reason recorded.
+  7. **Docs propagated** to `docs/PRODUCT_SPEC.md`, `docs/MASTER_BUILD_PLAN.md` and `docs/ACCEPTANCE.md` (DEC-032).
+  8. **Counts refreshed** to 237 unit passed / 1 skipped and **104 browser passed across 12 suites** (VER-064). VER-062 superseded.
+- **New evidence:** full browser suite 104/104 twice consecutively on the final tree; conversation suite 11/11; `tsc` clean; 237 unit passed / 1 skipped; build passing; `git diff --check` clean; review screenshots captured at 390×844 and 320×640.
+- **Validation not performed:** no merge, no deployment, no live Workers AI inference, no credentials, no neurons. Phase 6 is NOT complete — this is pre-handoff work arising from observed first-impression friction, and it is held for human visual approval.
 
 ### Revision 18 — 2026-09-08
 

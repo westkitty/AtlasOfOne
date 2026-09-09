@@ -91,7 +91,7 @@ whether a criterion is *proven*, not which commit is live.
 
 - [x] `npm test` passes. *(237 passed, 1 skipped, 30 files.)*
 - [x] `npm run build` passes using the Cloudflare Vite plugin. *(Worker + client + PWA, 11 precache entries.)*
-- [x] `npm run test:browser` passes the real-browser user journey. *(93 passed across 11 suites in installed Chrome.)*
+- [x] `npm run test:browser` passes the real-browser user journey. *(105 passed across 12 suites in installed Chrome.)*
 - [x] No secret or access token is committed. *(VER-016; full-history scan — the built bundles contain only the identifiers `atlas_access_secret` and `ATLAS_ACCESS_SECRET`, never a value.)*
 - [x] No D1, KV, R2, analytics, account auth, SSR, Next.js, native wrapper, or 3D dependency/config is added. *(VER-016; `wrangler.jsonc` declares only `ai` and `assets`. The `.wrangler/state/v3/{d1,kv,r2}` directories are gitignored miniflare scaffolding, not bindings.)*
 - [x] Worker API is same-origin and returns a health response. *(VER-028 workerd probe; live production `/api/health` returns 200.)*
@@ -122,9 +122,35 @@ whether a criterion is *proven*, not which commit is live.
 - [x] No Cloudflare credential or model registry reaches the browser bundle. *(VER-030 bundle inspection.)*
 - [x] The Worker persists no transcript. *(Source inspection — no database binding, no logging of any request body; DEC-014.)*
 
+## Opening presentation and conversational Talk (Phase 6 presentation)
+
+Accepted after real first-impression observation; implemented in `31b01b0`, not
+yet deployed at the time of writing.
+
+- [x] Every launch opens dormant: near-black cinematic space with no Map, Talk, Vault, Me, navigation, cards, XP, controls, toasts or onboarding choices. *(`tests/browser/onboarding.test.ts` check 1; `hydration-race.test.ts` asserts no chrome can be painted even while hydration is pending.)*
+- [x] The dormant screen carries no branding, tagline or instruction either — only a faint atmospheric mark. *(`onboarding.test.ts` check 1 asserts the shell's entire text content is empty and no `h1` exists before engagement.)*
+- [x] Identity is revealed BY the wake: the mark blooms and the name arrives with the illumination, before Atlas hands over. *(`onboarding.test.ts` check 3b.)*
+- [x] The application tree is not rendered before engagement, so nothing underneath is focusable or clickable. *(The cold open returns early; the app tree does not exist yet.)*
+- [x] The first deliberate interaction — pointer or keyboard — wakes Atlas, and the whole viewport is the activation surface rather than a conventional button. *(`onboarding.test.ts` checks 3, 4 and keyboard activation.)*
+- [x] Waking IS "Begin": a new campaign goes straight to the sass choice with no second Begin. *(`onboarding.test.ts` check 4; the unreachable Begin card was removed.)*
+- [x] A returning campaign wakes into its existing state without replaying onboarding. *(`onboarding-continuity.test.ts` cases B–E; `onboarding.test.ts` check 12.)*
+- [x] Illumination is short and decisive, and is skipped under reduced motion. *(260ms brightness bloom; disabled by `prefers-reduced-motion` and the in-app setting.)*
+- [x] 320px cold open has no horizontal overflow. *(`onboarding.test.ts` check 2.)*
+- [x] Talk is a continuous turn-taking conversation: one activation, then Atlas states the prompt, listens, answers, establishes the next prompt and listens again with no tap between turns. *(`voice-conversation.test.ts` checks 1 and 4 — two spoken turns, no microphone interaction between them.)*
+- [x] Spoken turns end on locally detected sustained silence, never before speech begins and not on an ordinary mid-sentence pause. *(`voice-conversation.test.ts` check 3.)*
+- [x] "Done speaking" remains available as a fallback and keeps the conversation running. *(check 5.)*
+- [x] The microphone visualizer responds to real measured amplitude and is present only while capture is live. *(check 2; louder audio reads measurably higher and silence does not look loud.)*
+- [x] Cancel, STOP and switching to Type all end the loop, and no stale callback can reopen the microphone. *(checks 6, 7, 8; generation tokens invalidate obsolete cycles.)*
+- [x] The player can interrupt the Cartographer and take the turn immediately, with the conversation still alive. *(check 9.)*
+- [x] A spoken local command stays client-side, reaches no provider, awards nothing, and the conversation continues. *(check 10.)*
+- [x] Recording still works when audio analysis is unavailable, with a truthful indicator and the manual fallback. *(check 11.)*
+- [x] Microphone levels are never persisted, exported or transmitted. *(Levels live only in component state; nothing enters CampaignState or any request.)*
+- [ ] Acoustic barge-in — speaking over the Cartographer without touching anything. *(Open and deliberately deferred: doing it safely needs echo handling so synthesis cannot retrigger itself through the microphone. Tap-to-interrupt covers the need.)*
+- [ ] Real-device confirmation that the cold open and spoken conversation feel right in the hand. *(Open — this is exactly what the Greyson session is for; UNV-021, and UNV-007 for non-Chrome speech behaviour.)*
+
 ## Voice and Deployment (Phase 4)
 
-- [x] Text and voice modes coexist cleanly on the Talk screen. *(VER-040.)*
+- [x] Text and voice modes coexist cleanly on the Talk screen. *(VER-040. Talk is now a continuous conversation rather than per-answer recording — see the presentation block above.)*
 - [x] Spoken local agency commands (PASS, PRIVATE, STOP, SERIOUS, HELP, SASS) execute client-side before sending text to Cartographer; never award XP or progression. *(VER-036, 8 unit checks; VER-040.)*
 - [x] Voice state machine visibly distinguishes idle, requesting-permission, listening, transcribing, thinking, speaking, error. *(VER-035, 6 unit checks.)*
 - [x] Cancel and fallback to typing is available at every state. *(VER-035; VER-040.)*

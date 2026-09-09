@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type ConsoleMessage, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, openAgency, wakeAtlas, navigateTo } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -28,17 +28,23 @@ let host: { url: string; close: () => Promise<void> };
 const consoleErrors: string[] = [];
 const pageErrors: string[] = [];
 
-const xpOf = async () => Number((await page.textContent('.xp span'))!.replace(/\D/g, ''));
-const levelOf = async () => (await page.textContent('.level'))!.trim();
+// The world HUD shows a level pip and a progress hairline rather than a stats
+// panel, so progression is read from the values that HUD is rendering from.
+const xpOf = async () => Number(await page.getAttribute('[data-testid="hud-progress"]', 'data-xp'));
+const levelOf = async () => `L${await page.getAttribute('[data-testid="hud-progress"]', 'data-level')}`;
 
 /** Clear any celebratory notice, exactly as a player would, before moving on. */
 async function dismissNotices() {
-  while (await page.isVisible('.overlay')) await page.click('.overlay button:text("Continue")');
+  // Milestones are brief, non-blocking banners that clear themselves, so this
+  // waits them out rather than clicking a modal away.
+  if (await page.isVisible('[data-testid="milestone"]').catch(() => false)) {
+    await page.locator('[data-testid="milestone"]').waitFor({ state: 'detached', timeout: 20_000 }).catch(() => undefined);
+  }
 }
 
 async function goto(screen: string) {
   await dismissNotices();
-  await page.click(`nav button:has(small:text-is("${screen}"))`);
+  await navigateTo(page, screen);
 }
 
 beforeAll(async () => {
@@ -54,6 +60,7 @@ beforeAll(async () => {
 
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   await completeOnboardingIfPresent(page);
 }, 120_000);
 
@@ -64,14 +71,17 @@ afterAll(async () => {
 
 describe('Atlas browser journey', () => {
   it('1. loads on the Map screen', async () => {
-    await expect.poll(() => page.textContent('h1')).toBe('Atlas of One');
-    expect(await page.isVisible('.map')).toBe(true);
-    expect(await page.textContent('nav button.active small')).toBe('Map');
+    // Atlas opens into the world itself: no title screen, no tab bar.
+    expect(await page.isVisible('[data-testid="world"]')).toBe(true);
+    expect(await page.isVisible('[data-testid="world-greyson"]')).toBe(true);
+    expect(await page.locator('nav[aria-label="Main"]').count()).toBe(0);
+    await expect.poll(() => page.textContent('[data-testid="hud-territory"]')).toBe('Identity');
   });
 
   it('2. renders the canonical Greyson sprite', async () => {
     const sprite = page.locator('.avatar img');
-    await expect.poll(() => sprite.getAttribute('src')).toBe('/assets/greyson/map/idle-front.png');
+    // The runtime now draws Greyson from the generated art pack, and idles cycle.
+    await expect.poll(() => sprite.getAttribute('src')).toMatch(/^\/assets\/atlas\/v3\/greyson\/idle-front-\d\d\.png$/);
     // Proves the bytes actually decoded in the browser, not merely that a tag exists.
     const natural = await sprite.evaluate((node) => ({
       width: (node as HTMLImageElement).naturalWidth,
@@ -84,13 +94,15 @@ describe('Atlas browser journey', () => {
 
   it('3. navigates Map to Talk to Vault to Me and back to Map', async () => {
     await goto('Talk');
-    await expect.poll(() => page.textContent('h1')).toBe('The Cartographer');
+    await expect.poll(() => page.textContent('.convo-speaker')).toContain('The Cartographer');
     await goto('Vault');
-    await expect.poll(() => page.textContent('h1')).toBe('Vault');
+    await expect.poll(() => page.textContent('[data-testid="sheet"] h1')).toBe('Vault');
     await goto('Me');
-    await expect.poll(() => page.textContent('h1')).toBe('Greyson');
+    await expect.poll(() => page.textContent('[data-testid="sheet"] h1')).toBe('Greyson');
     await goto('Map');
-    await expect.poll(() => page.textContent('h1')).toBe('Atlas of One');
+    // Back to the world: no page title, just the place you are standing in.
+    await expect.poll(() => page.isVisible('[data-testid="world"]')).toBe(true);
+    expect(await page.locator('[data-testid="sheet"]').count()).toBe(0);
   });
 
   it('4-5. submits a synthetic answer and advances XP deterministically', async () => {
@@ -100,7 +112,7 @@ describe('Atlas browser journey', () => {
     await page.click('button:text("Map this answer")');
     // The first accepted answer earns an achievement; its celebration is shown
     // and dismissed here, which is itself proof that normal mode celebrates.
-    await page.waitForSelector('.overlay');
+    await page.waitForSelector('[data-testid="milestone"]');
     await goto('Map');
     // accepted answer 5 + developed 3 + behavioural example 3 + new evidence 2
     await expect.poll(xpOf).toBe(before + 13);
@@ -121,7 +133,8 @@ describe('Atlas browser journey', () => {
 
     const levelBefore = await levelOf();
     await page.reload({ waitUntil: 'load' });
-    await page.waitForSelector('.map');
+    await wakeAtlas(page);
+    await page.waitForSelector('[data-testid="world"]');
     await expect.poll(xpOf).toBe(before);
     expect(await levelOf()).toBe(levelBefore);
   });
@@ -130,54 +143,60 @@ describe('Atlas browser journey', () => {
     const before = await xpOf();
     await goto('Talk');
     await page.click('[data-testid="agency-pass"]');
-    await expect.poll(() => page.textContent('.reply')).toContain('No penalty');
+    await expect.poll(() => page.textContent('.convo-reply')).toContain('No penalty');
     await goto('Map');
     expect(await xpOf()).toBe(before);
   });
 
   it('9. PRIVATE closes a dimension and the mock stops selecting it', async () => {
     await goto('Talk');
-    const closed = (await page.textContent('.prompt small'))!.replace('Evidence dimension: ', '').trim();
+    const closed = (await page.textContent('[data-testid="prompt-dimension"]'))!.replace('Evidence dimension: ', '').trim();
+    await openAgency(page);
     await page.click('[data-testid="agency-private"]');
-    await expect.poll(() => page.textContent('.reply')).toContain('not intentionally return');
-    await expect.poll(async () => (await page.textContent('.prompt small'))!.replace('Evidence dimension: ', '').trim()).not.toBe(closed);
+    await expect.poll(() => page.textContent('.convo-reply')).toContain('not intentionally return');
+    await expect.poll(async () => (await page.textContent('[data-testid="prompt-dimension"]'))!.replace('Evidence dimension: ', '').trim()).not.toBe(closed);
   });
 
   it('10. STOP pauses and blocks submission until resumed', async () => {
     await goto('Talk');
+    await openAgency(page);
     await page.click('[data-testid="agency-stop"]');
-    await page.waitForSelector('.quiet:text-matches("Session paused")');
-    expect(await page.isDisabled('.answer textarea')).toBe(true);
+    await page.waitForSelector('.convo-paused:text-matches("Session paused")');
+    expect(await page.isDisabled('.composer textarea')).toBe(true);
     expect(await page.isDisabled('button:text("Map this answer")')).toBe(true);
 
-    await page.click('[data-testid="agency-stop"]');
-    await expect.poll(() => page.isDisabled('.answer textarea')).toBe(false);
+    // RESUME is promoted to the primary row while paused, so recovery is instant.
+    await page.click('[data-testid="action-resume"]');
+    await expect.poll(() => page.isDisabled('.composer textarea')).toBe(false);
   });
 
   it('11-13. SERIOUS enters quiet presentation, still progresses, and suppresses celebration', async () => {
     await goto('Talk');
     await dismissNotices();
+    await openAgency(page);
     await page.click('[data-testid="agency-serious"]');
-    await expect.poll(() => page.textContent('.chip')).toBe('quiet');
+    await expect.poll(() => page.textContent('.convo-speaker .chip')).toBe('quiet');
 
     const before = await (async () => { await goto('Map'); return xpOf(); })();
     await goto('Talk');
     // Drive enough synthetic turns to cross a level boundary while quiet.
     for (let index = 0; index < 8; index += 1) {
-      await page.fill('.answer textarea', `${SYNTHETIC_TWO} ${index}`);
+      await page.fill('.composer textarea', `${SYNTHETIC_TWO} ${index}`);
       await page.click('button:text("Map this answer")');
-      expect(await page.isVisible('.overlay')).toBe(false);
+      expect(await page.isVisible('[data-testid="milestone"]')).toBe(false);
     }
     await goto('Map');
     expect(await xpOf()).toBeGreaterThan(before);
-    expect(await page.isVisible('.overlay')).toBe(false);
+    expect(await page.isVisible('[data-testid="milestone"]')).toBe(false);
   });
 
   it('14. sass stays adjustable at every level and in quiet mode', async () => {
     await goto('Talk');
+    await openAgency(page);
     await page.click('[data-testid="agency-sass"]');
     await goto('Me');
-    const select = page.locator('.settings select');
+    // The Cartographer card now also carries a voice picker, so target sass exactly.
+    const select = page.locator('[data-testid="sass-select"]');
     expect(await select.isDisabled()).toBe(false);
     for (const value of ['low', 'risks-understood', 'medium']) {
       await select.selectOption(value);
@@ -211,7 +230,8 @@ describe('Atlas browser journey', () => {
     await expect.poll(xpOf).toBe(0);
 
     await page.goto(host.url, { waitUntil: 'load' });
-    await page.waitForSelector('.map');
+    await wakeAtlas(page);
+    await page.waitForSelector('[data-testid="world"]');
     expect(await xpOf()).toBe(0);
 
     await goto('Me');
@@ -249,19 +269,23 @@ describe('Atlas browser journey', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
 
-    const buttons = page.locator('nav button');
-    expect(await buttons.count()).toBe(4);
-    for (let index = 0; index < 4; index += 1) {
-      const box = (await buttons.nth(index).boundingBox())!;
-      expect(box.height).toBeGreaterThanOrEqual(44);
-      expect(box.width).toBeGreaterThan(0);
+    // The world owns the screen; the only persistent controls are the way in
+    // and the way to everything else, and both stay real touch targets.
+    for (const testId of ['enter-encounter', 'open-menu']) {
+      const box = (await page.locator(`[data-testid="${testId}"]`).boundingBox())!;
+      expect(box.height, `${testId} height`).toBeGreaterThanOrEqual(44);
+      expect(box.width, `${testId} width`).toBeGreaterThanOrEqual(44);
     }
     await goto('Talk');
+    // The primary row is game-facing at this width; permanent agency is one tap away.
+    expect(await page.isVisible('[data-testid="action-bar"]')).toBe(true);
+    await openAgency(page);
     expect(await page.isVisible('[data-testid="agency"]')).toBe(true);
+    await page.click('[data-testid="more-close"]');
     await page.setViewportSize(PHONE);
   });
 
-  it('19b. mobile polish holds: no overflow on any screen, reachable controls, fixed nav clears content', async () => {
+  it('19b. mobile polish holds: no overflow on any surface and every control stays reachable', async () => {
     await page.setViewportSize({ width: 320, height: 640 });
     for (const screen of ['Map', 'Talk', 'Vault', 'Me']) {
       await goto(screen);
@@ -279,25 +303,34 @@ describe('Atlas browser journey', () => {
       expect(overflow, `no horizontal overflow on ${screen} at 320px (offenders: ${offenders})`).toBeLessThanOrEqual(0);
     }
 
-    // Every permanent control is a real 44px+ target.
+    // Every permanent control is a real 44px+ target, on both surfaces it lives on.
     await goto('Talk');
-    for (const control of ['pass', 'private', 'stop', 'serious', 'help', 'sass']) {
+    for (const control of ['pass', 'more']) {
+      const testId = control === 'pass' ? 'agency-pass' : 'action-more';
+      const box = (await page.locator(`[data-testid="${testId}"]`).boundingBox())!;
+      expect(box.height, `${control} height`).toBeGreaterThanOrEqual(44);
+      expect(box.width, `${control} width`).toBeGreaterThanOrEqual(44);
+    }
+    await openAgency(page);
+    for (const control of ['private', 'stop', 'serious', 'help', 'sass']) {
       const box = (await page.locator(`[data-testid="agency-${control}"]`).boundingBox())!;
       expect(box.height, `${control} height`).toBeGreaterThanOrEqual(44);
       expect(box.width, `${control} width`).toBeGreaterThanOrEqual(44);
     }
 
-    // The fixed bottom nav must never sit on top of the form controls: once
-    // scrolled to the end, the last permanent control clears the nav entirely.
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    const lastControl = (await page.locator('[data-testid="agency-sass"]').boundingBox())!;
-    const navBox = (await page.locator('nav').boundingBox())!;
-    expect(lastControl.y + lastControl.height).toBeLessThanOrEqual(navBox.y + 1);
+    // Opening the agency sheet brings it into view inside the scrolling
+    // conversation panel, so its last control lands on screen rather than below
+    // the fold on a short phone.
+    const viewportHeight = await page.evaluate(() => window.innerHeight);
+    await expect.poll(async () => {
+      const box = await page.locator('[data-testid="agency-status"]').boundingBox();
+      return box ? box.y + box.height : Number.MAX_SAFE_INTEGER;
+    }, { timeout: 5_000 }).toBeLessThanOrEqual(viewportHeight + 1);
 
     // Long question text stays inside the viewport.
     const promptOverflow = await page.evaluate(() => {
-      const h2 = document.querySelector('.prompt h2') as HTMLElement | null;
-      return h2 ? h2.getBoundingClientRect().right - document.documentElement.clientWidth : -1;
+      const heading = document.querySelector('.convo-question') as HTMLElement | null;
+      return heading ? heading.getBoundingClientRect().right - document.documentElement.clientWidth : -1;
     });
     expect(promptOverflow).toBeLessThanOrEqual(0);
 

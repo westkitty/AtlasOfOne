@@ -28,6 +28,45 @@ export function getMockPrompt(state: CampaignState): MockPrompt {
   const dimension = uncovered[0] ?? available[0] ?? 'self-description';
   return { id: `prompt_${territory.id}_${dimension.replaceAll(' ', '-')}`, territoryId: territory.id, territoryLabel: territory.label, dimension, question: QUESTIONS[dimension] ?? fallbackQuestion(dimension) };
 }
+/**
+ * Wording for the two unlocked game moves.
+ *
+ * Both are deterministic and local: a move is a way of asking, not a source of
+ * progression, so neither needs a provider and neither may award anything. The
+ * engine never sees these — only the question text the player actually answered
+ * reaches `TurnRecord.question`.
+ */
+const DEEPER_FRAMES = [
+  (dimension: string) => `Stay with ${dimension} a little longer. What part of that do you usually leave out because it complicates the tidy version?`,
+  (dimension: string) => `Go one layer down on ${dimension}. What has it actually cost you to be that way?`,
+  (dimension: string) => `Push on ${dimension}. Where does that stop being true about you?`
+];
+
+const REFRAME_FRAMES = [
+  (dimension: string) => `A different angle on ${dimension}: what would someone who knows you well say about it that you would not say yourself?`,
+  (dimension: string) => `Make ${dimension} concrete — describe one specific moment where it actually showed up.`,
+  (dimension: string) => `Turn ${dimension} over: what does it look like in you on a bad day?`
+];
+
+/** Stable per-dimension selection, so the same thread always deepens the same way. */
+function stableIndex(seed: string, span: number) {
+  let total = 0;
+  for (let index = 0; index < seed.length; index += 1) total = (total + seed.charCodeAt(index)) % 9973;
+  return total % span;
+}
+
+/** GO DEEPER: same territory, same dimension, a harder question. */
+export function deeperPrompt(prompt: MockPrompt): MockPrompt {
+  const frame = DEEPER_FRAMES[stableIndex(prompt.dimension, DEEPER_FRAMES.length)];
+  return { ...prompt, id: `${prompt.id}_deeper`, question: frame(prompt.dimension) };
+}
+
+/** REROLL: same coordinate, genuinely different framing. Cycles deterministically. */
+export function rerolledPrompt(prompt: MockPrompt, attempt: number): MockPrompt {
+  const frame = REFRAME_FRAMES[Math.abs(attempt) % REFRAME_FRAMES.length];
+  return { ...prompt, id: `${prompt.id}_reroll_${attempt}`, question: frame(prompt.dimension) };
+}
+
 function looksLikeExample(answer: string) { return /\b(for example|for instance|when i|one time|last time|because i|i once)\b/i.test(answer); }
 function looksLikeRevision(answer: string) { return /\b(i changed my mind|i used to|not anymore|actually|i was wrong|i revised|i no longer)\b/i.test(answer); }
 

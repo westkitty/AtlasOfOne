@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, wakeAtlas, navigateTo } from './helper';
 import { serveDist } from './server';
 
 const DIST = join(process.cwd(), 'dist', 'client');
@@ -15,16 +15,20 @@ const pageErrors: string[] = [];
 
 const xpOf = async () => {
   await goto('Map');
-  return Number((await page.textContent('.xp span'))!.replace(/\D/g, ''));
+  return Number(await page.getAttribute('[data-testid="hud-progress"]', 'data-xp'));
 };
 
 async function dismissNotices() {
-  while (await page.isVisible('.overlay')) await page.click('.overlay button:text("Continue")');
+  // Milestones are brief, non-blocking banners that clear themselves, so this
+  // waits them out rather than clicking a modal away.
+  if (await page.isVisible('[data-testid="milestone"]').catch(() => false)) {
+    await page.locator('[data-testid="milestone"]').waitFor({ state: 'detached', timeout: 20_000 }).catch(() => undefined);
+  }
 }
 
 async function goto(screen: string) {
   await dismissNotices();
-  await page.click(`nav button:has(small:text-is("${screen}"))`);
+  await navigateTo(page, screen);
 }
 
 beforeAll(async () => {
@@ -35,6 +39,7 @@ beforeAll(async () => {
   page.on('pageerror', (error: Error) => pageErrors.push(error.message));
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   await completeOnboardingIfPresent(page);
 }, 120_000);
 
@@ -83,7 +88,7 @@ describe('Offline runtime behavior and recovery', () => {
   it('navigates screens and remains usable offline', async () => {
     // Map -> Talk
     await goto('Talk');
-    await page.waitForSelector('article.prompt');
+    await page.waitForSelector('[data-testid="convo"]');
     expect(await page.isVisible('[data-testid="offline-indicator"]')).toBe(true);
 
     // Talk -> Vault
@@ -96,7 +101,7 @@ describe('Offline runtime behavior and recovery', () => {
 
     // Return to Talk
     await goto('Talk');
-    await page.waitForSelector('article.prompt');
+    await page.waitForSelector('[data-testid="convo"]');
   });
 
   it('accepts answers locally and persists progress without network', async () => {
@@ -123,6 +128,7 @@ describe('Offline runtime behavior and recovery', () => {
     // Full page reload to prove local IndexedDB restored all offline progress
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.shell');
+  await wakeAtlas(page);
     const xpReloaded = await xpOf();
     expect(xpReloaded).toBe(xpBefore);
   });

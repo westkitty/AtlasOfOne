@@ -3,12 +3,14 @@ import { eventsFromTurn } from './cartographer/apply';
 import { createRemoteProvider, requestFinalAssessment, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
 import { compileFinalizeContext, generateLocalAssessment } from './cartographer/finalize';
-import { createMockTurn, describeBossStage, describeDoor, doorInsightFrom, encounterTurnRecord, getMockPrompt } from './cartographer/mock';
+import { createMockTurn, deeperPrompt, describeBossStage, describeDoor, doorInsightFrom, encounterTurnRecord, getMockPrompt, rerolledPrompt, type MockPrompt } from './cartographer/mock';
 import { type AIProvider, disabledProvider, playerMessageForFailure } from './cartographer/provider';
 import type { CartographerTurn } from './cartographer/schema';
 import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefinition, currentBossStage } from './game/encounters';
 import { applyGameEvents, campaignReachedEndState, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
-import type { CampaignState, GameEvent, SassLevel, TerritoryStatus } from './game/types';
+import type { CampaignState, GameEvent, PresentationNotice, SassLevel, TerritoryStatus } from './game/types';
+import { WorldMap } from './world/WorldMap';
+import { neighboursOf, regionFor } from './world/geography';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
 import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
 import { clearAccessSecret, getAccessHeaders, getAccessSecret, setAccessSecret } from './voice/access';
@@ -16,10 +18,25 @@ import { isAudioCaptureSupported, startAudioCapture, type ActiveAudioCapture } f
 import { parseVoiceCommand } from './voice/commands';
 import { transitionVoiceState, voiceStateLabel } from './voice/state';
 import { cancelSpeech, speakText } from './voice/synthesis';
+import { availableVoices, forgetResolvedVoice, getVoicePreference, primeVoices, setVoicePreference } from './voice/voices';
 import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
 
-type Screen = 'map'|'talk'|'vault'|'me';
-const GREYSON_MAP_SPRITE = '/assets/greyson/map/idle-front.png';
+type Screen = 'world'|'vault'|'me';
+/** The character record shows the restored 96x96 portrait from the art pack. */
+const GREYSON_PORTRAIT = '/assets/atlas/v3/greyson/portrait-neutral.png';
+
+/** How many milestones share the screen at once, and for how long. */
+const MAX_BANNERS = 2;
+const BANNER_MS = 3200;
+
+/** Eyebrow wording per milestone class, so a level-up cannot read like an error. */
+const MILESTONE_EYEBROW: Record<PresentationNotice['kind'], string> = {
+  level: 'LEVEL UP', unlock: 'NEW ABILITY', quest: 'QUEST COMPLETE',
+  fragment: 'ARTIFACT RECOVERED', territory: 'TERRITORY CHARTED', achievement: 'ACHIEVEMENT'
+};
+const MILESTONE_GLYPH: Record<PresentationNotice['kind'], string> = {
+  level: '▲', unlock: '✦', quest: '◆', fragment: '◈', territory: '★', achievement: '✧'
+};
 
 /** Short player-facing words for each fog-of-war state. */
 const STATUS_WORD: Record<TerritoryStatus, string> = {
@@ -48,17 +65,85 @@ const STATUS_MARK: Record<TerritoryStatus, string> = {
  * screen but the flag was written back false forever. Proven in
  * `tests/browser/onboarding-continuity.test.ts`.
  */
+/**
+ * End-of-turn detection thresholds, kept together and named so they can be
+ * reasoned about rather than scattered as magic numbers.
+ *
+ * Onset sits above the silence floor on purpose: the gap is hysteresis, so
+ * room tone cannot flicker a turn open and shut. The silence window is long
+ * enough to survive an ordinary mid-sentence pause and short enough that the
+ * conversation does not feel stalled.
+ */
+const SPEECH_ONSET_LEVEL = 0.18;
+const SILENCE_LEVEL = 0.11;
+const SILENCE_HOLD_MS = 1400;
+/** Safety bound. Never fabricates an answer — it returns to a listening retry. */
+const MAX_LISTEN_MS = 45_000;
+
+/** Short spoken acknowledgement for a local command, so the loop stays audible. */
+function voiceCommandAcknowledgement(command: VoiceCommandType): string {
+  switch (command) {
+    case 'pass': return 'Passed. No penalty.';
+    case 'private': return 'Private. I will not intentionally return to that dimension.';
+    case 'serious': return 'Serious mode. I will keep this plain.';
+    case 'help': return 'You can say pass, private, stop, serious, help, or sass. Say stop any time.';
+    case 'sass': return 'Sass adjusted.';
+    default: return 'Understood.';
+  }
+}
+
 const hasCompletedOnboarding = (campaign: { onboardingCompleted?: boolean; turns: unknown[] }, markerSet: boolean) =>
   campaign.onboardingCompleted === true || markerSet || campaign.turns.length > 0;
 
 export default function App() {
   const [state, setState] = useState<CampaignState>(() => createInitialCampaign());
   const [hydrated, setHydrated] = useState(false);
-  const [screen, setScreen] = useState<Screen>('map');
+  const [screen, setScreen] = useState<Screen>('world');
   const [reply, setReply] = useState('');
   const [answer, setAnswer] = useState('');
   const [message, setMessage] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /**
+   * Session-level cinematic state. Atlas opens dormant on EVERY launch — new
+   * campaign, returning campaign, reload alike — and the interface only appears
+   * once the person has deliberately woken it. This never enters CampaignState,
+   * awards nothing, and is not persisted: reopening Atlas is a cold open again.
+   */
+  const [awake, setAwake] = useState(false);
+  const [waking, setWaking] = useState(false);
+  /**
+   * Dormant Atlas shows nothing but a faint mark — no name, no tagline, no
+   * instruction. Identity is something the player DISCOVERS by waking it, so it
+   * belongs to the reveal, not to the resting state.
+   */
+  const [revealing, setRevealing] = useState(false);
+  /** Smoothed 0..1 microphone loudness while capture is live. Never persisted. */
+  const [micLevel, setMicLevel] = useState(0);
+  const [micMeterLive, setMicMeterLive] = useState(false);
+  const unsubscribeLevel = useRef<(() => void) | null>(null);
+  /**
+   * Talk is a conversation, not a recorder.
+   *
+   * `voiceState` says what the machinery is doing right now; `conversationActive`
+   * says whether Atlas should keep taking turns. A transient operation ending —
+   * a synthesis finishing, a transcription returning — never ends the
+   * conversation. Only an explicit lifecycle event does: Cancel, STOP, a switch
+   * to Type, an import, an unrecoverable failure, or unmount.
+   *
+   * Both a ref and state: the ref is the lifecycle authority because it mutates
+   * synchronously and a stale callback must not be able to reopen a microphone
+   * (DEC-029); the state exists so the UI can render.
+   */
+  const conversationActive = useRef(false);
+  const [conversing, setConversing] = useState(false);
+  /**
+   * Generation token. Every conversation start/stop bumps it, and every async
+   * continuation captures the value it began with. A callback from an obsolete
+   * cycle compares unequal and does nothing at all.
+   */
+  const conversationId = useRef(0);
+  /** Reply awaiting speech, spoken together with the next prompt by an effect. */
+  const [pendingReply, setPendingReply] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
   // Async concurrency and request lifecycle guards
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -113,7 +198,57 @@ export default function App() {
   // The Cartographer runs on its deterministic local script unless the Worker
   // reports a live provider. Nothing here holds a credential or a model id.
   const [provider, setProvider] = useState<AIProvider>(disabledProvider);
-  const prompt = useMemo(() => getMockPrompt(state), [state]);
+  /**
+   * The question the engine's own selector would ask right now.
+   *
+   * `activeTerritory` is campaign state and the engine relocates the expedition
+   * when a territory runs out of askable dimensions, so this follows the map
+   * rather than looping on an exhausted one.
+   */
+  const basePrompt = useMemo(() => getMockPrompt(state), [state]);
+  /**
+   * A game move may restate the current question without changing which
+   * coordinate is being mapped. The override is presentation only and is
+   * deliberately NOT persisted: a reload returns to the engine's own question,
+   * so a half-finished move can never resurrect as corrupted progression. The
+   * question actually on screen is what gets recorded in `TurnRecord`.
+   */
+  const [promptOverride, setPromptOverride] = useState<{ kind: 'deeper' | 'reroll'; prompt: MockPrompt } | null>(null);
+  const [rerollCount, setRerollCount] = useState(0);
+  const prompt = promptOverride?.prompt ?? basePrompt;
+  /** Compact agency surface, one interaction from the primary action row. */
+  const [moreOpen, setMoreOpen] = useState(false);
+  /**
+   * The conversation is a layer over the world, not a separate page, so the
+   * island stays visible while the Cartographer is talking.
+   */
+  const [talking, setTalking] = useState(false);
+  /** Vault and the character record are places you visit, reached from one menu. */
+  const [menuOpen, setMenuOpen] = useState(false);
+  /** True while Greyson is actually crossing the island, so he can walk. */
+  const [travelling, setTravelling] = useState(false);
+  /** The region a journey departed from, so travel follows the trail between them. */
+  const [travelFrom, setTravelFrom] = useState<string | null>(null);
+  /** The conversation panel scrolls; an opened sheet must not open off-screen. */
+  const agencySheetRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * Which voice the Cartographer speaks with. Stored locally on the device only:
+   * it never enters CampaignState, an export, or a provider payload.
+   */
+  const [voiceChoices, setVoiceChoices] = useState<ReturnType<typeof availableVoices>>([]);
+  const [voiceUri, setVoiceUri] = useState<string | null>(() => getVoicePreference());
+  useEffect(() => { void primeVoices().then(() => setVoiceChoices(availableVoices())); }, []);
+  /**
+   * Transient reaction to a committed turn: how much XP the engine just granted
+   * and where the mark landed. Derived by observing state that has ALREADY been
+   * committed, never by predicting it, so this cannot become a second source of
+   * progression truth.
+   */
+  const [pulse, setPulse] = useState<{ xp: number; territoryId: string; key: number } | null>(null);
+  const turnSnapshot = useRef<{ xp: number; turns: number } | null>(null);
+  /** Which way Greyson faces as he crosses the map; presentation only. */
+  const [facing, setFacing] = useState<'front' | 'back' | 'left' | 'right'>('front');
+  const previousTerritory = useRef<string | null>(null);
   /**
    * The Final Atlas is an end-state artifact. Deciding availability here keeps
    * it on the engine's deterministic authority rather than on a feeling about
@@ -138,8 +273,11 @@ export default function App() {
       .finally(() => { if (live) setHydrated(true); });
     return () => { live = false; };
   }, []);
+  useEffect(() => { void primeVoices(); }, []);
   useEffect(() => { if (hydrated) void saveCampaign(state).catch(() => setMessage('Automatic save failed. Export before leaving.')); }, [state, hydrated]);
   useEffect(() => { document.documentElement.dataset.reducedMotion = String(state.settings.reducedMotion); }, [state.settings.reducedMotion]);
+  // No live audio context may outlive the component.
+  useEffect(() => () => { conversationActive.current = false; conversationId.current += 1; unsubscribeLevel.current?.(); unsubscribeLevel.current = null; }, []);
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
@@ -180,6 +318,93 @@ export default function App() {
   useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 6000); return () => window.clearTimeout(timer); }, [message]);
 
   /**
+   * World reaction to a committed answer.
+   *
+   * Fires only on a single new turn, so hydrating a saved campaign with many
+   * turns never replays a reward the player already had. The XP figure is the
+   * engine's committed delta — read after the fact, never computed here.
+   */
+  useEffect(() => {
+    const previous = turnSnapshot.current;
+    turnSnapshot.current = { xp: state.xp, turns: state.turns.length };
+    if (!previous || !hydrated) return;
+    if (state.turns.length !== previous.turns + 1) return;
+    const landed = state.turns[state.turns.length - 1];
+    setPulse({ xp: state.xp - previous.xp, territoryId: landed?.territoryId ?? state.activeTerritory, key: Date.now() });
+  }, [state.turns.length, state.xp, state.activeTerritory, hydrated]);
+
+  /**
+   * Milestones are shown in the world and then let go.
+   *
+   * The queue stays lossless — the engine still records every grant and nothing
+   * is dropped before it is displayed — but the presentation is no longer a
+   * blocking six-item changelog. A territory advancing needs no banner at all:
+   * the fog withdrawing on the island IS the announcement, and the map keeps
+   * carrying it afterwards. Quiet mode shows nothing and acknowledges nothing,
+   * so a serious session neither celebrates nor silently discards.
+   */
+  useEffect(() => {
+    if (state.presentation !== 'normal' || state.presentationQueue.length === 0) return;
+    const carriedByTheWorld = state.presentationQueue.filter((notice) => notice.kind === 'territory');
+    if (carriedByTheWorld.length > 0) {
+      dispatch(...carriedByTheWorld.map((notice) => ({ type: 'PRESENTATION_NOTICE_ACKNOWLEDGED', noticeId: notice.id }) as GameEvent));
+      return;
+    }
+    const onScreen = state.presentationQueue.slice(0, MAX_BANNERS);
+    const timer = window.setTimeout(
+      () => dispatch(...onScreen.map((notice) => ({ type: 'PRESENTATION_NOTICE_ACKNOWLEDGED', noticeId: notice.id }) as GameEvent)),
+      BANNER_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [state.presentationQueue, state.presentation]);
+
+  useEffect(() => {
+    if (!pulse) return;
+    const timer = window.setTimeout(() => setPulse(null), 1200);
+    return () => window.clearTimeout(timer);
+  }, [pulse]);
+
+  /**
+   * A move restates the current question; it does not change which coordinate is
+   * being mapped. Once the engine moves to a genuinely different question the
+   * override has been answered or superseded, so it is dropped.
+   */
+  const lastBasePromptId = useRef(basePrompt.id);
+  useEffect(() => {
+    if (lastBasePromptId.current === basePrompt.id) return;
+    lastBasePromptId.current = basePrompt.id;
+    setPromptOverride(null);
+    setRerollCount(0);
+  }, [basePrompt.id]);
+
+  /**
+   * Greyson crosses the island rather than teleporting: he turns to face the way
+   * he is going and keeps walking until he arrives. Reduced motion still moves
+   * him — it just does not animate the journey.
+   */
+  useEffect(() => {
+    const from = previousTerritory.current;
+    previousTerritory.current = state.activeTerritory;
+    if (!from || from === state.activeTerritory) return;
+    const start = regionFor(from).stand;
+    const end = regionFor(state.activeTerritory).stand;
+    if (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y)) setFacing(end.x >= start.x ? 'right' : 'left');
+    else setFacing(end.y < start.y ? 'back' : 'front');
+    if (state.settings.reducedMotion) return;
+    setTravelFrom(from);
+    setTravelling(true);
+    const timer = window.setTimeout(() => { setTravelling(false); setTravelFrom(null); }, 2700);
+    return () => window.clearTimeout(timer);
+  }, [state.activeTerritory, state.settings.reducedMotion]);
+
+  // Transient surfaces close when the player moves between places.
+  useEffect(() => { setMoreOpen(false); }, [screen, talking]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    agencySheetRef.current?.scrollIntoView({ behavior: state.settings.reducedMotion ? 'auto' : 'smooth', block: 'end' });
+  }, [moreOpen, state.settings.reducedMotion]);
+
+  /**
    * Turn a Cartographer proposal into deterministic events. This is the ONLY
    * path from model output into campaign state, and it can emit exactly three
    * event types — none of which carries XP, a level, an unlock or a completion.
@@ -193,7 +418,13 @@ export default function App() {
       return applyGameEvents(current, eventsFromTurn(turnPrompt, text, turn, providerId));
     });
     setReply(turn.reply); setAnswer('');
-    if (voiceMode === 'talk') {
+    setPromptOverride(null); setRerollCount(0);
+    if (voiceMode === 'talk' && conversationActive.current) {
+      // The effect below speaks the reply together with whatever Atlas is asking
+      // next, so the player never has to read the screen to know their cue.
+      setVoiceState('thinking');
+      setPendingReply(turn.reply);
+    } else if (voiceMode === 'talk') {
       setVoiceState('speaking');
       speakText(turn.reply, {
         quiet: state.presentation === 'quiet',
@@ -234,6 +465,52 @@ export default function App() {
     }
   };
 
+  /**
+   * The conversational half of a turn: say what happened, establish what is
+   * being asked next, then hand the microphone back — with no tap in between.
+   *
+   * `prompt` is derived from the freshly committed state, so the question spoken
+   * here is the real next question. It is only appended when the reply does not
+   * already contain it, so Atlas never asks the same thing twice in one breath.
+   */
+  useEffect(() => {
+    if (pendingReply === null) return;
+    if (!conversationActive.current || voiceMode !== 'talk') { setPendingReply(null); return; }
+    const generation = conversationId.current;
+    const question = prompt.question.trim();
+    const spoken = pendingReply.includes(question) || !question ? pendingReply : `${pendingReply} ${question}`;
+    setPendingReply(null);
+    setVoiceState('speaking');
+    speakText(spoken, {
+      quiet: state.presentation === 'quiet',
+      onEnd: () => {
+        // A finished utterance does not end a conversation.
+        if (conversationActive.current && generation === conversationId.current) void beginListeningTurn(generation);
+        else setVoiceState('idle');
+      },
+      onError: () => {
+        if (conversationActive.current && generation === conversationId.current) void beginListeningTurn(generation);
+        else setVoiceState('idle');
+      }
+    });
+    // Speech is driven by the reply arriving; re-running on other state would
+    // interrupt an utterance mid-sentence.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingReply]);
+
+  /**
+   * Start a spoken conversation. This is the ONE deliberate action: Atlas states
+   * the current question aloud and then listens on its own.
+   */
+  const startConversation = () => {
+    conversationActive.current = true;
+    conversationId.current += 1;
+    const generation = conversationId.current;
+    setConversing(true);
+    void generation;
+    setPendingReply(prompt.question);
+  };
+
   const submitText = (text: string) => {
     if (!text.trim() || state.sessionStatus === 'paused' || isSubmitting || submitInFlight.current) return;
     if (isOffline || provider.id === 'disabled') { commitTurn(createMockTurn(state, prompt, text), text, 'mock', prompt); return; }
@@ -245,9 +522,48 @@ export default function App() {
 
   const submit = () => submitText(answer);
 
+  /**
+   * Unlocked game moves.
+   *
+   * Both are pure presentation: they dispatch no event, so they cannot award XP,
+   * evidence, coverage or a turn. Only answering the question they put on screen
+   * does, and that runs through the ordinary deterministic path.
+   */
+  const canGoDeeper = Boolean(state.unlocks.find((item) => item.id === 'go-deeper')?.unlockedAt);
+  const canReroll = Boolean(state.unlocks.find((item) => item.id === 'reroll')?.unlockedAt);
+
+  const speakIfConversing = (line: string) => {
+    if (voiceMode === 'talk' && conversationActive.current) { setVoiceState('thinking'); setPendingReply(line); }
+  };
+
+  const invokeGoDeeper = () => {
+    if (!canGoDeeper || state.sessionStatus === 'paused') return;
+    setPromptOverride({ kind: 'deeper', prompt: deeperPrompt(basePrompt) });
+    setMoreOpen(false);
+    const line = 'Going deeper on the same thread. Nothing is scored for asking.';
+    setReply(line);
+    speakIfConversing(line);
+  };
+
+  const invokeReroll = () => {
+    if (!canReroll || state.sessionStatus === 'paused') return;
+    const attempt = rerollCount + 1;
+    setRerollCount(attempt);
+    setPromptOverride({ kind: 'reroll', prompt: rerolledPrompt(basePrompt, attempt) });
+    setMoreOpen(false);
+    const line = 'Reframed. Same coordinate, different way in. Rerolling costs nothing.';
+    setReply(line);
+    speakIfConversing(line);
+  };
+
   const toggleVoiceMode = (mode: VoiceMode) => {
     if (mode === voiceMode) return;
+    // Whichever direction, the current loop stops first and every in-flight
+    // continuation is invalidated, so a late transcription or a finishing
+    // utterance can never submit or reopen the microphone (BUG-004).
     pendingCaptureCancelled.current = true;
+    endConversation();
+    stopLevelMeter();
     cancelSpeech();
     if (activeCapture) {
       activeCapture.abort();
@@ -255,54 +571,111 @@ export default function App() {
     }
     setVoiceState('idle');
     setVoiceMode(mode);
+    // Choosing Talk is the single deliberate act that starts the conversation.
+    if (mode === 'talk') startConversation();
   };
 
-  const startRecording = async () => {
+  /**
+   * Open one listening turn.
+   *
+   * The player finishes by simply stopping talking: the analyser feeding the
+   * visualizer also drives end-of-turn detection, so no cloud VAD exists and no
+   * audio is transmitted to decide when someone stopped. Silence before speech
+   * never submits — Atlas just keeps listening.
+   */
+  const beginListeningTurn = async (generation = conversationId.current) => {
     if (state.sessionStatus === 'paused' || isSubmitting) return;
+    if (generation !== conversationId.current) return;
     cancelSpeech();
+    pendingCaptureCancelled.current = false;
     setVoiceState('requesting-permission');
     try {
       const capture = await startAudioCapture();
+      if (generation !== conversationId.current) { capture.abort(); return; }
       setActiveCapture(capture);
+      stopLevelMeter();
+
+      let speechStarted = false;
+      let lastLoudAt = Date.now();
+      const openedAt = Date.now();
+      let closed = false;
+      const closeTurn = () => {
+        if (closed || generation !== conversationId.current) return;
+        closed = true;
+        void stopRecordingAndProcess(capture, generation);
+      };
+
+      if (capture.levelMonitoringAvailable) {
+        unsubscribeLevel.current = capture.subscribeLevel((level) => {
+          setMicLevel(level);
+          const now = Date.now();
+          if (level >= SPEECH_ONSET_LEVEL) { speechStarted = true; lastLoudAt = now; }
+          else if (level >= SILENCE_LEVEL && speechStarted) { lastLoudAt = now; }
+          if (speechStarted && now - lastLoudAt >= SILENCE_HOLD_MS) closeTurn();
+          // Safety bound: stop the microphone, but never invent an answer.
+          else if (!speechStarted && now - openedAt >= MAX_LISTEN_MS) closeTurn();
+        });
+        setMicMeterLive(true);
+      }
       setVoiceState('listening');
     } catch {
+      endConversation();
       setVoiceState('error');
       setMessage('Microphone permission denied or recording unsupported. You can type below.');
     }
   };
 
-  const stopRecordingAndProcess = async () => {
-    if (!activeCapture) return;
-    const capture = activeCapture;
+  /** Manual entry point kept for retry and for the visible recording affordance. */
+  const startRecording = async () => {
+    conversationActive.current = true;
+    conversationId.current += 1;
+    setConversing(true);
+    await beginListeningTurn(conversationId.current);
+  };
+
+  /**
+   * Close the current spoken turn and process it.
+   *
+   * `capture` is passed in rather than read from state so an automatic
+   * end-of-turn cannot race a re-render, and `generation` is checked at every
+   * await boundary so an obsolete cycle can never submit or resume.
+   */
+  const stopRecordingAndProcess = async (explicit?: ActiveAudioCapture, generation = conversationId.current) => {
+    const capture = explicit ?? activeCapture;
+    if (!capture) return;
     setActiveCapture(null);
+    stopLevelMeter();
     setVoiceState('transcribing');
     pendingCaptureCancelled.current = false;
+    const stale = () => pendingCaptureCancelled.current || generation !== conversationId.current;
     try {
       const blob = await capture.stop();
-      if (pendingCaptureCancelled.current) {
-        setVoiceState('idle');
-        return;
-      }
+      if (stale()) { setVoiceState('idle'); return; }
       const res = await transcribeAudio(blob, { headers: getAccessHeaders });
-      if (pendingCaptureCancelled.current) {
-        setVoiceState('idle');
-        return;
-      }
+      if (stale()) { setVoiceState('idle'); return; }
       if (!res.ok) {
+        // A failure must not strand the conversation in a dead state.
         setVoiceState('error');
         setMessage(res.message);
         return;
       }
       const text = res.text.trim();
       if (!text) {
+        // Never fabricate a turn. Keep listening if the conversation is running.
+        setMessage('No speech detected. Still listening.');
+        if (conversationActive.current && generation === conversationId.current) { void beginListeningTurn(generation); return; }
         setVoiceState('idle');
-        setMessage('No speech detected. Try again or type below.');
         return;
       }
       const command = parseVoiceCommand(text);
       if (command) {
-        setVoiceState('idle');
+        // Local commands never reach the Cartographer and never award progress.
         executeVoiceCommand(command.type);
+        if (command.type !== 'stop' && conversationActive.current && generation === conversationId.current) {
+          setPendingReply(voiceCommandAcknowledgement(command.type));
+          return;
+        }
+        setVoiceState('idle');
         return;
       }
       setAnswer(text);
@@ -314,7 +687,29 @@ export default function App() {
     }
   };
 
+
+  /** Stops observing microphone level and clears the meter. Safe to call twice. */
+  const stopLevelMeter = () => {
+    unsubscribeLevel.current?.();
+    unsubscribeLevel.current = null;
+    setMicMeterLive(false);
+    setMicLevel(0);
+  };
+
+  /**
+   * Ends the conversational loop. Bumping the generation invalidates every
+   * in-flight continuation, so nothing can reopen the microphone afterwards.
+   */
+  const endConversation = () => {
+    conversationActive.current = false;
+    conversationId.current += 1;
+    setConversing(false);
+    setPendingReply(null);
+  };
+
   const cancelVoice = () => {
+    endConversation();
+    stopLevelMeter();
     pendingCaptureCancelled.current = true;
     if (activeCapture) {
       activeCapture.abort();
@@ -334,6 +729,7 @@ export default function App() {
         setReply('Private. I will not intentionally return to that dimension.');
         break;
       case 'stop':
+        // Ends the conversation outright: no automatic reopen after a pause.
         cancelVoice();
         dispatch({ type: 'SESSION_SET', status: 'paused' });
         break;
@@ -447,6 +843,36 @@ export default function App() {
   const activeRemaining = activeTerritory.requiredDimensions.length - activeTerritory.coveredDimensions.length;
   const quest = state.quests.find((item) => item.id === state.activeQuest);
   const notices = state.presentation === 'normal' ? state.presentationQueue : [];
+  /**
+   * What the expedition is actually working towards.
+   *
+   * The bootstrap quests both finish inside the first few turns, after which the
+   * old fallback claimed "Every territory charted - nothing outstanding" while
+   * seven territories were still fogged. The standing objective below is derived
+   * from real state and carries no XP: it describes the campaign, it does not
+   * reward it.
+   */
+  /**
+   * Where the player may legitimately go next.
+   *
+   * A neighbour is offered only if it still has an askable dimension, which is
+   * the engine's own viability rule read back — the map never invents a
+   * destination the campaign would refuse. Travelling awards nothing; it only
+   * changes where the next question comes from.
+   */
+  const reachableRegions = useMemo(() => neighboursOf(state.activeTerritory).filter((id) => {
+    const territory = state.territories.find((item) => item.id === id);
+    return Boolean(territory) && territory!.requiredDimensions.some(
+      (dimension) => !state.privateTopics.includes(dimension) && !territory!.coveredDimensions.includes(dimension)
+    );
+  }), [state.activeTerritory, state.territories, state.privateTopics]);
+
+  const chartedCount = state.territories.filter((t) => t.status === 'charted' || t.status === 'deeply-charted').length;
+  const objective = quest
+    ? { eyebrow: 'CURRENT QUEST', label: quest.label, detail: quest.description, progress: quest.progress, target: quest.target }
+    : campaignEnded
+      ? { eyebrow: 'EXPEDITION COMPLETE', label: 'Every territory charted', detail: 'The Atlas is finished. The final assessment is available on your character record.', progress: state.territories.length, target: state.territories.length }
+      : { eyebrow: 'STANDING OBJECTIVE', label: 'Chart the Atlas', detail: 'Recover a fragment from every territory on the map.', progress: chartedCount, target: state.territories.length };
   const quiet = state.presentation === 'quiet';
 
   // Level and XP shown as one unit so progress is legible on Map and Me.
@@ -466,7 +892,7 @@ export default function App() {
   const renderAgency = (onPass: () => void, privateDimension: string) => <div className="agency" data-testid="agency" role="group" aria-label="Always-available controls">
     <button className="agency-util" data-testid="agency-pass" onClick={onPass}>PASS</button>
     <button className="agency-protect" data-testid="agency-private" onClick={()=>{dispatch({type:'PRIVATE_TOPIC_ADDED',topic:privateDimension});setReply('Private. I will not intentionally return to that dimension.');}}>PRIVATE</button>
-    <button className={`agency-protect${state.sessionStatus==='paused'?' is-active':''}`} data-testid="agency-stop" aria-pressed={state.sessionStatus==='paused'} onClick={()=>dispatch({type:'SESSION_SET',status:state.sessionStatus==='paused'?'active':'paused'})}>{state.sessionStatus==='paused'?'RESUME':'STOP'}</button>
+    <button className={`agency-protect${state.sessionStatus==='paused'?' is-active':''}`} data-testid="agency-stop" aria-pressed={state.sessionStatus==='paused'} onClick={()=>{const pausing=state.sessionStatus!=='paused';if(pausing)cancelVoice();dispatch({type:'SESSION_SET',status:pausing?'paused':'active'});}}>{state.sessionStatus==='paused'?'RESUME':'STOP'}</button>
     <button className={`agency-protect${quiet?' is-active':''}`} data-testid="agency-serious" aria-pressed={quiet} onClick={()=>{dispatch({type:'PRESENTATION_SET',mode:'quiet'});setReply('Serious mode. Plain language; no fanfare.');}}>SERIOUS</button>
     <button className="agency-util" data-testid="agency-help" onClick={()=>setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}>HELP</button>
     <button className="agency-util" data-testid="agency-sass" onClick={()=>dispatch({type:'SASS_SET',sass:state.settings.sass==='low'?'medium':state.settings.sass==='medium'?'risks-understood':'low'})}>SASS</button>
@@ -506,79 +932,177 @@ export default function App() {
     {renderAgency(()=>{dispatch(encounter.kind==='boss'?{type:'BOSS_STAGE_PASSED'}:{type:'DOOR_CLOSED'});setReply('Passed. No penalty, no cost.');setAnswer('');}, encounter.dimension)}
   </section>;
 
-  const renderMap = () => <section className="screen">
-    <div className="eyebrow">THE GREYSON MAP</div>
-    <header><div><h1>Atlas of One</h1><p>One person. More territory than a questionnaire can survive.</p></div>{isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}</header>
-    {renderProgress()}
-    <article className="quest-card">
-      <b aria-hidden="true">◆</b>
-      <div>
-        <span className="eyebrow">CURRENT QUEST</span>
-        <strong>{quest?.label ?? 'Every territory charted'}</strong>
-        {quest
-          ? <><small>{quest.description}</small><div className="quest-track"><i style={{width:`${Math.min(100,(quest.progress/quest.target)*100)}%`}} /></div><small className="quest-count">{quest.progress} / {quest.target}</small></>
-          : <small>Nothing outstanding. Open an encounter, or keep mapping.</small>}
+  /**
+   * The Atlas as a place.
+   *
+   * One SVG composition: fog, paths between regions, territory nodes carrying
+   * their own coverage arc and state glyph, and Greyson standing in whichever
+   * region the expedition currently occupies. Nodes are real buttons — keyboard
+   * reachable and individually labelled — because a map you cannot operate
+   * without a mouse is not accessible, and the state must never be conveyed by
+   * colour alone.
+   */
+  /**
+   * The world, and almost nothing else.
+   *
+   * Human review of the previous candidate said "the UI is a lot" and "there's
+   * no map really". The answer to both is subtraction: the island fills the
+   * screen, and the only persistent chrome is where Greyson is, how far along he
+   * is, one way in, and one way to everything else.
+   */
+  const renderWorld = () => <section className="stage" data-testid="world-stage">
+    <WorldMap
+      state={state}
+      facing={facing}
+      travelling={travelling}
+      travelFrom={travelFrom}
+      mark={pulse}
+      reachable={reachableRegions}
+      reducedMotion={state.settings.reducedMotion}
+      onSelectRegion={(territoryId) => { if (territoryId !== state.activeTerritory) dispatch({ type: 'ACTIVE_TERRITORY_SET', territoryId }); }}
+    />
+
+    <div className="hud" data-testid="hud">
+      <div className="hud-place">
+        <strong data-testid="hud-territory">{activeTerritory.label}</strong>
+        <span className="hud-progress" data-testid="hud-progress" data-xp={state.xp} data-level={state.level} aria-label={`Level ${state.level}, ${xp.current} of ${xp.required} to the next level`}>
+          <i data-testid="hud-level">L{state.level}</i>
+          <span className="hud-track"><b style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></span>
+        </span>
       </div>
-    </article>
-    <div className="map">
-      <div className="map-here">
-        <div className="avatar"><img src={GREYSON_MAP_SPRITE} alt="Greyson map avatar" draggable={false}/></div>
-        <div><span className="eyebrow">YOU ARE HERE</span><strong>{activeTerritory.label}</strong><small>{STATUS_WORD[activeTerritory.status]}</small></div>
-      </div>
-      <div className="territory-grid">
-        {state.territories.map((territory) => <button key={territory.id} className={`territory t-${territory.status}${territory.id===state.activeTerritory?' active':''}`} aria-current={territory.id===state.activeTerritory?'true':undefined} onClick={() => dispatch({type:'ACTIVE_TERRITORY_SET',territoryId:territory.id})}>
-          <span className="t-mark" aria-hidden="true">{STATUS_MARK[territory.status]}</span>
-          <strong>{territory.label}</strong>
-          <small>{STATUS_WORD[territory.status]} · {territory.coveredDimensions.length}/{territory.requiredDimensions.length}</small>
-        </button>)}
-      </div>
+      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+        <span aria-hidden="true">☰</span>
+      </button>
+      {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
     </div>
-    <article className="card current-territory">
-      <span className="eyebrow">CURRENT TERRITORY</span>
-      <h2>{activeTerritory.label}</h2>
-      <p>{activeTerritory.coveredDimensions.length} of {activeTerritory.requiredDimensions.length} dimensions mapped{activeRemaining>0?` · ${activeRemaining} to go`:' · fully charted'}.</p>
-      <button className="primary" onClick={() => setScreen('talk')}>{activeTerritory.coveredDimensions.length===0?'Start mapping':'Continue encounter'}</button>
-    </article>
-    {(openBosses.length>0||openDoors.length>0||encounter)&&<article className="card encounters" data-testid="encounter-offers">
-      <span className="eyebrow">OPEN ENCOUNTERS</span>
-      <p>Earned from territory you have already mapped. All optional.</p>
-      {encounter&&<button className="primary full" data-testid="resume-encounter" onClick={()=>setScreen('talk')}>Resume {encounter.kind==='door'?encounter.title:encounter.heading}</button>}
-      {!encounter&&openBosses.map((boss)=>{const run=state.bossRuns.find((item)=>item.bossId===boss.id&&item.status==='active');const done=run?run.stages.filter((stage)=>stage.outcome!=='pending').length:0;return <button key={boss.id} className="offer boss" data-testid={`start-${boss.id}`} onClick={()=>{dispatch({type:'BOSS_STARTED',bossId:boss.id});setReply('');setScreen('talk');}}><span className="offer-tag" aria-hidden="true">▲ BOSS</span><strong>{run?'Resume: ':''}{boss.label}</strong><small>{run?`Stage ${done+1} of ${run.stages.length} · progress kept`:boss.description}</small></button>;})}
-      {!encounter&&openDoors.slice(0,3).map((door)=><button key={door.doorId} className="offer door" data-testid={`open-${door.doorId}`} onClick={()=>{dispatch({type:'DOOR_OPENED',doorId:door.doorId});setReply('');setScreen('talk');}}><span className="offer-tag" aria-hidden="true">◈ DOOR</span><strong>{territoryLabels[door.territoryIds[0]]} × {territoryLabels[door.territoryIds[1]]}</strong><small>What connects these two regions that neither shows alone.</small></button>)}
-    </article>}
+
+    {!talking && !encounter && <button className="world-enter" data-testid="enter-encounter" onClick={() => { setTalking(true); setReply(''); }}>
+      {state.turns.length === 0 ? 'Begin' : 'Continue'}
+    </button>}
+    {!talking && encounter && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
+      Resume {encounter.kind === 'door' ? encounter.title : encounter.heading}
+    </button>}
   </section>;
 
-  const renderTalk = () => encounter ? renderEncounter() : <section className="screen">
-    <div className="eyebrow">ENCOUNTER · {activeTerritory.label.toUpperCase()}</div>
-    <header><div><h1 className="screen-title">The Cartographer</h1><p>Mapping {activeTerritory.label.toLowerCase()} with you, one coordinate at a time.</p></div>{quiet && <span className="chip">{state.presentation}</span>}{isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}</header>
-    <article className="card prompt">{reply && <p className="reply" role="status">{reply}</p>}<h2>{prompt.question}</h2><small>Evidence dimension: {prompt.dimension}</small></article>
-    {state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}
-
-    <div className="mode-switch" role="tablist" aria-label="Input mode">
-      <button role="tab" aria-selected={voiceMode==='type'} className={voiceMode==='type'?'active':''} data-testid="mode-type" onClick={()=>toggleVoiceMode('type')}>Type</button>
-      <button role="tab" aria-selected={voiceMode==='talk'} className={voiceMode==='talk'?'active':''} data-testid="mode-talk" onClick={()=>toggleVoiceMode('talk')}>Talk</button>
+  /**
+   * Permanent agency, one interaction from the primary row.
+   *
+   * These controls are never progression-gated and never removed - they simply
+   * stop impersonating the game. STOP is deliberately first so the control that
+   * has to work fastest is the one the thumb reaches first.
+   */
+  const renderAgencySheet = (privateDimension: string) => moreOpen && <div ref={agencySheetRef} className="more-sheet" data-testid="more-sheet" role="dialog" aria-label="Agency controls and moves" onKeyDown={(event)=>{ if(event.key==='Escape') setMoreOpen(false); }}>
+    <div className="more-head">
+      <span className="eyebrow">ALWAYS AVAILABLE</span>
+      <button className="more-close" data-testid="more-close" aria-label="Close controls" onClick={()=>setMoreOpen(false)}>×</button>
     </div>
+    <div className="agency" data-testid="agency" role="group" aria-label="Always-available controls">
+      <button className={`agency-protect${state.sessionStatus==='paused'?' is-active':''}`} data-testid="agency-stop" aria-pressed={state.sessionStatus==='paused'} onClick={()=>{const pausing=state.sessionStatus!=='paused';if(pausing)cancelVoice();dispatch({type:'SESSION_SET',status:pausing?'paused':'active'});}}>{state.sessionStatus==='paused'?'RESUME':'STOP'}</button>
+      <button className="agency-protect" data-testid="agency-private" onClick={()=>{dispatch({type:'PRIVATE_TOPIC_ADDED',topic:privateDimension});setReply('Private. I will not intentionally return to that dimension.');setMoreOpen(false);}}>PRIVATE</button>
+      <button className={`agency-protect${quiet?' is-active':''}`} data-testid="agency-serious" aria-pressed={quiet} onClick={()=>{dispatch({type:'PRESENTATION_SET',mode:'quiet'});setReply('Serious mode. Plain language; no fanfare.');setMoreOpen(false);}}>SERIOUS</button>
+      <button className="agency-util" data-testid="agency-help" onClick={()=>setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}>HELP</button>
+      <button className="agency-util" data-testid="agency-sass" onClick={()=>dispatch({type:'SASS_SET',sass:state.settings.sass==='low'?'medium':state.settings.sass==='medium'?'risks-understood':'low'})}>SASS</button>
+      <button className="agency-util" data-testid="agency-status" onClick={()=>setMessage(`Level ${state.level}, ${state.xp} XP. ${activeTerritory.label}: ${activeTerritory.coveredDimensions.length} of ${activeTerritory.requiredDimensions.length} dimensions mapped. ${state.mapFragments.length} of ${state.territories.length} fragments recovered.`)}>STATUS</button>
+    </div>
+    <p className="more-note">Sass: {state.settings.sass}. None of these cost you progress.</p>
+  </div>;
+
+  /**
+   * The primary action row is the GAME's surface: skip, whatever moves the
+   * player has actually earned, and a door to everything else. It previously
+   * showed six permanent controls and no game moves at all, which made the
+   * control plane look like the product.
+   */
+  /**
+   * The primary row shows only what matters in this exact moment.
+   *
+   * A move that is unlocked is not automatically a move worth offering: GO
+   * DEEPER needs a thread already running in this region, and REROLL only makes
+   * sense while the composer is still empty and the player is stuck on the
+   * question rather than part-way through answering it.
+   */
+  const renderActionBar = (onPass: () => void, privateDimension: string) => {
+    const moves: { id: string; label: string; hint: string; run: () => void }[] = [];
+    if (canGoDeeper && !promptOverride && activeTerritory.coveredDimensions.length > 0) {
+      moves.push({ id: 'go-deeper', label: 'Go deeper', hint: 'Pursue this thread further', run: invokeGoDeeper });
+    }
+    if (canReroll && !answer.trim() && rerollCount < 3) {
+      moves.push({ id: 'reroll', label: 'Reroll', hint: 'Ask this a different way', run: invokeReroll });
+    }
+    return <>
+      <div className="action-bar" data-testid="action-bar" role="group" aria-label="Encounter actions">
+        {state.sessionStatus === 'paused'
+          ? <button className="action action-resume" data-testid="action-resume" onClick={()=>dispatch({type:'SESSION_SET',status:'active'})}>Resume</button>
+          : <button className="action" data-testid="agency-pass" onClick={onPass}>Pass</button>}
+        {moves.slice(0, 2).map((move) => <button key={move.id} className="action action-move" data-testid={`move-${move.id}`} aria-label={`${move.label}: ${move.hint}`} onClick={move.run} disabled={state.sessionStatus==='paused'}>{move.label}</button>)}
+        <button className="action action-more" data-testid="action-more" aria-expanded={moreOpen} aria-haspopup="dialog" aria-label="More controls, including stop, private and serious" onClick={()=>setMoreOpen((open)=>!open)}>More</button>
+      </div>
+      {renderAgencySheet(privateDimension)}
+    </>;
+  };
+
+  /**
+   * Conversation happens IN the world.
+   *
+   * The island stays on screen above this panel, so an answer visibly changes
+   * somewhere the player can still see rather than a page they left behind.
+   */
+  const renderConversation = () => <div className="convo" data-testid="convo">
+    <button className="convo-close" data-testid="leave-encounter" aria-label="Back to the map" onClick={()=>{ if(voiceMode==='talk') cancelVoice(); setTalking(false); setMoreOpen(false); }}>
+      <span aria-hidden="true">▾</span>
+    </button>
+
+    <p className="convo-speaker">The Cartographer{quiet && <span className="chip">{state.presentation}</span>}</p>
+    {reply && <p className="convo-reply" role="status">{reply}</p>}
+    <h2 className="convo-question" data-testid="prompt-question">{prompt.question}</h2>
+    {/* Small, but the player needs to know what PRIVATE would close. */}
+    <small className="convo-dimension" data-testid="prompt-dimension">Evidence dimension: {prompt.dimension}{promptOverride ? ` · ${promptOverride.kind === 'deeper' ? 'going deeper' : 'reframed'}` : ''}</small>
+    {state.sessionStatus==='paused' && <p className="convo-paused">Session paused. Your Atlas is safe.</p>}
 
     {voiceMode==='type' ? (
-      <>
-        <label className="answer">Your coordinate<textarea rows={4} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="answer-input" /></label>
-        <button className="primary full" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'||isSubmitting}>{isSubmitting ? 'Mapping coordinate...' : 'Map this answer'}</button>
-      </>
+      <div className="composer">
+        <label className="answer">Your answer
+          <textarea rows={2} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="answer-input" placeholder="Say it however it comes out." />
+        </label>
+        <div className="composer-send">
+          <button className="link-btn" data-testid="mode-talk" onClick={()=>toggleVoiceMode('talk')}>Speak instead</button>
+          <button className="primary" data-testid="submit-answer" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'||isSubmitting}>{isSubmitting ? 'Mapping coordinate...' : 'Map this answer'}</button>
+        </div>
+      </div>
     ) : (
       <div className="voice-card" data-testid="voice-card">
         <span className={`voice-badge ${voiceState}`} data-testid="voice-status">{voiceStateLabel(voiceState)}</span>
         {voiceState === 'idle' && (
-          <button className="mic-btn" data-testid="mic-button" aria-label="Tap to talk" onClick={startRecording} disabled={state.sessionStatus==='paused'}>
+          <button className="mic-btn" data-testid="mic-button" aria-label="Start the conversation" onClick={startConversation} disabled={state.sessionStatus==='paused'}>
             🎙
           </button>
         )}
         {voiceState === 'listening' && (
           <>
-            <button className="mic-btn is-listening" data-testid="mic-stop" aria-label="Done speaking" onClick={stopRecordingAndProcess}>
+            {/* Live recording feedback. Present whenever capture is live, so
+                silence still reads as "the microphone is on"; the bars grow with
+                measured amplitude when there is something to hear. */}
+            <div
+              className={`mic-visualizer${micMeterLive ? '' : ' is-static'}`}
+              data-testid="mic-visualizer"
+              data-level={Math.round(micLevel * 100)}
+              data-metering={micMeterLive ? 'live' : 'unavailable'}
+              role="img"
+              aria-label={micMeterLive ? 'Microphone is live and listening' : 'Microphone is recording'}
+            >
+              {[0.55, 0.8, 1, 0.8, 0.55].map((weight, index) => (
+                <span
+                  key={index}
+                  className="mic-bar"
+                  style={{ transform: `scaleY(${(0.18 + micLevel * weight * 0.82).toFixed(3)})` }}
+                />
+              ))}
+            </div>
+            <button className="mic-btn is-listening" data-testid="mic-stop" aria-label="Done speaking" onClick={() => void stopRecordingAndProcess()}>
               ◼
             </button>
             <div className="voice-actions">
-              <button className="primary" data-testid="voice-submit-done" onClick={stopRecordingAndProcess}>Done speaking</button>
+              <button className="primary" data-testid="voice-submit-done" onClick={() => void stopRecordingAndProcess()}>Done speaking</button>
               <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
             </div>
           </>
@@ -595,7 +1119,17 @@ export default function App() {
         )}
         {voiceState === 'speaking' && (
           <div className="voice-actions">
-            <button data-testid="voice-interrupt" onClick={cancelVoice}>Interrupt</button>
+            {/* Barge-in: the player takes the floor without waiting for the
+                Cartographer to finish, and the conversation stays alive. This
+                used to cancel the whole voice session, which is not what
+                interrupting someone means. */}
+            <button
+              data-testid="voice-interrupt"
+              onClick={() => { cancelSpeech(); if (conversationActive.current) void beginListeningTurn(conversationId.current); else cancelVoice(); }}
+            >
+              Interrupt
+            </button>
+            <button data-testid="voice-cancel-speaking" onClick={cancelVoice}>Cancel</button>
           </div>
         )}
         {voiceState === 'error' && (
@@ -604,11 +1138,12 @@ export default function App() {
             <button data-testid="voice-fallback-type" onClick={()=>toggleVoiceMode('type')}>Switch to typing</button>
           </div>
         )}
+        <button className="link-btn" data-testid="mode-type" onClick={()=>toggleVoiceMode('type')}>Type instead</button>
       </div>
     )}
 
-    {renderAgency(()=>setReply('Passed. No penalty.'), prompt.dimension)}
-  </section>;
+    {renderActionBar(()=>setReply('Passed. No penalty.'), prompt.dimension)}
+  </div>;
 
   const fragmentCount = state.territories.filter((t)=>state.mapFragments.some((f)=>f.territoryId===t.id)).length;
   const unlockedAchievements = state.achievements.filter((a)=>a.unlockedAt);
@@ -687,11 +1222,13 @@ export default function App() {
         setActiveCapture(null);
       }
       setVoiceState('idle');
+      endConversation();
+      stopLevelMeter();
       submitInFlight.current = false;
       setIsSubmitting(false);
       setState(deserializeCampaign(await file.text()));
       setMessage('Atlas imported and validated.');
-      setScreen('map');
+      setScreen('world');
     } catch (error) {
       setMessage(error instanceof Error ? `Import rejected: ${error.message}` : 'Import rejected.');
     }
@@ -699,7 +1236,7 @@ export default function App() {
 
   const renderMe = () => <section className="screen">
     <div className="eyebrow">CHARACTER RECORD</div>
-    <div className="profile"><div className="portrait"><img src={GREYSON_MAP_SPRITE} alt="Greyson character avatar" draggable={false}/></div><div><h1>Greyson</h1><p>{state.player.pronouns}</p></div></div>
+    <div className="profile"><div className="portrait"><img src={GREYSON_PORTRAIT} alt="Greyson character avatar" draggable={false}/></div><div><h1>Greyson</h1><p>{state.player.pronouns}</p></div></div>
     {renderProgress()}
     <div className="stats">
       <div><b>{state.evidence.filter((e)=>e.status==='active').length}</b><small>Evidence</small></div>
@@ -837,7 +1374,22 @@ export default function App() {
       )}
     </article>
 
-    <article className="card settings"><h2>Cartographer</h2><label>Sass<select value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label></article>
+    <article className="card settings"><h2>Cartographer</h2><label>Sass<select data-testid="sass-select" value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label>
+      {voiceChoices.length>1&&<label>Voice<select
+        data-testid="voice-select"
+        value={voiceUri ?? ''}
+        onChange={(event)=>{
+          const chosen = event.target.value || null;
+          setVoicePreference(chosen);
+          forgetResolvedVoice();
+          setVoiceUri(chosen);
+          setMessage(chosen ? `Cartographer voice set to ${voiceChoices.find((v)=>v.voiceURI===chosen)?.name ?? 'your choice'}.` : 'Cartographer voice set automatically.');
+        }}
+      >
+        <option value="">Automatic ({voiceChoices[0]?.name})</option>
+        {voiceChoices.map((voice)=><option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} · {voice.lang}</option>)}
+      </select></label>}
+      {voiceChoices.length>0&&<p className="settings-note">Spoken by {voiceChoices.find((v)=>v.voiceURI===voiceUri)?.name ?? voiceChoices[0]?.name}. Stored on this device only.</p>}</article>
     <article className="card settings"><h2>Your Atlas</h2><p className="settings-note">Everything lives on this device. Export a copy before you switch phones or clear data.</p><button onClick={()=>downloadCampaign(state)}>Export Atlas</button><label className="file">Import Atlas<input type="file" accept="application/json,.json,.atlas" onChange={(e)=>void importFile(e.target.files?.[0])}/></label></article>
     <article className="card settings access-section">
       <h2>Cartographer Access Code</h2>
@@ -886,30 +1438,11 @@ export default function App() {
       voiceMode: onboardingMode === 'talk' ? 'talk' : 'text'
     });
     setVoiceMode(onboardingMode);
-    setScreen('map');
+    setScreen('world');
   };
 
   const renderOnboarding = () => (
     <section className="onboarding-screen">
-      {onboardingStep === 1 && (
-        <article className="card onboarding-card" data-testid="onboarding-step-1">
-          <span className="eyebrow">THE GREYSON MAP</span>
-          <h1>Atlas of One</h1>
-          <p className="onboarding-intro">
-            An adaptive personality cartography expedition. Explore uncharted territories of yourself through conversation, unlock insights, and chart your inner landscape.
-          </p>
-          <div className="onboarding-actions">
-            <button
-              className="primary"
-              data-testid="onboarding-begin"
-              onClick={() => setOnboardingStep(2)}
-            >
-              Begin
-            </button>
-          </div>
-        </article>
-      )}
-
       {onboardingStep === 2 && (
         <article className="card onboarding-card" data-testid="onboarding-step-2">
           <span className="eyebrow">STEP 1 OF 3</span>
@@ -1066,15 +1599,111 @@ export default function App() {
   const isCompletedLocally = typeof window !== 'undefined' && window.localStorage?.getItem('atlas_onboarding_completed') === 'true';
   const showOnboarding = hydrated && !hasCompletedOnboarding(state, isCompletedLocally);
 
-  return <div className="shell">
+  /**
+   * Wake Atlas. This IS the canonical "Begin" step, so a first-run campaign
+   * moves straight to the sass choice rather than being asked to begin twice.
+   */
+  const wake = () => {
+    if (awake || revealing) return;
+    setOnboardingStep((step) => (step === 1 ? 2 : step));
+    // The mark blooms and the name arrives with it. Reduced motion gets the same
+    // reveal without the decoration — essentially immediate, never a wait.
+    const quiet = state.settings.reducedMotion
+      || (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    setRevealing(true);
+    window.setTimeout(() => {
+      setRevealing(false);
+      setWaking(true);
+      setAwake(true);
+      window.setTimeout(() => setWaking(false), 400);
+    }, quiet ? 140 : 760);
+  };
+
+  /**
+   * The cold open owns first paint and holds until hydration has settled, so
+   * the interface is never briefly painted and then replaced. The application
+   * tree is not rendered at all underneath — there is nothing to focus, tab to
+   * or click through.
+   */
+  if (!awake || !hydrated) {
+    return <div className={`shell cold-open${revealing ? ' is-revealing' : ''}`}>
+      <div className="cold-open-scene">
+        {/* Dormant environmental presence, not a control: no name, no tagline,
+            no instruction until the player has actually engaged. */}
+        <span className="cold-open-mark" aria-hidden="true" />
+        {revealing && (
+          <>
+            <h1 className="cold-open-title">Atlas of One</h1>
+            <p className="cold-open-sub">The Greyson Map</p>
+          </>
+        )}
+      </div>
+      {/* The whole viewport is the activation surface, so nothing reads as a
+          conventional button while still being a real, focusable, named one. */}
+      <button
+        type="button"
+        className="cold-open-surface"
+        data-testid="cold-open"
+        aria-label="Wake Atlas of One"
+        onClick={wake}
+      />
+    </div>;
+  }
+
+  /** One menu, holding the places that are not the world. */
+  const renderMenu = () => menuOpen && <div className="menu-scrim" data-testid="menu" onClick={()=>setMenuOpen(false)}>
+    <div className="menu" role="dialog" aria-label="Menu" onClick={(event)=>event.stopPropagation()} onKeyDown={(event)=>{ if(event.key==='Escape') setMenuOpen(false); }}>
+      <button className="menu-item" data-testid="go-vault" onClick={()=>{setScreen('vault');setMenuOpen(false);}}>
+        <span aria-hidden="true">▤</span><span><strong>Vault</strong><small>{state.mapFragments.length} of {state.territories.length} fragments · {state.insights.length} insight{state.insights.length===1?'':'s'}</small></span>
+      </button>
+      <button className="menu-item" data-testid="go-character" onClick={()=>{setScreen('me');setMenuOpen(false);}}>
+        <span aria-hidden="true">☗</span><span><strong>Greyson</strong><small>Level {state.level} · character, settings and your data</small></span>
+      </button>
+      {(openBosses.length>0||openDoors.length>0)&&<div className="menu-encounters" data-testid="encounter-offers">
+        <span className="eyebrow">OPEN ENCOUNTERS</span>
+        {openBosses.map((boss)=>{const run=state.bossRuns.find((item)=>item.bossId===boss.id&&item.status==='active');const done=run?run.stages.filter((stage)=>stage.outcome!=='pending').length:0;return <button key={boss.id} className="menu-item offer boss" data-testid={`start-${boss.id}`} onClick={()=>{dispatch({type:'BOSS_STARTED',bossId:boss.id});setReply('');setMenuOpen(false);setTalking(true);}}><span aria-hidden="true">▲</span><span><strong>{run?'Resume: ':''}{boss.label}</strong><small>{run?`Stage ${done+1} of ${run.stages.length} · progress kept`:boss.description}</small></span></button>;})}
+        {openDoors.slice(0,3).map((door)=><button key={door.doorId} className="menu-item offer door" data-testid={`open-${door.doorId}`} onClick={()=>{dispatch({type:'DOOR_OPENED',doorId:door.doorId});setReply('');setMenuOpen(false);setTalking(true);}}><span aria-hidden="true">◈</span><span><strong>{territoryLabels[door.territoryIds[0]]} × {territoryLabels[door.territoryIds[1]]}</strong><small>What connects these two regions that neither shows alone.</small></span></button>)}
+      </div>}
+      <button className="menu-close" data-testid="menu-close" onClick={()=>setMenuOpen(false)}>Close</button>
+    </div>
+  </div>;
+
+  /** Vault and the character record are visited, then left behind. */
+  const renderSheet = (title: string, body: JSX.Element) => <div className="sheet" data-testid="sheet">
+    <div className="sheet-bar">
+      <button className="sheet-back" data-testid="close-sheet" aria-label="Back to the map" onClick={()=>setScreen('world')}><span aria-hidden="true">←</span> Map</button>
+      <span className="sheet-title">{title}</span>
+    </div>
+    <div className="sheet-body">{body}</div>
+  </div>;
+
+  // Territory notices are carried by the island itself, so they never queue a banner.
+  const banners = notices.filter((notice) => notice.kind !== 'territory').slice(0, MAX_BANNERS);
+
+  return <div className={`shell${waking ? ' is-waking' : ''}`}>
     {message&&<div className="toast" role="status">{message}<button aria-label="Dismiss" onClick={()=>setMessage('')}>×</button></div>}
     {showOnboarding ? (
       renderOnboarding()
     ) : (
       <>
-        {notices.length>0&&<div className="overlay"><article className="unlock"><span className="eyebrow">MAP UPDATED</span><h2>{notices[0].title}</h2><p>{notices[0].detail}</p><button className="primary" onClick={()=>dispatch({type:'PRESENTATION_QUEUE_CLEARED'})}>Continue</button></article></div>}
-        {screen==='map'?renderMap():screen==='talk'?renderTalk():screen==='vault'?renderVault():renderMe()}
-        <nav aria-label="Main">{(['map','talk','vault','me'] as Screen[]).map((item)=><button key={item} className={screen===item?'active':''} aria-current={screen===item?'page':undefined} onClick={()=>setScreen(item)}><span aria-hidden="true">{item==='map'?'⌖':item==='talk'?'◉':item==='vault'?'▤':'☗'}</span><small>{item==='me'?'Me':item[0].toUpperCase()+item.slice(1)}</small></button>)}</nav>
+        {renderWorld()}
+        {talking && (encounter ? renderEncounter() : renderConversation())}
+
+        {/* Milestones land on the world, briefly, without blocking anything. */}
+        {banners.length>0&&<div className={`banners${quiet?' is-quiet':''}`} data-testid="milestone" role="status" aria-live="polite">
+          {banners.map((notice, index)=><article key={notice.id} className={`banner kind-${notice.kind}`} data-testid={`milestone-item-${notice.kind}`} style={{animationDelay:`${index*90}ms`}}>
+            <b aria-hidden="true">{MILESTONE_GLYPH[notice.kind]}</b>
+            <div>
+              <span className="banner-eyebrow">{MILESTONE_EYEBROW[notice.kind]}</span>
+              <strong {...(index===0?{'data-testid':'milestone-title'}:{})}>{notice.title}</strong>
+              {notice.kind==='level'&&<small>{notice.detail}</small>}
+            </div>
+          </article>)}
+        </div>}
+
+        {renderMenu()}
+        {screen==='vault'&&renderSheet('Vault', renderVault())}
+        {screen==='me'&&renderSheet('Greyson', renderMe())}
       </>
     )}
   </div>;

@@ -1,3 +1,4 @@
+import { openAgency, wakeAtlas, navigateTo } from './helper';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
@@ -35,11 +36,19 @@ afterAll(async () => {
 });
 
 describe('Phase 6 minimal canonical onboarding browser proof', () => {
-  it('1. new campaign displays Screen 1: Begin', async () => {
-    await page.waitForSelector('[data-testid="onboarding-step-1"]');
-    expect(await page.isVisible('[data-testid="onboarding-begin"]')).toBe(true);
-    expect(await page.textContent('h1')).toBe('Atlas of One');
-    expect(await page.isVisible('nav')).toBe(false);
+  it('1. a dormant launch shows no chrome, no branding and no instruction', async () => {
+    await page.waitForSelector('[data-testid="cold-open"]');
+    expect(await page.isVisible('[data-testid="cold-open"]')).toBe(true);
+
+    // Step 1 IS the wake. Nothing legible may appear before engagement — no
+    // application chrome, and no name, tagline or instruction either.
+    expect(await page.locator('nav[aria-label="Main"]').count()).toBe(0);
+    expect(await page.locator('h1').count(), 'no title before engagement').toBe(0);
+    const visibleText = (await page.textContent('.shell'))?.trim() ?? '';
+    expect(visibleText, 'the dormant screen carries no copy at all').toBe('');
+
+    // Only the faint environmental mark remains, and it is not a control.
+    expect(await page.locator('.cold-open-mark').count()).toBe(1);
   });
 
   it('2. 320px viewport has zero horizontal overflow during onboarding', async () => {
@@ -51,15 +60,23 @@ describe('Phase 6 minimal canonical onboarding browser proof', () => {
   });
 
   it('3. critical targets are >= 44px on onboarding screens', async () => {
-    const beginBtn = page.locator('[data-testid="onboarding-begin"]');
+    const beginBtn = page.locator('[data-testid="cold-open"]');
     const box = await beginBtn.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.height).toBeGreaterThanOrEqual(44);
     expect(box!.width).toBeGreaterThanOrEqual(44);
   });
 
-  it('4. Screen 1: Begin advances to Screen 2: Choose sass', async () => {
-    await page.click('[data-testid="onboarding-begin"]');
+  it('3b. waking reveals the identity, then hands over to Atlas', async () => {
+    await page.click('[data-testid="cold-open"]');
+    // Identity is discovered by waking it, not presented beforehand.
+    await page.waitForSelector('.cold-open-title', { timeout: 5_000 });
+    expect(await page.textContent('.cold-open-title')).toBe('Atlas of One');
+    expect(await page.textContent('.cold-open-sub')).toBe('The Greyson Map');
+    await page.waitForSelector('[data-testid="onboarding-step-2"]', { timeout: 10_000 });
+  });
+
+  it('4. Atlas is on Screen 2 after waking, with no second Begin', async () => {
     await page.waitForSelector('[data-testid="onboarding-step-2"]');
     expect(await page.textContent('h2')).toContain('Cartographer Sass');
     expect(await page.isVisible('[data-testid="onboarding-sass-low"]')).toBe(true);
@@ -118,29 +135,39 @@ describe('Phase 6 minimal canonical onboarding browser proof', () => {
   it('10. keyboard navigation can trigger Start', async () => {
     await page.focus('[data-testid="onboarding-start"]');
     await page.keyboard.press('Enter');
-    await page.waitForSelector('.map');
-    expect(await page.isVisible('.map')).toBe(true);
-    expect(await page.isVisible('nav')).toBe(true);
+    await page.waitForSelector('[data-testid="world"]');
+    expect(await page.isVisible('[data-testid="world"]')).toBe(true);
+    // Onboarding lands straight in the world, with the way in and the menu on it.
+    expect(await page.isVisible('[data-testid="enter-encounter"]')).toBe(true);
+    expect(await page.isVisible('[data-testid="open-menu"]')).toBe(true);
   });
 
   it('11. onboarding does not alter XP, evidence, or unlocks', async () => {
-    const xp = Number((await page.textContent('.xp span'))!.replace(/\D/g, ''));
+    // Progression is read from the values the world HUD renders from.
+    const xp = Number(await page.getAttribute('[data-testid="hud-progress"]', 'data-xp'));
     expect(xp).toBe(0);
-    const level = (await page.textContent('.level'))!.trim();
-    expect(level).toBe('L1');
+    expect(await page.textContent('[data-testid="hud-level"]')).toBe('L1');
   });
 
   it('12. onboarding completion survives reload locally in IndexedDB', async () => {
     await page.reload({ waitUntil: 'load' });
-    await page.waitForSelector('.map');
-    expect(await page.isVisible('.map')).toBe(true);
-    expect(await page.isVisible('[data-testid="onboarding-step-1"]')).toBe(false);
+    // Every launch is a cold open, including a reload — so wake, then verify the
+    // completed campaign comes back rather than replaying onboarding.
+    await page.waitForSelector('[data-testid="cold-open"]');
+    await wakeAtlas(page);
+    await page.waitForSelector('[data-testid="world"]');
+    expect(await page.isVisible('[data-testid="world"]')).toBe(true);
+    expect(await page.locator('[data-testid="cold-open"]').count()).toBe(0);
   });
 
   it('13. permanent controls remain fully available on Talk screen afterward', async () => {
-    await page.click('nav button:has(small:text-is("Talk"))');
-    await page.waitForSelector('.agency');
+    await navigateTo(page, 'Talk');
+    await page.waitForSelector('[data-testid="action-bar"]');
+    // PASS is primary; everything else is behind one tap of MORE and still
+    // unconditionally available - onboarding grants no control, it only explains.
     expect(await page.isVisible('[data-testid="agency-pass"]')).toBe(true);
+    await openAgency(page);
+    await page.waitForSelector('.agency');
     expect(await page.isVisible('[data-testid="agency-private"]')).toBe(true);
     expect(await page.isVisible('[data-testid="agency-stop"]')).toBe(true);
     expect(await page.isVisible('[data-testid="agency-serious"]')).toBe(true);

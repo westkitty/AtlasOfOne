@@ -27,7 +27,9 @@ describe('speech synthesis wrapper', () => {
     (globalThis as any).window = {
       speechSynthesis: {
         speak: speakMock,
-        cancel: cancelMock
+        cancel: cancelMock,
+        // No usable voice list here: the wrapper must still speak.
+        getVoices: () => []
       }
     };
     (globalThis as any).SpeechSynthesisUtterance = class {
