@@ -1071,3 +1071,28 @@ html[data-reduced-motion="true"] .world-enter { animation: none; }
   .world-greyson.is-walking img, .wm-fogbank, .banner, .world-enter { animation: none; }
   .world-mark, .wm-ping { animation: none; opacity: 1; }
 }
+
+/* ---- development voice lab (never shown in ordinary play) ------------- */
+
+.lab { max-width: 760px; margin: 0 auto; padding: 24px 18px 60px; }
+.lab-head h1 { font-size: clamp(1.5rem, 6vw, 2rem); margin: .3rem 0 .4rem; }
+.lab-note { font-size: .82rem; }
+.lab-rate { display: flex; align-items: center; gap: 12px; margin: 14px 0 10px; font-size: .8rem; color: var(--muted); }
+.lab-rate input { flex: 1; max-width: 280px; }
+.lab-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+.lab-actions button, .lab-samples button {
+  min-height: 44px; padding: 10px 14px;
+  border: 1px solid var(--line-soft); border-radius: 12px;
+  background: var(--panel-2); color: var(--ink); font-size: .8rem;
+}
+.lab-list { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; }
+.lab-voice { padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-2); }
+.lab-voice.is-chosen { border-color: var(--gold); }
+.lab-voice-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+.lab-voice-head strong { font: 700 1.05rem/1.2 Georgia, serif; }
+.lab-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.lab-tags em { font-style: normal; font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.lab-tags em.is-auto { color: var(--gold); }
+.lab-samples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.lab-samples button.is-speaking { border-color: var(--gold); color: var(--gold); }
+.lab-choose { border-color: #6d6040 !important; color: var(--gold-soft) !important; }

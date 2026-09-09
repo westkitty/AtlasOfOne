@@ -194,7 +194,8 @@ describe('Atlas browser journey', () => {
     await openAgency(page);
     await page.click('[data-testid="agency-sass"]');
     await goto('Me');
-    const select = page.locator('.settings select');
+    // The Cartographer card now also carries a voice picker, so target sass exactly.
+    const select = page.locator('[data-testid="sass-select"]');
     expect(await select.isDisabled()).toBe(false);
     for (const value of ['low', 'risks-understood', 'medium']) {
       await select.selectOption(value);

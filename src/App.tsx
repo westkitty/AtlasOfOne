@@ -18,6 +18,7 @@ import { isAudioCaptureSupported, startAudioCapture, type ActiveAudioCapture } f
 import { parseVoiceCommand } from './voice/commands';
 import { transitionVoiceState, voiceStateLabel } from './voice/state';
 import { cancelSpeech, speakText } from './voice/synthesis';
+import { availableVoices, forgetResolvedVoice, getVoicePreference, primeVoices, setVoicePreference } from './voice/voices';
 import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
 
 type Screen = 'world'|'vault'|'me';
@@ -249,6 +250,13 @@ export default function App() {
   /** The conversation panel scrolls; an opened sheet must not open off-screen. */
   const agencySheetRef = useRef<HTMLDivElement | null>(null);
   /**
+   * Which voice the Cartographer speaks with. Stored locally on the device only:
+   * it never enters CampaignState, an export, or a provider payload.
+   */
+  const [voiceChoices, setVoiceChoices] = useState<ReturnType<typeof availableVoices>>([]);
+  const [voiceUri, setVoiceUri] = useState<string | null>(() => getVoicePreference());
+  useEffect(() => { void primeVoices().then(() => setVoiceChoices(availableVoices())); }, []);
+  /**
    * Transient reaction to a committed turn: how much XP the engine just granted
    * and where the mark landed. Derived by observing state that has ALREADY been
    * committed, never by predicting it, so this cannot become a second source of
@@ -283,6 +291,7 @@ export default function App() {
       .finally(() => { if (live) setHydrated(true); });
     return () => { live = false; };
   }, []);
+  useEffect(() => { void primeVoices(); }, []);
   useEffect(() => { if (hydrated) void saveCampaign(state).catch(() => setMessage('Automatic save failed. Export before leaving.')); }, [state, hydrated]);
   useEffect(() => { document.documentElement.dataset.reducedMotion = String(state.settings.reducedMotion); }, [state.settings.reducedMotion]);
   // No live audio context may outlive the component.
@@ -1366,7 +1375,22 @@ export default function App() {
       )}
     </article>
 
-    <article className="card settings"><h2>Cartographer</h2><label>Sass<select value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label></article>
+    <article className="card settings"><h2>Cartographer</h2><label>Sass<select data-testid="sass-select" value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label>
+      {voiceChoices.length>1&&<label>Voice<select
+        data-testid="voice-select"
+        value={voiceUri ?? ''}
+        onChange={(event)=>{
+          const chosen = event.target.value || null;
+          setVoicePreference(chosen);
+          forgetResolvedVoice();
+          setVoiceUri(chosen);
+          setMessage(chosen ? `Cartographer voice set to ${voiceChoices.find((v)=>v.voiceURI===chosen)?.name ?? 'your choice'}.` : 'Cartographer voice set automatically.');
+        }}
+      >
+        <option value="">Automatic ({voiceChoices[0]?.name})</option>
+        {voiceChoices.map((voice)=><option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} · {voice.lang}</option>)}
+      </select></label>}
+      {voiceChoices.length>0&&<p className="settings-note">Spoken by {voiceChoices.find((v)=>v.voiceURI===voiceUri)?.name ?? voiceChoices[0]?.name}. Stored on this device only.</p>}</article>
     <article className="card settings"><h2>Your Atlas</h2><p className="settings-note">Everything lives on this device. Export a copy before you switch phones or clear data.</p><button onClick={()=>downloadCampaign(state)}>Export Atlas</button><label className="file">Import Atlas<input type="file" accept="application/json,.json,.atlas" onChange={(e)=>void importFile(e.target.files?.[0])}/></label></article>
     <article className="card settings access-section">
       <h2>Cartographer Access Code</h2>
