@@ -10,7 +10,7 @@ import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefi
 import { applyGameEvents, campaignReachedEndState, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
 import type { CampaignState, GameEvent, PresentationNotice, SassLevel, TerritoryStatus } from './game/types';
 import { WorldMap } from './world/WorldMap';
-import { regionFor } from './world/geography';
+import { neighboursOf, regionFor } from './world/geography';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
 import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
 import { clearAccessSecret, getAccessHeaders, getAccessSecret, setAccessSecret } from './voice/access';
@@ -22,28 +22,8 @@ import { availableVoices, forgetResolvedVoice, getVoicePreference, primeVoices, 
 import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
 
 type Screen = 'world'|'vault'|'me';
-const GREYSON_MAP_SPRITE = '/assets/greyson/map/idle-front.png';
-/**
- * Canonical 48x64 runtime sprites, already in the repository. `right` reuses the
- * left-facing render mirrored in CSS rather than inventing a sixth drawing.
- */
-/**
- * The sprites Greyson is actually drawn from.
- *
- * Only three of the five canonical 48x64 runtime slots are usable: rendering
- * every slot in a real browser showed `idle-qfront.png` to be entirely
- * transparent and `idle-back.png` to be colour-corrupted across the torso. Both
- * are excluded here rather than shipped, and `idle-qback.png` — a clean rear
- * three-quarter view — carries "walking away". `right` mirrors `left` in CSS so
- * no sixth drawing is invented. See the handoff notes: those two files need
- * re-exporting from the canonical source before they can be used.
- */
-const GREYSON_SPRITES: Record<'front' | 'back' | 'left' | 'right', string> = {
-  front: '/assets/greyson/map/idle-front.png',
-  back: '/assets/greyson/map/idle-qback.png',
-  left: '/assets/greyson/map/idle-left.png',
-  right: '/assets/greyson/map/idle-left.png'
-};
+/** The character record shows the restored 96x96 portrait from the art pack. */
+const GREYSON_PORTRAIT = '/assets/atlas/v3/greyson/portrait-neutral.png';
 
 /** How many milestones share the screen at once, and for how long. */
 const MAX_BANNERS = 2;
@@ -247,6 +227,8 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   /** True while Greyson is actually crossing the island, so he can walk. */
   const [travelling, setTravelling] = useState(false);
+  /** The region a journey departed from, so travel follows the trail between them. */
+  const [travelFrom, setTravelFrom] = useState<string | null>(null);
   /** The conversation panel scrolls; an opened sheet must not open off-screen. */
   const agencySheetRef = useRef<HTMLDivElement | null>(null);
   /**
@@ -409,8 +391,9 @@ export default function App() {
     if (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y)) setFacing(end.x >= start.x ? 'right' : 'left');
     else setFacing(end.y < start.y ? 'back' : 'front');
     if (state.settings.reducedMotion) return;
+    setTravelFrom(from);
     setTravelling(true);
-    const timer = window.setTimeout(() => setTravelling(false), 1200);
+    const timer = window.setTimeout(() => { setTravelling(false); setTravelFrom(null); }, 2700);
     return () => window.clearTimeout(timer);
   }, [state.activeTerritory, state.settings.reducedMotion]);
 
@@ -869,6 +852,21 @@ export default function App() {
    * from real state and carries no XP: it describes the campaign, it does not
    * reward it.
    */
+  /**
+   * Where the player may legitimately go next.
+   *
+   * A neighbour is offered only if it still has an askable dimension, which is
+   * the engine's own viability rule read back — the map never invents a
+   * destination the campaign would refuse. Travelling awards nothing; it only
+   * changes where the next question comes from.
+   */
+  const reachableRegions = useMemo(() => neighboursOf(state.activeTerritory).filter((id) => {
+    const territory = state.territories.find((item) => item.id === id);
+    return Boolean(territory) && territory!.requiredDimensions.some(
+      (dimension) => !state.privateTopics.includes(dimension) && !territory!.coveredDimensions.includes(dimension)
+    );
+  }), [state.activeTerritory, state.territories, state.privateTopics]);
+
   const chartedCount = state.territories.filter((t) => t.status === 'charted' || t.status === 'deeply-charted').length;
   const objective = quest
     ? { eyebrow: 'CURRENT QUEST', label: quest.label, detail: quest.description, progress: quest.progress, target: quest.target }
@@ -957,10 +955,11 @@ export default function App() {
       state={state}
       facing={facing}
       travelling={travelling}
+      travelFrom={travelFrom}
       mark={pulse}
-      sprite={GREYSON_SPRITES[facing]}
+      reachable={reachableRegions}
       reducedMotion={state.settings.reducedMotion}
-      onSelectRegion={(territoryId) => dispatch({ type: 'ACTIVE_TERRITORY_SET', territoryId })}
+      onSelectRegion={(territoryId) => { if (territoryId !== state.activeTerritory) dispatch({ type: 'ACTIVE_TERRITORY_SET', territoryId }); }}
     />
 
     <div className="hud" data-testid="hud">
@@ -1237,7 +1236,7 @@ export default function App() {
 
   const renderMe = () => <section className="screen">
     <div className="eyebrow">CHARACTER RECORD</div>
-    <div className="profile"><div className="portrait"><img src={GREYSON_MAP_SPRITE} alt="Greyson character avatar" draggable={false}/></div><div><h1>Greyson</h1><p>{state.player.pronouns}</p></div></div>
+    <div className="profile"><div className="portrait"><img src={GREYSON_PORTRAIT} alt="Greyson character avatar" draggable={false}/></div><div><h1>Greyson</h1><p>{state.player.pronouns}</p></div></div>
     {renderProgress()}
     <div className="stats">
       <div><b>{state.evidence.filter((e)=>e.status==='active').length}</b><small>Evidence</small></div>

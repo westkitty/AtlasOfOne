@@ -139,7 +139,7 @@ describe('first-run hydration race', () => {
       expect(await page.isVisible('[data-testid="world"]')).toBe(true);
 
       // The exact locators the failing CI run could not reach must now resolve.
-      expect(await page.getAttribute('.avatar img', 'src')).toBe('/assets/greyson/map/idle-front.png');
+      expect(await page.getAttribute('.avatar img', 'src')).toMatch(/^\/assets\/atlas\/v3\/greyson\/idle-front-\d\d\.png$/);
       await navigateTo(page, 'Talk');
       expect(await page.isVisible('[data-testid="convo"]'), 'the conversation opened over the world').toBe(true);
     } finally {

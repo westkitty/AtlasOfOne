@@ -80,7 +80,8 @@ describe('Atlas browser journey', () => {
 
   it('2. renders the canonical Greyson sprite', async () => {
     const sprite = page.locator('.avatar img');
-    await expect.poll(() => sprite.getAttribute('src')).toBe('/assets/greyson/map/idle-front.png');
+    // The runtime now draws Greyson from the generated art pack, and idles cycle.
+    await expect.poll(() => sprite.getAttribute('src')).toMatch(/^\/assets\/atlas\/v3\/greyson\/idle-front-\d\d\.png$/);
     // Proves the bytes actually decoded in the browser, not merely that a tag exists.
     const natural = await sprite.evaluate((node) => ({
       width: (node as HTMLImageElement).naturalWidth,

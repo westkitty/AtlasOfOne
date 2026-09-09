@@ -17,6 +17,7 @@ into the existing world without any layout change.
 
 from __future__ import annotations
 import numpy as np
+from scipy.ndimage import binary_erosion as ndimage_binary_erosion
 from dataclasses import dataclass, field
 
 W, H = 360, 640
@@ -34,10 +35,12 @@ MASSES = [
     (92, 208, 78, 66, 0.90),     # western highland shoulder
     (286, 216, 74, 66, 0.88),    # eastern terraces
     (178, 330, 104, 92, 0.95),   # central basin — the origin clearing
-    (150, 420, 116, 84, 0.90),   # south-west lowland
-    (96, 436, 76, 62, 0.88),     # coastal flat + river mouth
-    (286, 438, 74, 62, 0.86),    # south-east marsh basin
-    (172, 528, 88, 62, 0.86),    # southern valley
+    (146, 412, 108, 78, 0.90),   # south-west lowland
+    (88, 436, 74, 60, 0.88),     # coastal flat + river mouth
+    (288, 438, 76, 64, 0.86),    # south-east marsh basin
+    (166, 524, 82, 58, 0.86),    # southern valley
+    (206, 486, 62, 52, 0.80),    # the ridge that divides the southern valleys
+    (118, 512, 52, 40, 0.74),    # south-west headland
 ]
 
 CAPE = (268, 592, 46, 34, 1.0)   # offshore islet, reached by sea
@@ -48,6 +51,8 @@ RIDGES = [
     ([(64, 176), (92, 206), (112, 246)], 0.92, 38),              # western ridge
     ([(312, 178), (288, 214), (266, 252)], 0.88, 36),            # eastern terraces
     ([(196, 168), (186, 214)], 0.62, 40),                        # saddle to the centre
+    ([(196, 468), (216, 500), (206, 534)], 0.58, 30),            # southern hill spine
+    ([(126, 498), (108, 524)], 0.44, 24),                        # south-west headland
 ]
 
 # Basins push elevation down — real low ground, not just flat.
@@ -55,7 +60,9 @@ BASINS = [
     ((178, 336), 0.42, 74),   # the origin clearing
     ((96, 448), 0.50, 62),    # river mouth flat
     ((288, 448), 0.58, 60),   # the marsh
-    ((172, 534), 0.38, 60),   # southern valley
+    ((166, 530), 0.40, 52),   # southern valley
+    ((150, 470), 0.66, 40),   # the bay that bites into the south-west coast
+    ((252, 512), 0.44, 34),   # southern sound
 ]
 
 # Region anchors. `stand` is where Greyson's feet go.
@@ -100,18 +107,23 @@ PAL = {
     'sea_mid':    (8, 15, 23),
     'sea_shal':   (13, 26, 38),
     'surf':       (30, 52, 70),
-    'sand':       (74, 74, 66),
-    'marsh':      (26, 38, 40),
-    'low':        (34, 50, 45),
-    'grass':      (45, 62, 52),
-    'grass_hi':   (58, 76, 61),
-    'slope':      (76, 88, 70),
-    'rock':       (98, 104, 84),
-    'rock_hi':    (124, 124, 100),
-    'peak':       (156, 150, 118),
+    'sand':       (92, 84, 66),
+    'marsh':      (30, 40, 40),
+    'low':        (40, 52, 44),
+    'grass':      (52, 65, 50),
+    'grass_hi':   (66, 79, 57),
+    'slope':      (86, 94, 66),
+    'rock':       (110, 111, 80),
+    'rock_hi':    (140, 134, 96),
+    'peak':       (174, 161, 114),
     'cliff':      (16, 24, 28),
-    'forest':     (28, 46, 38),
-    'forest_hi':  (40, 62, 48),
+    'forest':     (31, 45, 34),
+    'forest_hi':  (45, 62, 43),
+    'meadow':     (74, 84, 56),
+    'pool':       (24, 40, 50),
+    'deadwood':   (58, 50, 42),
+    'warm_rim':   (168, 146, 96),
+    'glow':       (120, 98, 60),
     'river':      (20, 38, 52),
     'gold':       (217, 197, 143),
     'gold_soft':  (241, 221, 165),
@@ -295,11 +307,11 @@ def render_terrain(mask, elev, river, rng):
     dn_se = np.zeros((H, W), dtype=bool)
     up_nw[1:, 1:] = (idx[1:, 1:] > idx[:-1, :-1]) & mask[1:, 1:] & steep[1:, 1:]
     dn_se[:-1, :-1] = (idx[:-1, :-1] > idx[1:, 1:]) & mask[:-1, :-1] & steep[:-1, :-1]
-    lit = np.array(PAL['stone_hi'], dtype=np.int16)
+    lit = np.array(PAL['warm_rim'], dtype=np.int16)
     for i, (_, key) in enumerate(BANDS):
         sel = up_nw & (idx == i)
         base = np.array(PAL[key], dtype=np.int16)
-        rgb[sel] = np.clip(base + (lit - base) * 0.30, 0, 255).astype(np.uint8)
+        rgb[sel] = np.clip(base + (lit - base) * 0.42, 0, 255).astype(np.uint8)
     rgb[dn_se] = PAL['cliff']
 
     # Forests: deterministic clustered scatter in the mid bands, denser where
@@ -476,3 +488,89 @@ def stamp_landmarks(rgb, rng):
             stamp_marsh(rgb, cx, cy, rng)
         else:
             LANDMARKS[r.landmark](rgb, cx, cy)
+
+
+# ---------------------------------------------------------------------------
+# Region terrain character and lantern light
+# ---------------------------------------------------------------------------
+
+def apply_region_character(rgb, mask, elev, river, rng):
+    """
+    Each region gets terrain that belongs to it, so the island reads as several
+    distinct places rather than one green field with icons dropped on it.
+    """
+    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+
+    def near(cx, cy, r):
+        return (np.hypot(xx - cx, yy - cy) < r) & mask
+
+    # Fears: standing pools, reed clumps and dead timber in the basin.
+    fx, fy = 288, 444
+    marsh = near(fx, fy, 56) & (elev < 0.30)
+    ys, xs = np.nonzero(marsh)
+    sel = rng.random(len(ys))
+    for y, x, r in zip(ys, xs, sel):
+        if r < 0.06:
+            rgb[y, x] = PAL['pool']
+            if x + 1 < W: rgb[y, x + 1] = PAL['pool']
+        elif r < 0.075:
+            rgb[y, x] = PAL['deadwood']
+            if y - 1 >= 0: rgb[y - 1, x] = PAL['deadwood']
+        elif r < 0.12:
+            rgb[y, x] = PAL['marsh']
+
+    # Values: exposed rock on the high western ridge.
+    ys, xs = np.nonzero(near(86, 210, 52) & (elev > 0.52))
+    pick = rng.random(len(ys)) < 0.22
+    for y, x in zip(ys[pick], xs[pick]):
+        rgb[y, x] = PAL['rock_hi'] if rng.random() < 0.4 else PAL['rock']
+
+    # Interests: open meadow in organic patches, not per-pixel speckle, which
+    # just reads as noise at this scale.
+    patch = fbm((H, W), rng, octaves=3, freq=0.05)
+    meadow = near(168, 528, 50) & (elev < 0.42) & ~river & (patch > 0.55)
+    rgb[meadow] = PAL['meadow']
+    edge = meadow & ~ndimage_binary_erosion(meadow)
+    rgb[edge] = PAL['grass_hi']
+
+    # Identity: an actual clearing. The forest is cut back from the stone ring
+    # rather than tinted over, so the ring sits in open ground.
+    d = np.hypot(xx - 178, yy - 330)
+    ragged = fbm((H, W), rng, octaves=3, freq=0.06)
+    clearing = mask & (d < 30 + (ragged - 0.5) * 22)
+    rgb[clearing] = PAL['grass']
+    rim = clearing & (d > 22 + (ragged - 0.5) * 20)
+    rgb[rim] = PAL['grass_hi']
+
+    # Relationships: braided channels spreading into the river mouth.
+    for k in range(5):
+        pts = [(96 + k * 3 - 6, 430), (88 + k * 4 - 6, 452), (76 + k * 5 - 6, 470)]
+        draw_line(rgb, smooth_path(pts), PAL['river'], 1)
+    return rgb
+
+
+def apply_lantern_light(rgb, mask, rng):
+    """
+    Warm light pooled at the places people are.
+
+    The Republic is the brightest thing on the island and everything else falls
+    off from it, which gives the map a focal hierarchy instead of an even wash.
+    """
+    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    warm = np.array(PAL['glow'], dtype=float)
+    out = rgb.astype(float)
+    sources = [
+        (188, 104, 66, 0.40),   # the walled city — the brightest place
+        (92, 442, 34, 0.24),    # settlement hearths
+        (168, 528, 28, 0.16),   # orchard lamps
+        (268, 592, 30, 0.22),   # lighthouse
+        (178, 330, 26, 0.14),   # the stone ring
+        (86, 210, 20, 0.10),    # cairn
+        (290, 218, 20, 0.10),   # terraces
+    ]
+    for cx, cy, radius, strength in sources:
+        d = np.hypot(xx - cx, yy - cy)
+        fall = np.clip(1 - d / radius, 0, 1) ** 2 * strength
+        fall = fall * (0.35 + 0.65 * mask)      # light pools on land, glances off water
+        out += (warm - out) * fall[..., None]
+    return np.clip(out, 0, 255).astype(np.uint8)

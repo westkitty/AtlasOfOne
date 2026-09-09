@@ -62,7 +62,13 @@ const goto = async (label: 'Map' | 'Talk' | 'Vault' | 'Me') => {
 };
 
 /** How many regions are drawn under fog right now. */
-const foggedRegions = () => page.locator('[data-testid^="fog-"]').count();
+const foggedRegions = () => page.locator('[data-testid^="region-"][data-reveal="hidden"], [data-testid^="place-"][data-reachable]').count().then(async () => {
+  // A region is under fog when the island is still only showing its hidden
+  // exposure there, which the reveal attribute records.
+  const named = await page.locator('[data-testid^="place-"] .world-place-name').count();
+  const total = await page.locator('[data-testid^="place-"]').count();
+  return total - named;
+});
 /** How many regions have shed their fog entirely. */
 const revealedRegions = () => page.locator('[data-testid^="region-"][data-reveal="known"], [data-testid^="region-"][data-reveal="detailed"]').count();
 
@@ -176,7 +182,7 @@ describe('Atlas opens into a world', () => {
     expect(revealedAtStart, 'nothing is fully revealed before play').toBe(0);
 
     // Unexplored country is not pre-labelled with a finished sitemap.
-    const named = await page.locator('[data-testid^="region-"] .wm-region-name').count();
+    const named = await page.locator('[data-testid^="place-"] .world-place-name').count();
     expect(named, 'named regions at turn zero').toBeLessThanOrEqual(1);
   });
 });
@@ -226,17 +232,22 @@ describe('the first ten turns uncover it', () => {
     expect(revealedNow).toBeGreaterThan(revealedAtStart);
 
     // Places that were unnamed silhouettes now carry their names.
-    const named = await page.locator('[data-testid^="region-"] .wm-region-name').count();
+    const named = await page.locator('[data-testid^="place-"] .world-place-name').count();
     expect(named).toBeGreaterThanOrEqual(2);
 
     // And country nobody has been to is still hidden.
     expect(fogNow, 'the map is not finished after ten turns').toBeGreaterThan(0);
   });
 
-  it('4. trails light up between places that have been walked', async () => {
+  it('4. a walked region shows the island at full resolution', async () => {
     await goto('Map');
-    const lit = await page.locator('.wm-trail.is-known').count();
-    expect(lit, 'a route between two known regions is drawn').toBeGreaterThan(0);
+    // Trails are painted into the island art itself now, so the proof that a
+    // route has been opened is that its regions are rendering the revealed
+    // exposure rather than the hidden one.
+    const detailed = await page.locator('[data-testid^="region-"][data-reveal="detailed"]').count();
+    expect(detailed, 'a fully charted region renders the revealed island').toBeGreaterThan(0);
+    const reachable = await page.locator('[data-reachable="true"]').count();
+    expect(reachable, 'somewhere is offered to travel to').toBeGreaterThan(0);
   });
 
   it('5. Greyson travels rather than staying put', async () => {

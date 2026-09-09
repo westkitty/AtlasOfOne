@@ -12,3 +12,6 @@ coverage/
 # Python bytecode from the art pipeline
 __pycache__/
 *.pyc
+
+# Release ZIPs are build outputs, not source
+artifacts/

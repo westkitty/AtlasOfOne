@@ -94,90 +94,97 @@ p { color: var(--muted); line-height: 1.5; margin: .4rem 0; }
 
 .world {
   position: relative;
-  width: 100%;
-  height: 100%;
+  display: grid; place-items: center;
+  width: 100%; height: 100%;
   overflow: hidden;
-  background: #070b11;
+  background: #05090e;
   touch-action: manipulation;
 }
-.world-svg { display: block; width: 100%; height: 100%; }
 
-/* Sea and coast */
-.wm-land { fill: #1b2634; stroke: #46617f; stroke-width: 1.4; }
-.wm-coast-glow { fill: none; stroke: #38587c; stroke-width: 7; opacity: .7; }
-
-/* Trails. A sea crossing is dashed because it is not walked. */
-.wm-trail { fill: none; stroke: #4a5f7d; stroke-width: 2; stroke-linecap: round; opacity: .85; }
-.wm-trail.is-glimpsed { stroke: #33445c; stroke-width: 1.4; stroke-dasharray: 2 8; opacity: .5; }
-.wm-trail.is-known { stroke: #8b7a52; stroke-dasharray: none; }
-.wm-trail.is-sea { stroke-dasharray: 5 7; stroke-width: 1.6; }
-
-/* Regions: land that has been walked looks walked. */
-.wm-region { cursor: pointer; }
-.wm-region-fill { fill: #1b2735; opacity: .9; }
-.wm-region-edge { fill: none; stroke: #2f4157; stroke-width: 1; stroke-dasharray: 3 5; }
-.wm-region.rv-hidden .wm-region-fill { fill: #121a24; }
-.wm-region.rv-glimpsed .wm-region-fill { fill: #1a2431; }
-.wm-region.r-exploring .wm-region-fill { fill: #212f40; }
-.wm-region.r-charted .wm-region-fill { fill: #27364a; }
-.wm-region.r-deeply-charted .wm-region-fill { fill: #2d3f55; }
-.wm-region.r-charted .wm-region-edge,
-.wm-region.r-deeply-charted .wm-region-edge { stroke: var(--gold-soft); stroke-dasharray: none; opacity: .7; }
-.wm-region.is-here .wm-region-edge { stroke: var(--gold); stroke-dasharray: none; stroke-width: 1.6; opacity: .95; }
-
-.wm-landmark-ink { fill: none; stroke: #6e809b; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.wm-region.r-charted .wm-landmark-ink,
-.wm-region.r-deeply-charted .wm-landmark-ink { stroke: var(--gold-soft); }
-.wm-region.rv-glimpsed .wm-landmark-ink { stroke: #4a5a72; }
-
-.wm-region-name {
-  fill: var(--ink); font: 700 11px Georgia, serif; letter-spacing: .02em;
-  paint-order: stroke; stroke: #0b1017; stroke-width: 3px; stroke-linejoin: round;
-}
-.wm-region.rv-glimpsed .wm-region-name { fill: #7d8ea6; font-size: 10px; }
-.wm-region.is-here .wm-region-name { fill: var(--gold-soft); }
-.wm-region-sub { fill: var(--muted); font: 700 8px Inter, system-ui, sans-serif; letter-spacing: .06em; }
-.wm-region:focus-visible { outline: none; }
-.wm-region:focus-visible .wm-region-edge { stroke: var(--gold); stroke-width: 2.5; stroke-dasharray: none; }
-
-/* Fog: weather over unknown country, not a hatch swatch. */
-.wm-fog { fill: #0a1017; }
-.wm-fog.is-hidden { opacity: .97; }
-.wm-fog.is-glimpsed { opacity: .62; }
-.wm-fogbank { animation: fog-drift 34s ease-in-out infinite alternate; transform-origin: center; }
-@keyframes fog-drift {
-  from { transform: translate(-5px, 3px) scale(1.01); }
-  to { transform: translate(6px, -4px) scale(1.04); }
+/* The island keeps its aspect ratio and fills whatever the screen allows. */
+.world-frame {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: auto;
 }
 
-.wm-here-glow { pointer-events: none; }
-.wm-ping { fill: none; stroke: var(--gold); stroke-width: 2; opacity: 0; animation: wm-ping 1.2s ease-out; }
-@keyframes wm-ping {
-  0% { r: 10; opacity: .9; }
-  100% { r: 52; opacity: 0; }
+.world-layer {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  image-rendering: pixelated;
+  pointer-events: none;
+  transition: opacity .9s ease;
+  mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
 }
+html[data-reduced-motion="true"] .world-layer { transition: none; }
+
+/* Weather over unknown country, drifting slowly. */
+.world-fog {
+  position: absolute; inset: -6%;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 34% at 22% 18%, #0a121ac9, transparent 70%),
+    radial-gradient(52% 30% at 78% 34%, #0a121ab8, transparent 70%),
+    radial-gradient(64% 26% at 40% 74%, #0a121ab0, transparent 72%);
+  animation: world-fog-drift 46s ease-in-out infinite alternate;
+}
+.world-fog.is-still { animation: none; }
+@keyframes world-fog-drift {
+  from { transform: translate(-2%, 1%) scale(1.02); }
+  to   { transform: translate(3%, -2%) scale(1.06); }
+}
+
+/* Places are real touch targets sitting on the terrain. */
+.world-place {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 46px; min-height: 46px;
+  padding: 0 6px;
+  border: 0; border-radius: 12px;
+  background: transparent;
+  display: grid; place-items: center;
+  z-index: 2;
+}
+.world-place.is-unknown { pointer-events: none; }
+.world-place-name {
+  font: 700 .62rem/1.1 Georgia, serif;
+  letter-spacing: .02em;
+  color: #cdd8e6;
+  text-shadow: 0 0 3px #060a0f, 0 1px 4px #060a0f, 0 0 8px #060a0f;
+  white-space: nowrap;
+  transform: translateY(-42px);
+}
+.world-place.is-here .world-place-name { color: var(--gold-soft); }
+
+/* A reachable destination glows gently rather than shouting. */
+.world-place.can-travel::before {
+  content: ""; position: absolute; inset: 4px;
+  border: 1px solid var(--gold-soft); border-radius: 999px;
+  opacity: .55;
+  animation: place-invite 2.6s ease-in-out infinite;
+}
+.world-place.can-travel .world-place-name { color: var(--gold); }
+@keyframes place-invite {
+  0%, 100% { opacity: .28; transform: scale(.92); }
+  50%      { opacity: .7;  transform: scale(1.06); }
+}
+.world-place:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 /* Greyson walks the island. */
 .world-greyson {
-  position: absolute; width: 48px; height: 64px;
+  position: absolute; width: 34px; height: 46px;
   transform: translate(-50%, -86%);
-  transition: left 1.15s cubic-bezier(.45, .05, .3, 1), top 1.15s cubic-bezier(.45, .05, .3, 1);
   pointer-events: none; z-index: 3;
+  display: grid; place-items: end center;
 }
-/* Native 48x64. A fractional downscale of pixel art shimmers and tears, so the
-   sprite is never resized away from the size it was drawn at. */
 .world-greyson img {
-  width: 48px; height: 64px; object-fit: contain;
+  width: 34px; height: 46px; object-fit: contain;
   image-rendering: pixelated;
-  filter: drop-shadow(0 5px 4px #000b);
+  filter: drop-shadow(0 3px 3px #000c);
 }
 .world-greyson.face-right img { transform: scaleX(-1); }
-.world-greyson.is-walking img { animation: greyson-step .34s steps(2, end) infinite alternate; }
-@keyframes greyson-step {
-  from { transform: translateY(0) scaleX(var(--flip, 1)); }
-  to { transform: translateY(-2.5px) scaleX(var(--flip, 1)); }
-}
-.world-greyson.face-right { --flip: -1; }
 
 .world-mark {
   position: absolute; transform: translate(-50%, -230%);
@@ -185,11 +192,11 @@ p { color: var(--muted); line-height: 1.5; margin: .4rem 0; }
   border: 1px solid var(--gold-soft); background: #1b2432e6;
   color: var(--gold); font-size: .66rem; font-weight: 800; letter-spacing: .04em;
   pointer-events: none; z-index: 4;
-  animation: world-mark-rise 1.3s ease-out;
+  animation: world-mark-rise 1.4s ease-out;
 }
 @keyframes world-mark-rise {
-  0% { opacity: 0; transform: translate(-50%, -190%); }
-  22% { opacity: 1; }
+  0%   { opacity: 0; transform: translate(-50%, -190%); }
+  22%  { opacity: 1; }
   100% { opacity: 0; transform: translate(-50%, -300%); }
 }
 
@@ -1059,17 +1066,14 @@ html[data-reduced-motion="true"] .cold-open-sub { animation: none; opacity: 1; }
 html[data-reduced-motion="true"] .mic-bar { transition: none; }
 html[data-reduced-motion="true"] .mic-visualizer.is-static .mic-bar { animation: none; transform: scaleY(.4); }
 
-html[data-reduced-motion="true"] .world-greyson { transition: none; }
-html[data-reduced-motion="true"] .world-greyson.is-walking img { animation: none; }
-html[data-reduced-motion="true"] .wm-fogbank { animation: none; }
-html[data-reduced-motion="true"] .world-mark,
-html[data-reduced-motion="true"] .wm-ping { animation: none; opacity: 1; }
+html[data-reduced-motion="true"] .world-fog { animation: none; }
+html[data-reduced-motion="true"] .world-place.can-travel::before { animation: none; opacity: .6; }
+html[data-reduced-motion="true"] .world-mark { animation: none; opacity: 1; }
 html[data-reduced-motion="true"] .banner { animation: none; }
 html[data-reduced-motion="true"] .world-enter { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  .world-greyson { transition: none; }
-  .world-greyson.is-walking img, .wm-fogbank, .banner, .world-enter { animation: none; }
-  .world-mark, .wm-ping { animation: none; opacity: 1; }
+  .world-fog, .world-place.can-travel::before, .banner, .world-enter { animation: none; }
+  .world-mark { animation: none; opacity: 1; }
 }
 
 /* ---- development voice lab (never shown in ordinary play) ------------- */

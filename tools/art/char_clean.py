@@ -221,3 +221,43 @@ def remove_black_pockets(rgba, min_size=18):
         out[sel] = (0, 0, 0, 0)
         fixed += int(sel.sum())
     return out, fixed
+
+
+def polish_edges(rgba, passes=2, rarity=2):
+    """
+    Final fringe pass, run AFTER quantization.
+
+    Median filtering removes extreme fringe but leaves speckle that is
+    chromatically close to skin — the stray red and olive pixels along arms,
+    legs and feet. Those pixels are identifiable a different way: on a clean
+    pixel-art edge a colour is shared with its neighbours, so an edge pixel
+    whose own colour appears once or twice in its 3x3 neighbourhood is noise.
+    It is replaced with the local majority.
+
+    Interior detail is never touched, so the cap logo, eyes and the tattoo
+    survive regardless of how few pixels they occupy.
+    """
+    out = rgba.copy()
+    for _ in range(passes):
+        alpha = out[..., 3] > 128
+        edge = alpha & ~ndimage.binary_erosion(alpha, np.ones((3, 3)))
+        rgb = out[..., :3]
+        ys, xs = np.nonzero(edge)
+        for y, x in zip(ys, xs):
+            y0, y1 = max(0, y - 1), min(out.shape[0], y + 2)
+            x0, x1 = max(0, x - 1), min(out.shape[1], x + 2)
+            block = rgb[y0:y1, x0:x1].reshape(-1, 3)
+            live = alpha[y0:y1, x0:x1].reshape(-1)
+            neigh = [tuple(c) for c, k in zip(block.tolist(), live) if k]
+            if len(neigh) < 4:
+                continue
+            mine = tuple(rgb[y, x].tolist())
+            if neigh.count(mine) > rarity:
+                continue
+            counts = {}
+            for c in neigh:
+                if c != mine:
+                    counts[c] = counts.get(c, 0) + 1
+            if counts:
+                out[y, x, :3] = max(counts.items(), key=lambda kv: kv[1])[0]
+    return out
