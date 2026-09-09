@@ -17,13 +17,13 @@ import type { Page } from 'playwright-core';
  *
  * Two consequences the harness has to respect:
  *
- * 1. `.shell`, `.map` and `nav` are all observable BEFORE the onboarding
+ * 1. `.shell` and the world are observable BEFORE the onboarding
  *    decision has been made, so none of them is evidence that onboarding was
  *    skipped.
  * 2. A non-waiting `page.isVisible('[data-testid="onboarding-begin"]')` taken at
  *    first paint returns a false negative. The helper then does nothing, the
  *    suite proceeds, hydration lands a moment later, and the whole app is
- *    replaced by the onboarding screen — after which every `nav` and `.avatar`
+ *    replaced by the onboarding screen — after which every world and avatar
  *    locator times out.
  *
  * That is exactly what happened on a slow CI runner in `Atlas validation` run
@@ -108,8 +108,8 @@ export async function completeOnboardingIfPresent(page: Page, timeout = READINES
   }
 
   if (settled === 'already-onboarded') {
-    // This profile is past onboarding, so the normal app is the correct target.
-    await page.waitForSelector('nav[aria-label="Main"]', { state: 'visible', timeout });
+    // This profile is past onboarding, so the world itself is the correct target.
+    await page.waitForSelector('[data-testid="world"]', { state: 'visible', timeout });
     return;
   }
 
@@ -118,7 +118,7 @@ export async function completeOnboardingIfPresent(page: Page, timeout = READINES
   await page.click('[data-testid="onboarding-next-mode"]');
   await page.click('[data-testid="onboarding-next-agency"]');
   await page.click('[data-testid="onboarding-start"]');
-  await page.waitForSelector('.map');
+  await page.waitForSelector('[data-testid="world"]');
 }
 
 /**
@@ -134,4 +134,55 @@ export async function openAgency(page: Page, timeout = READINESS_TIMEOUT) {
   if (await sheet.isVisible().catch(() => false)) return;
   await page.click('[data-testid="action-more"]');
   await sheet.waitFor({ state: 'visible', timeout });
+}
+
+/**
+ * Move between places in the world-first shell.
+ *
+ * There is no longer a four-tab application nav: the map IS the root, the
+ * conversation is a layer over it, and the Vault and character record are places
+ * reached from one menu. Every suite navigates through this helper so the shape
+ * of that navigation lives in exactly one file.
+ */
+export async function navigateTo(page: Page, screen: string, timeout = READINESS_TIMEOUT) {
+  const target = screen.toLowerCase();
+
+  // Any sheet or menu currently covering the world has to close first.
+  if (await page.locator('[data-testid="menu"]').isVisible().catch(() => false)) {
+    await page.click('[data-testid="menu-close"]');
+  }
+  // Any open sheet is closed first, whatever the destination: a sheet covers the
+  // world, including the menu button that leads to the other sheet.
+  if (await page.locator('[data-testid="sheet"]').isVisible().catch(() => false)) {
+    await page.click('[data-testid="close-sheet"]');
+    await page.locator('[data-testid="sheet"]').waitFor({ state: 'detached', timeout });
+  }
+
+  if (target === 'talk') {
+    if (await page.locator('[data-testid="answer-input"]').isVisible().catch(() => false)) return;
+    if (await page.locator('[data-testid="encounter-input"]').isVisible().catch(() => false)) return;
+    const resume = page.locator('[data-testid="resume-encounter"]');
+    await (await resume.isVisible().catch(() => false) ? resume : page.locator('[data-testid="enter-encounter"]')).click();
+    await page.waitForSelector('[data-testid="convo"], [data-testid^="encounter-"]', { state: 'visible', timeout });
+    return;
+  }
+
+  if (target === 'map' || target === 'world') {
+    if (await page.locator('[data-testid="leave-encounter"]').isVisible().catch(() => false)) {
+      await page.click('[data-testid="leave-encounter"]');
+    } else if (await page.locator('[data-testid="encounter-leave"]').isVisible().catch(() => false)) {
+      await page.click('[data-testid="encounter-leave"]');
+    }
+    await page.waitForSelector('[data-testid="world"]', { state: 'visible', timeout });
+    return;
+  }
+
+  // Vault and the character record both live behind the one menu.
+  if (await page.locator('[data-testid="leave-encounter"]').isVisible().catch(() => false)) {
+    await page.click('[data-testid="leave-encounter"]');
+  }
+  await page.click('[data-testid="open-menu"]');
+  await page.waitForSelector('[data-testid="menu"]', { state: 'visible', timeout });
+  await page.click(target === 'vault' ? '[data-testid="go-vault"]' : '[data-testid="go-character"]');
+  await page.waitForSelector('[data-testid="sheet"]', { state: 'visible', timeout });
 }

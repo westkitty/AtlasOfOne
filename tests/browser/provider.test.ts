@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page, type Route } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent, openAgency, wakeAtlas } from './helper';
+import { completeOnboardingIfPresent, openAgency, wakeAtlas, navigateTo } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -45,15 +45,21 @@ const providerTurn = {
   achievementCandidates: []
 };
 
-const xpOf = async () => Number((await page.textContent('.xp span'))!.replace(/\D/g, ''));
+// The world HUD renders a level pip and a hairline, so progression is read
+// from the values it is rendering from rather than a stats panel.
+const xpOf = async () => Number(await page.getAttribute('[data-testid="hud-progress"]', 'data-xp'));
 
 async function dismissNotices() {
-  while (await page.isVisible('.overlay')) await page.click('.overlay button:text("Continue")');
+  // Milestones are brief, non-blocking banners that clear themselves, so this
+  // waits them out rather than clicking a modal away.
+  if (await page.isVisible('[data-testid="milestone"]').catch(() => false)) {
+    await page.locator('[data-testid="milestone"]').waitFor({ state: 'detached', timeout: 20_000 }).catch(() => undefined);
+  }
 }
 
 async function goto(screen: string) {
   await dismissNotices();
-  await page.click(`nav button:has(small:text-is("${screen}"))`);
+  await navigateTo(page, screen);
 }
 
 beforeAll(async () => {
@@ -110,7 +116,7 @@ describe('browser to Worker provider path', () => {
     await page.fill('.answer textarea', SYNTHETIC);
     await page.click('button:text("Map this answer")');
 
-    await expect.poll(() => page.textContent('.reply'), { timeout: 10_000 }).toContain('cost-first way of deciding');
+    await expect.poll(() => page.textContent('.convo-reply'), { timeout: 10_000 }).toContain('cost-first way of deciding');
     await goto('Map');
     // Same deterministic arithmetic as the mock path: 5 + 3 + 3 + 2.
     await expect.poll(xpOf).toBe(before + 13);
@@ -144,10 +150,10 @@ describe('browser to Worker provider path', () => {
 
   it('4. a PRIVATE dimension never appears in a later outgoing payload', async () => {
     await goto('Talk');
-    const closed = (await page.textContent('.prompt small'))!.replace('Evidence dimension: ', '').trim();
+    const closed = (await page.textContent('[data-testid="prompt-dimension"]'))!.replace('Evidence dimension: ', '').trim();
     await openAgency(page);
     await page.click('[data-testid="agency-private"]');
-    await expect.poll(() => page.textContent('.reply')).toContain('not intentionally return');
+    await expect.poll(() => page.textContent('.convo-reply')).toContain('not intentionally return');
 
     const countBefore = sentContexts.length;
     await page.fill('.answer textarea', 'A second synthetic answer after closing a topic.');

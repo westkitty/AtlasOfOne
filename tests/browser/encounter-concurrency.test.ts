@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { availableBosses, availableDoors } from '../../src/game/encounters';
 import { serializeCampaign } from '../../src/persistence/transfer';
 import { seededCampaign } from '../fixtures/synthetic';
-import { completeOnboardingIfPresent, wakeAtlas } from './helper';
+import { completeOnboardingIfPresent, wakeAtlas, navigateTo } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -99,6 +99,8 @@ async function newSeededSession(): Promise<Session> {
   });
   await page.waitForSelector('.toast:text-matches("imported and validated")');
   await gotoScreen(page, 'Map');
+  // Encounter offers live in the menu now; their presentation is unchanged.
+  await page.click('[data-testid="open-menu"]');
   await page.waitForSelector('[data-testid="encounter-offers"]');
 
   return {
@@ -110,12 +112,16 @@ async function newSeededSession(): Promise<Session> {
 }
 
 async function dismissNotices(page: Page) {
-  while (await page.isVisible('.overlay')) await page.click('.overlay button:text("Continue")');
+  // Milestones are brief, non-blocking banners that clear themselves, so this
+  // waits them out rather than clicking a modal away.
+  if (await page.isVisible('[data-testid="milestone"]').catch(() => false)) {
+    await page.locator('[data-testid="milestone"]').waitFor({ state: 'detached', timeout: 20_000 }).catch(() => undefined);
+  }
 }
 
 async function gotoScreen(page: Page, screen: string) {
   await dismissNotices(page);
-  await page.click(`nav button:has(small:text-is("${screen}"))`);
+  await navigateTo(page, screen);
 }
 
 /** Reads the persisted campaign straight out of IndexedDB. */
@@ -146,6 +152,9 @@ async function doubleTapEncounterSubmit(page: Page) {
 
 async function enterFirstOffer(page: Page, selector: string) {
   await gotoScreen(page, 'Map');
+  // Encounter offers live in the one menu now.
+  await page.click('[data-testid="open-menu"]');
+  await page.waitForSelector('[data-testid="encounter-offers"]');
   await page.locator(selector).first().click();
   await page.waitForSelector('[data-testid="encounter-input"]');
 }

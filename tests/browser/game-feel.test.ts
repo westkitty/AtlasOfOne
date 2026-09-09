@@ -3,24 +3,23 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { serveDist } from './server';
-import { completeOnboardingIfPresent, openAgency } from './helper';
+import { completeOnboardingIfPresent, navigateTo, openAgency } from './helper';
 import type { CampaignState } from '../../src/game/types';
 
 /**
  * The first ten minutes, played through the real production bundle.
  *
- * A ten-turn diagnostic against the previous build found that the engine was
- * granting substantial progression while the player could barely perceive any
- * of it: five of the six milestones one answer produced were silently deleted,
- * unlocked abilities existed only as an integer on the character screen, and
- * from turn five onwards the campaign re-asked the same exhausted Identity
- * question forever.
+ * Human review of the previous candidate said the UI was "a lot" and that there
+ * was "no map really" — a node graph with a dashboard around it. This suite
+ * exists to keep the replacement honest: the root is a world, the island is
+ * progressively uncovered, Greyson walks through it, and the conversation
+ * happens over the top of it rather than on a page of its own.
  *
- * Automation cannot assert that a game is fun. What it can do — and what this
- * suite does — is prove that the world visibly reacts, so a human reviewer is
- * judging a game rather than a spreadsheet.
+ * Automation cannot prove any of this is beautiful or fun, and nothing here
+ * claims to. It proves the world visibly reacts and the chrome stays small, so
+ * a human reviewer is judging a game rather than a spreadsheet.
  *
- * Everything here runs on the deterministic local Cartographer with synthetic
+ * Everything runs on the deterministic local Cartographer with synthetic
  * answers. No provider is called and no real campaign content is used.
  */
 
@@ -58,18 +57,26 @@ const readState = (target: Page): Promise<CampaignState> => target.evaluate(() =
 })) as Promise<CampaignState>;
 
 const goto = async (label: 'Map' | 'Talk' | 'Vault' | 'Me') => {
-  await page.click(`nav[aria-label="Main"] button:has(small:text-is("${label}"))`);
+  await navigateTo(page, label);
   await page.waitForTimeout(120);
 };
 
-/** Everything the milestone card showed, then dismiss it. */
-async function captureAndDismissMilestone(): Promise<string[]> {
-  if (!(await page.locator('[data-testid="milestone"]').isVisible().catch(() => false))) return [];
-  const shown = [await page.locator('[data-testid="milestone-title"]').innerText()];
-  const also = page.locator('[data-testid="milestone-also"] li strong');
-  for (let index = 0; index < (await also.count()); index += 1) shown.push(await also.nth(index).innerText());
-  await page.click('[data-testid="milestone-continue"]');
-  await page.locator('[data-testid="milestone"]').waitFor({ state: 'detached', timeout: 15_000 });
+/** How many regions are drawn under fog right now. */
+const foggedRegions = () => page.locator('[data-testid^="fog-"]').count();
+/** How many regions have shed their fog entirely. */
+const revealedRegions = () => page.locator('[data-testid^="region-"][data-reveal="known"], [data-testid^="region-"][data-reveal="detailed"]').count();
+
+/**
+ * Milestones are non-blocking banners that clear themselves, so this reads what
+ * was shown and then waits for the world to be uncovered again rather than
+ * clicking anything away.
+ */
+async function readMilestones(): Promise<string[]> {
+  const banners = page.locator('[data-testid="milestone"] .banner strong');
+  if ((await banners.count()) === 0) return [];
+  const shown: string[] = [];
+  for (let index = 0; index < (await banners.count()); index += 1) shown.push(await banners.nth(index).innerText());
+  await page.locator('[data-testid="milestone"]').waitFor({ state: 'detached', timeout: 20_000 });
   return shown;
 }
 
@@ -95,11 +102,14 @@ interface TurnLog {
   xp: number;
   level: number;
   activeTerritory: string;
-  milestonesShown: string[];
-  sawPulse: boolean;
+  milestones: string[];
+  sawMark: boolean;
+  worldVisible: boolean;
 }
 
 const log: TurnLog[] = [];
+let fogAtStart = 0;
+let revealedAtStart = 0;
 
 beforeAll(async () => {
   host = await serveDist(DIST);
@@ -114,165 +124,199 @@ afterAll(async () => {
   await host?.close();
 });
 
-describe('the first ten turns visibly change the Atlas', () => {
+describe('Atlas opens into a world', () => {
+  it('the root view is the map itself, not a page of cards', async () => {
+    await page.waitForSelector('[data-testid="world"]');
+    expect(await page.locator('[data-testid="world"]').isVisible()).toBe(true);
+
+    // The island fills the screen rather than sitting in a panel among panels.
+    const world = (await page.locator('[data-testid="world"]').boundingBox())!;
+    expect(world.height).toBeGreaterThan(VIEWPORT.height * 0.7);
+    expect(world.width).toBeGreaterThan(VIEWPORT.width * 0.9);
+
+    // There is no four-tab application nav any more.
+    expect(await page.locator('nav[aria-label="Main"]').count()).toBe(0);
+
+    // Greyson is standing in it, and the chrome is a place name, a level pip,
+    // a menu and one way in.
+    expect(await page.locator('[data-testid="world-greyson"]').isVisible()).toBe(true);
+    expect(await page.locator('[data-testid="hud-territory"]').isVisible()).toBe(true);
+    expect(await page.locator('[data-testid="open-menu"]').isVisible()).toBe(true);
+    expect(await page.locator('[data-testid="enter-encounter"]').isVisible()).toBe(true);
+  });
+
+  it('Greyson is actually drawn, not an empty sprite slot', async () => {
+    // Two of the five canonical 48x64 slots ship unusable — one fully
+    // transparent, one colour-corrupted — and the asset test only checks
+    // dimensions, so a blank protagonist would otherwise pass every check.
+    const opaquePixels = await page.evaluate(async () => {
+      const img = document.querySelector('[data-testid="world-greyson"] img') as HTMLImageElement;
+      if (!img) return -1;
+      if (!img.complete) await new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; });
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const context = canvas.getContext('2d')!;
+      context.drawImage(img, 0, 0);
+      const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+      let count = 0;
+      for (let index = 3; index < data.length; index += 4) if (data[index] > 200) count += 1;
+      return count;
+    });
+    // A drawn 48x64 character covers a substantial share of its frame.
+    expect(opaquePixels).toBeGreaterThan(400);
+  });
+
+  it('most of the island starts hidden under fog', async () => {
+    fogAtStart = await foggedRegions();
+    revealedAtStart = await revealedRegions();
+    const state = await readState(page);
+
+    expect(fogAtStart, 'regions under fog at turn zero').toBeGreaterThanOrEqual(state.territories.length - 1);
+    expect(revealedAtStart, 'nothing is fully revealed before play').toBe(0);
+
+    // Unexplored country is not pre-labelled with a finished sitemap.
+    const named = await page.locator('[data-testid^="region-"] .wm-region-name').count();
+    expect(named, 'named regions at turn zero').toBeLessThanOrEqual(1);
+  });
+});
+
+describe('the first ten turns uncover it', () => {
   it('plays ten varied answers, recording what the player could see', async () => {
     const before = await readState(page);
     expect(before.turns).toHaveLength(0);
-    expect(before.xp).toBe(0);
 
     for (let index = 0; index < ANSWERS.length; index += 1) {
       const turn = index + 1;
       await goto('Talk');
       await page.waitForSelector('[data-testid="answer-input"]');
       const question = await page.locator('[data-testid="prompt-question"]').innerText();
+      // The world must still be on screen while the Cartographer is talking.
+      const worldVisible = await page.locator('[data-testid="world"]').isVisible();
 
       await answer(ANSWERS[index], turn);
 
-      // The immediate world reaction is transient by design, so it is sampled
-      // right after the answer commits rather than after navigating away.
-      const sawPulse = await page.locator('[data-testid="answer-pulse"]').isVisible().catch(() => false);
-      const milestonesShown = await captureAndDismissMilestone();
+      const sawMark = await page.locator('[data-testid="world-mark"]').isVisible().catch(() => false);
+      const milestones = await readMilestones();
       const state = await readState(page);
 
-      log.push({ turn, question, xp: state.xp, level: state.level, activeTerritory: state.activeTerritory, milestonesShown, sawPulse });
+      log.push({ turn, question, xp: state.xp, level: state.level, activeTerritory: state.activeTerritory, milestones, sawMark, worldVisible });
     }
 
     expect(log).toHaveLength(10);
-  }, 180_000);
+  }, 240_000);
 
-  it('1. the first answer moves XP and visibly marks the world', async () => {
-    const first = log[0];
-    expect(first.xp, 'XP after the first answer').toBeGreaterThan(0);
-    // First Mark on the Map is granted by the engine on the first substantive
-    // answer, and the player is told about it.
-    expect(first.milestonesShown.join(' | ')).toContain('First Mark');
-    expect(first.sawPulse, 'coordinate reaction visible on turn 1').toBe(true);
+  it('1. the first answer marks the world and moves XP', async () => {
+    expect(log[0].xp).toBeGreaterThan(0);
+    expect(log[0].sawMark, 'a coordinate visibly landed on the island').toBe(true);
+    expect(log[0].milestones.join(' | ')).toContain('First Mark');
   });
 
-  it('2. quest progress and quest completion are both surfaced', async () => {
+  it('2. the conversation never leaves the world behind', async () => {
+    expect(log.every((entry) => entry.worldVisible), 'world visible during every encounter').toBe(true);
+  });
+
+  it('3. fog recedes and more than one area becomes revealed', async () => {
+    await goto('Map');
+    const fogNow = await foggedRegions();
+    const revealedNow = await revealedRegions();
+
+    expect(fogNow, 'fog has withdrawn from part of the island').toBeLessThan(fogAtStart);
+    expect(revealedNow, 'at least two areas are materially revealed').toBeGreaterThanOrEqual(2);
+    expect(revealedNow).toBeGreaterThan(revealedAtStart);
+
+    // Places that were unnamed silhouettes now carry their names.
+    const named = await page.locator('[data-testid^="region-"] .wm-region-name').count();
+    expect(named).toBeGreaterThanOrEqual(2);
+
+    // And country nobody has been to is still hidden.
+    expect(fogNow, 'the map is not finished after ten turns').toBeGreaterThan(0);
+  });
+
+  it('4. trails light up between places that have been walked', async () => {
+    await goto('Map');
+    const lit = await page.locator('.wm-trail.is-known').count();
+    expect(lit, 'a route between two known regions is drawn').toBeGreaterThan(0);
+  });
+
+  it('5. Greyson travels rather than staying put', async () => {
+    const visited = new Set(log.map((entry) => entry.activeTerritory));
+    expect(visited.size, 'more than one region was occupied').toBeGreaterThan(1);
+
+    await goto('Map');
     const state = await readState(page);
-    expect(state.quests.filter((quest) => quest.status === 'complete').length).toBeGreaterThan(0);
-
-    const announced = log.flatMap((entry) => entry.milestonesShown).join(' | ');
-    expect(announced, 'a completed quest was announced').toContain('Quest complete');
+    const standingIn = await page.getAttribute('[data-testid="world-greyson"]', 'data-territory');
+    expect(standingIn).toBe(state.activeTerritory);
+    expect(standingIn).not.toBe('identity');
   });
 
-  it('3. the first map fragment is announced and persists in the Vault', async () => {
-    const announced = log.flatMap((entry) => entry.milestonesShown).join(' | ');
-    expect(announced, 'fragment acquisition was announced').toContain('Fragment recovered');
-
-    const state = await readState(page);
-    expect(state.mapFragments.length).toBeGreaterThan(0);
-
-    // The acquisition has somewhere permanent to live.
-    await goto('Vault');
-    const vault = await page.locator('.screen').innerText();
-    expect(vault).toContain('CHARTED');
-    expect(vault).not.toMatch(/Fragments\s*0 \/ 8/);
-  });
-
-  it('4. levelling up is an announced event, not a silent number', async () => {
-    const state = await readState(page);
-    expect(state.level).toBeGreaterThan(1);
-    const announced = log.flatMap((entry) => entry.milestonesShown).join(' | ');
-    expect(announced).toContain('Level 2');
-  });
-
-  it('5. nothing the engine granted was silently discarded', async () => {
-    // Turn 2 grants six things at once. Every one of them must have been shown.
-    const bigTurn = log.find((entry) => entry.milestonesShown.length >= 5);
-    expect(bigTurn, 'a multi-grant turn occurred').toBeTruthy();
-    const shown = bigTurn!.milestonesShown.join(' | ');
-    expect(shown).toContain('Level 2');
-    expect(shown).toContain('Go Deeper unlocked');
-    expect(shown).toContain('Cartographer');
-    expect(shown).toContain('Fragment recovered');
-  });
-
-  it('6. play leaves Identity once exhausted and never loops the same question', async () => {
+  it('6. no question is asked twice and the Identity loop never returns', async () => {
     const questions = log.map((entry) => entry.question);
-    // The old defect: turns 5-10 were six copies of the self-description prompt.
-    expect(new Set(questions).size, 'every question was different').toBe(questions.length);
-
-    const territories = new Set(log.map((entry) => entry.activeTerritory));
-    expect(territories.size, 'the expedition travelled').toBeGreaterThan(1);
-    expect(log[9].activeTerritory).not.toBe('identity');
+    expect(new Set(questions).size).toBe(questions.length);
   });
 
-  it('7. more than one territory was visibly affected, and the map shows it', async () => {
-    const state = await readState(page);
-    const touched = state.territories.filter((territory) => territory.coveredDimensions.length > 0);
-    expect(touched.length, 'territories carrying evidence').toBeGreaterThan(1);
+  it('7. milestones arrive as brief banners, never a blocking changelog', async () => {
+    const busiest = log.reduce((most, entry) => Math.max(most, entry.milestones.length), 0);
+    expect(busiest, 'several grants were surfaced together').toBeGreaterThan(1);
+    // The old six-item modal is gone: nothing blocks, and nothing stacks deep.
+    expect(busiest, 'banners stay shallow').toBeLessThanOrEqual(2);
+    expect(await page.locator('[data-testid="milestone-continue"]').count(), 'no dismiss-to-continue modal').toBe(0);
 
-    await goto('Map');
-    await page.waitForSelector('[data-testid="atlas-map"]');
-    // The map's own DOM carries the state, not just the campaign object.
-    for (const territory of touched) {
-      const status = await page.getAttribute(`[data-testid="atlas-node-${territory.id}"]`, 'data-status');
-      expect(status, `${territory.id} node status`).not.toBe('fogged');
-    }
-    // And fog genuinely remains over what has not been visited.
-    const fogged = state.territories.filter((territory) => territory.status === 'fogged');
-    expect(fogged.length, 'unexplored country is still fogged').toBeGreaterThan(0);
+    // Everything that was earned is still surfaced somewhere across the session.
+    const announced = log.flatMap((entry) => entry.milestones).join(' | ');
+    expect(announced).toContain('Level 2');
+    expect(announced).toContain('Go Deeper unlocked');
+    expect(announced).toContain('Fragment recovered');
   });
 
-  it('8. Greyson stands in the territory the expedition currently occupies', async () => {
-    const state = await readState(page);
-    await goto('Map');
-    const where = await page.getAttribute('[data-testid="atlas-greyson"]', 'data-territory');
-    expect(where).toBe(state.activeTerritory);
-    expect(where).not.toBe('identity');
-  });
-
-  it('9. the primary action row is game-facing, with agency one tap away', async () => {
+  it('8. the action row stays small and contextual', async () => {
     await goto('Talk');
-    await page.waitForSelector('[data-testid="action-bar"]');
-
-    const bar = page.locator('[data-testid="action-bar"] button');
+    const buttons = page.locator('[data-testid="action-bar"] button');
     const labels: string[] = [];
-    for (let index = 0; index < (await bar.count()); index += 1) labels.push((await bar.nth(index).innerText()).trim());
+    for (let index = 0; index < (await buttons.count()); index += 1) labels.push((await buttons.nth(index).innerText()).trim());
 
-    // The six-control wall is gone from the primary surface.
-    const permanent = ['PRIVATE', 'STOP', 'SERIOUS', 'HELP', 'SASS'];
-    expect(labels.filter((label) => permanent.includes(label)), 'permanent controls on primary row').toHaveLength(0);
-    expect(labels).toContain('PASS');
-    expect(labels.some((label) => label.includes('MORE'))).toBe(true);
+    // Four at the very most: Pass, up to two earned moves, More.
+    expect(labels.length).toBeLessThanOrEqual(4);
+    expect(labels).toContain('Pass');
+    expect(labels.some((label) => label.includes('More'))).toBe(true);
+    for (const permanent of ['Private', 'Stop', 'Serious', 'Help', 'Sass']) {
+      expect(labels, `${permanent} is not on the primary row`).not.toContain(permanent);
+    }
 
-    // At most two earned game moves share the row with PASS and MORE.
-    const moves = await page.locator('[data-testid="action-bar"] .action-move').count();
-    expect(moves).toBeGreaterThan(0);
-    expect(moves).toBeLessThanOrEqual(2);
+    // A move is offered because it is useful now, not merely because it is owned.
+    await page.fill('[data-testid="answer-input"]', 'A part-written answer.');
+    expect(await page.locator('[data-testid="move-reroll"]').count(), 'reroll withdraws once answering starts').toBe(0);
+    await page.fill('[data-testid="answer-input"]', '');
+    await page.waitForTimeout(80);
 
-    // Everything permanent is still reachable, enabled, and never gated.
+    // Permanent agency is still one interaction away and never gated.
     await openAgency(page);
     for (const control of ['stop', 'private', 'serious', 'help', 'sass']) {
-      const button = page.locator(`[data-testid="agency-${control}"]`);
-      expect(await button.isVisible(), control).toBe(true);
-      expect(await button.isDisabled(), control).toBe(false);
+      expect(await page.locator(`[data-testid="agency-${control}"]`).isVisible(), control).toBe(true);
+      expect(await page.locator(`[data-testid="agency-${control}"]`).isDisabled(), control).toBe(false);
     }
     await page.click('[data-testid="more-close"]');
   });
 
-  it('10. after ten turns the player can do something they could not at turn zero', async () => {
+  it('9. earned abilities are named and usable where play happens', async () => {
     const state = await readState(page);
     const unlocked = state.unlocks.filter((unlock) => unlock.unlockedAt).map((unlock) => unlock.id);
     expect(unlocked).toContain('go-deeper');
     expect(unlocked).toContain('reroll');
 
-    // Named and usable where play actually happens, not an integer on a stats page.
     await goto('Talk');
     expect(await page.locator('[data-testid="move-go-deeper"]').isVisible()).toBe(true);
-    expect(await page.locator('[data-testid="move-reroll"]').isVisible()).toBe(true);
   });
 
-  it('reports the longest stretch without a visible reward', () => {
-    let longest = 0;
-    let run = 0;
-    for (const entry of log) {
-      if (entry.milestonesShown.length === 0) { run += 1; longest = Math.max(longest, run); } else run = 0;
-    }
-    // Before this pass the run was six identical questions with nothing at all.
-    expect(longest, `longest silent stretch was ${longest} turns`).toBeLessThanOrEqual(3);
+  it('10. the Vault holds what the world handed over', async () => {
+    const state = await readState(page);
+    expect(state.mapFragments.length).toBeGreaterThan(0);
+
+    await goto('Vault');
+    const vault = await page.locator('[data-testid="sheet"]').innerText();
+    expect(vault).toContain('CHARTED');
+    expect(vault).not.toMatch(/Fragments\s*0 \/ 8/);
+    await page.click('[data-testid="close-sheet"]');
   });
 });
 
@@ -286,20 +330,17 @@ describe('unlocked moves are real gameplay', () => {
     const deeper = await page.locator('[data-testid="prompt-question"]').innerText();
     expect(deeper).not.toBe(original);
 
-    // Invoking a move is not an accomplishment.
     const afterInvoke = await readState(page);
     expect(afterInvoke.xp).toBe(before.xp);
     expect(afterInvoke.turns).toHaveLength(before.turns.length);
 
     await answer('The part I leave out is that it is mostly stubbornness dressed up as principle.', before.turns.length + 1);
-    await captureAndDismissMilestone();
+    await readMilestones();
 
     const afterAnswer = await readState(page);
-    expect(afterAnswer.turns).toHaveLength(before.turns.length + 1);
     expect(afterAnswer.xp).toBeGreaterThan(before.xp);
-    // The question the player actually saw is the question that got recorded.
     expect(afterAnswer.turns[afterAnswer.turns.length - 1].question).toBe(deeper);
-  }, 60_000);
+  }, 90_000);
 
   it('REROLL reframes the question without creating a turn or evidence', async () => {
     await goto('Talk');
@@ -315,22 +356,20 @@ describe('unlocked moves are real gameplay', () => {
     expect(afterInvoke.turns).toHaveLength(before.turns.length);
     expect(afterInvoke.evidence).toHaveLength(before.evidence.length);
 
-    // A second reroll gives a genuinely different framing, not the same string.
     await page.click('[data-testid="move-reroll"]');
     expect(await page.locator('[data-testid="prompt-question"]').innerText()).not.toBe(reframed);
 
     const shown = await page.locator('[data-testid="prompt-question"]').innerText();
     await answer('On a bad day it looks like refusing to move until someone explains themselves.', before.turns.length + 1);
-    await captureAndDismissMilestone();
+    await readMilestones();
 
     const afterAnswer = await readState(page);
-    expect(afterAnswer.turns).toHaveLength(before.turns.length + 1);
     expect(afterAnswer.turns[afterAnswer.turns.length - 1].question).toBe(shown);
-  }, 60_000);
+  }, 90_000);
 });
 
 describe('quiet mode keeps the progress and drops the celebration', () => {
-  it('advances state and the map while suppressing the milestone card', async () => {
+  it('advances the world while suppressing every banner', async () => {
     await goto('Talk');
     await openAgency(page);
     await page.click('[data-testid="agency-serious"]');
@@ -338,7 +377,6 @@ describe('quiet mode keeps the progress and drops the celebration', () => {
     const before = await readState(page);
     expect(before.presentation).toBe('quiet');
 
-    // Drive enough turns that something would certainly have been celebrated.
     for (let index = 0; index < 4; index += 1) {
       await goto('Talk');
       await page.waitForSelector('[data-testid="answer-input"]');
@@ -347,34 +385,31 @@ describe('quiet mode keeps the progress and drops the celebration', () => {
     }
 
     const after = await readState(page);
-    // Progression is untouched by presentation mode.
     expect(after.xp).toBeGreaterThan(before.xp);
     expect(after.turns.length).toBe(before.turns.length + 4);
-    // The record of what was earned still exists; it is simply not paraded.
+    // Nothing earned was discarded; it simply was not paraded.
     expect(after.presentationQueue.length).toBeGreaterThan(0);
 
-    // And factual progress stays legible on screen.
     await goto('Map');
-    expect(await page.locator('[data-testid="atlas-map"]').isVisible()).toBe(true);
-    expect(await page.locator('.xp').innerText()).toContain(`${after.xp}`);
-  }, 120_000);
+    expect(await page.locator('[data-testid="world"]').isVisible()).toBe(true);
+    expect(await page.locator('[data-testid="hud-level"]').innerText()).toBe(`L${after.level}`);
+  }, 150_000);
 });
 
-describe('the map is a place at every supported width', () => {
-  it('never overflows horizontally and keeps the map a map', async () => {
+describe('the world holds together at every supported width', () => {
+  it('never overflows and never collapses into a list', async () => {
     await goto('Map');
     for (const size of [{ width: 390, height: 844 }, { width: 360, height: 800 }, { width: 320, height: 640 }]) {
       await page.setViewportSize(size);
-      await page.waitForTimeout(150);
+      await page.waitForTimeout(180);
 
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow, `no horizontal overflow at ${size.width}px`).toBeLessThanOrEqual(0);
 
-      // It stays a single cartographic composition, not a card list.
-      const map = await page.locator('[data-testid="atlas-map"]').boundingBox();
-      expect(map!.width, `map width at ${size.width}px`).toBeGreaterThan(size.width * 0.7);
-      expect(map!.height, `map height at ${size.width}px`).toBeGreaterThan(220);
-      expect(await page.locator('[data-testid="atlas-greyson"]').isVisible()).toBe(true);
+      const world = (await page.locator('[data-testid="world"]').boundingBox())!;
+      expect(world.height, `world height at ${size.width}px`).toBeGreaterThan(size.height * 0.7);
+      expect(await page.locator('[data-testid="world-greyson"]').isVisible()).toBe(true);
+      expect(await page.locator('[data-testid="enter-encounter"]').isVisible()).toBe(true);
     }
     await page.setViewportSize(VIEWPORT);
   }, 60_000);

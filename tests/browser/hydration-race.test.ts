@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, navigateTo } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -103,8 +103,8 @@ describe('first-run hydration race', () => {
 
       // The cold open owns the screen and keeps it while hydration is pending.
       expect(await page.isVisible('[data-testid="cold-open"]'), 'cold open owns first paint').toBe(true);
-      expect(await page.locator('nav[aria-label="Main"]').count(), 'no navigation painted').toBe(0);
-      expect(await page.locator('.map').count(), 'no map painted').toBe(0);
+      expect(await page.locator('[data-testid="world"]').count(), 'no navigation painted').toBe(0);
+      expect(await page.locator('[data-testid="world"]').count(), 'no world painted').toBe(0);
       expect(await page.locator('[data-testid="onboarding-step-2"]').count(), 'no onboarding choices yet').toBe(0);
 
       // Even a deliberate wake cannot reveal chrome before hydration settles,
@@ -112,7 +112,7 @@ describe('first-run hydration race', () => {
       await page.click('[data-testid="cold-open"]');
       await page.waitForTimeout(600);
       expect(await page.isVisible('[data-testid="cold-open"]'), 'still dormant while unhydrated').toBe(true);
-      expect(await page.locator('nav[aria-label="Main"]').count()).toBe(0);
+      expect(await page.locator('[data-testid="world"]').count()).toBe(0);
 
       // And the helper refuses to guess rather than continuing.
       await expect(completeOnboardingIfPresent(page, 2_000)).rejects.toThrow();
@@ -135,13 +135,13 @@ describe('first-run hydration race', () => {
 
       // After the helper returns, the suite must be able to drive the app.
       expect(await page.locator('[data-testid="onboarding-step-2"]').count(), 'onboarding is behind us').toBe(0);
-      expect(await page.isVisible('nav[aria-label="Main"]')).toBe(true);
-      expect(await page.isVisible('.map')).toBe(true);
+      expect(await page.isVisible('[data-testid="world"]')).toBe(true);
+      expect(await page.isVisible('[data-testid="world"]')).toBe(true);
 
       // The exact locators the failing CI run could not reach must now resolve.
       expect(await page.getAttribute('.avatar img', 'src')).toBe('/assets/greyson/map/idle-front.png');
-      await page.click('nav button:has(small:text-is("Talk"))');
-      expect(await page.textContent('nav button.active small')).toBe('Talk');
+      await navigateTo(page, 'Talk');
+      expect(await page.isVisible('[data-testid="convo"]'), 'the conversation opened over the world').toBe(true);
     } finally {
       await page.context().close();
     }
@@ -164,7 +164,7 @@ describe('first-run hydration race', () => {
 
       await completeOnboardingIfPresent(page);
 
-      expect(await page.isVisible('nav[aria-label="Main"]')).toBe(true);
+      expect(await page.isVisible('[data-testid="world"]')).toBe(true);
       expect(await page.locator('[data-testid="onboarding-step-2"]').count()).toBe(0);
     } finally {
       await context.close();

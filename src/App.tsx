@@ -9,6 +9,8 @@ import type { CartographerTurn } from './cartographer/schema';
 import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefinition, currentBossStage } from './game/encounters';
 import { applyGameEvents, campaignReachedEndState, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
 import type { CampaignState, GameEvent, PresentationNotice, SassLevel, TerritoryStatus } from './game/types';
+import { WorldMap } from './world/WorldMap';
+import { regionFor } from './world/geography';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
 import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
 import { clearAccessSecret, getAccessHeaders, getAccessSecret, setAccessSecret } from './voice/access';
@@ -18,47 +20,33 @@ import { transitionVoiceState, voiceStateLabel } from './voice/state';
 import { cancelSpeech, speakText } from './voice/synthesis';
 import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
 
-type Screen = 'map'|'talk'|'vault'|'me';
+type Screen = 'world'|'vault'|'me';
 const GREYSON_MAP_SPRITE = '/assets/greyson/map/idle-front.png';
 /**
  * Canonical 48x64 runtime sprites, already in the repository. `right` reuses the
  * left-facing render mirrored in CSS rather than inventing a sixth drawing.
  */
+/**
+ * The sprites Greyson is actually drawn from.
+ *
+ * Only three of the five canonical 48x64 runtime slots are usable: rendering
+ * every slot in a real browser showed `idle-qfront.png` to be entirely
+ * transparent and `idle-back.png` to be colour-corrupted across the torso. Both
+ * are excluded here rather than shipped, and `idle-qback.png` — a clean rear
+ * three-quarter view — carries "walking away". `right` mirrors `left` in CSS so
+ * no sixth drawing is invented. See the handoff notes: those two files need
+ * re-exporting from the canonical source before they can be used.
+ */
 const GREYSON_SPRITES: Record<'front' | 'back' | 'left' | 'right', string> = {
   front: '/assets/greyson/map/idle-front.png',
-  back: '/assets/greyson/map/idle-back.png',
+  back: '/assets/greyson/map/idle-qback.png',
   left: '/assets/greyson/map/idle-left.png',
   right: '/assets/greyson/map/idle-left.png'
 };
 
-/**
- * Presentation-only cartography.
- *
- * These coordinates and edges give the eight existing territories a stable place
- * in a world instead of a slot in a card grid. Nothing here is game authority:
- * territory identity, state, coverage and progression all remain owned by
- * `CampaignState`. A territory missing from this table still renders — it simply
- * falls back to the centre — so campaign data and layout cannot desynchronise
- * into a crash.
- */
-const MAP_VIEW = { width: 320, height: 400 };
-const MAP_NODES: Record<string, { x: number; y: number }> = {
-  politics: { x: 160, y: 56 },
-  values: { x: 72, y: 132 },
-  cognition: { x: 248, y: 132 },
-  identity: { x: 160, y: 206 },
-  relationships: { x: 60, y: 280 },
-  fears: { x: 260, y: 280 },
-  interests: { x: 116, y: 352 },
-  future: { x: 214, y: 352 }
-};
-const MAP_EDGES: [string, string][] = [
-  ['identity', 'values'], ['identity', 'cognition'], ['identity', 'relationships'], ['identity', 'fears'],
-  ['values', 'politics'], ['cognition', 'politics'],
-  ['relationships', 'interests'], ['fears', 'future'], ['interests', 'future']
-];
-const MAP_CENTRE = { x: MAP_VIEW.width / 2, y: MAP_VIEW.height / 2 };
-const nodeAt = (territoryId: string) => MAP_NODES[territoryId] ?? MAP_CENTRE;
+/** How many milestones share the screen at once, and for how long. */
+const MAX_BANNERS = 2;
+const BANNER_MS = 3200;
 
 /** Eyebrow wording per milestone class, so a level-up cannot read like an error. */
 const MILESTONE_EYEBROW: Record<PresentationNotice['kind'], string> = {
@@ -129,7 +117,7 @@ const hasCompletedOnboarding = (campaign: { onboardingCompleted?: boolean; turns
 export default function App() {
   const [state, setState] = useState<CampaignState>(() => createInitialCampaign());
   const [hydrated, setHydrated] = useState(false);
-  const [screen, setScreen] = useState<Screen>('map');
+  const [screen, setScreen] = useState<Screen>('world');
   const [reply, setReply] = useState('');
   const [answer, setAnswer] = useState('');
   const [message, setMessage] = useState('');
@@ -250,6 +238,17 @@ export default function App() {
   /** Compact agency surface, one interaction from the primary action row. */
   const [moreOpen, setMoreOpen] = useState(false);
   /**
+   * The conversation is a layer over the world, not a separate page, so the
+   * island stays visible while the Cartographer is talking.
+   */
+  const [talking, setTalking] = useState(false);
+  /** Vault and the character record are places you visit, reached from one menu. */
+  const [menuOpen, setMenuOpen] = useState(false);
+  /** True while Greyson is actually crossing the island, so he can walk. */
+  const [travelling, setTravelling] = useState(false);
+  /** The conversation panel scrolls; an opened sheet must not open off-screen. */
+  const agencySheetRef = useRef<HTMLDivElement | null>(null);
+  /**
    * Transient reaction to a committed turn: how much XP the engine just granted
    * and where the mark landed. Derived by observing state that has ALREADY been
    * committed, never by predicting it, so this cannot become a second source of
@@ -343,6 +342,31 @@ export default function App() {
     setPulse({ xp: state.xp - previous.xp, territoryId: landed?.territoryId ?? state.activeTerritory, key: Date.now() });
   }, [state.turns.length, state.xp, state.activeTerritory, hydrated]);
 
+  /**
+   * Milestones are shown in the world and then let go.
+   *
+   * The queue stays lossless — the engine still records every grant and nothing
+   * is dropped before it is displayed — but the presentation is no longer a
+   * blocking six-item changelog. A territory advancing needs no banner at all:
+   * the fog withdrawing on the island IS the announcement, and the map keeps
+   * carrying it afterwards. Quiet mode shows nothing and acknowledges nothing,
+   * so a serious session neither celebrates nor silently discards.
+   */
+  useEffect(() => {
+    if (state.presentation !== 'normal' || state.presentationQueue.length === 0) return;
+    const carriedByTheWorld = state.presentationQueue.filter((notice) => notice.kind === 'territory');
+    if (carriedByTheWorld.length > 0) {
+      dispatch(...carriedByTheWorld.map((notice) => ({ type: 'PRESENTATION_NOTICE_ACKNOWLEDGED', noticeId: notice.id }) as GameEvent));
+      return;
+    }
+    const onScreen = state.presentationQueue.slice(0, MAX_BANNERS);
+    const timer = window.setTimeout(
+      () => dispatch(...onScreen.map((notice) => ({ type: 'PRESENTATION_NOTICE_ACKNOWLEDGED', noticeId: notice.id }) as GameEvent)),
+      BANNER_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [state.presentationQueue, state.presentation]);
+
   useEffect(() => {
     if (!pulse) return;
     const timer = window.setTimeout(() => setPulse(null), 1200);
@@ -362,19 +386,31 @@ export default function App() {
     setRerollCount(0);
   }, [basePrompt.id]);
 
-  /** Greyson turns to face the direction he just travelled. */
+  /**
+   * Greyson crosses the island rather than teleporting: he turns to face the way
+   * he is going and keeps walking until he arrives. Reduced motion still moves
+   * him — it just does not animate the journey.
+   */
   useEffect(() => {
     const from = previousTerritory.current;
     previousTerritory.current = state.activeTerritory;
     if (!from || from === state.activeTerritory) return;
-    const start = nodeAt(from);
-    const end = nodeAt(state.activeTerritory);
+    const start = regionFor(from).stand;
+    const end = regionFor(state.activeTerritory).stand;
     if (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y)) setFacing(end.x >= start.x ? 'right' : 'left');
     else setFacing(end.y < start.y ? 'back' : 'front');
-  }, [state.activeTerritory]);
+    if (state.settings.reducedMotion) return;
+    setTravelling(true);
+    const timer = window.setTimeout(() => setTravelling(false), 1200);
+    return () => window.clearTimeout(timer);
+  }, [state.activeTerritory, state.settings.reducedMotion]);
 
-  // The agency sheet is a transient surface: leaving the screen closes it.
-  useEffect(() => { setMoreOpen(false); }, [screen]);
+  // Transient surfaces close when the player moves between places.
+  useEffect(() => { setMoreOpen(false); }, [screen, talking]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    agencySheetRef.current?.scrollIntoView({ behavior: state.settings.reducedMotion ? 'auto' : 'smooth', block: 'end' });
+  }, [moreOpen, state.settings.reducedMotion]);
 
   /**
    * Turn a Cartographer proposal into deterministic events. This is the ONLY
@@ -899,121 +935,45 @@ export default function App() {
    * without a mouse is not accessible, and the state must never be conveyed by
    * colour alone.
    */
-  const renderAtlas = (interactive = true) => {
-    const activeNode = nodeAt(state.activeTerritory);
-    return <div className="atlas map" data-testid="atlas-map">
-      <svg viewBox={`0 0 ${MAP_VIEW.width} ${MAP_VIEW.height}`} className="atlas-svg" role="group" aria-label="The Greyson Map">
-        <defs>
-          <filter id="atlas-fog" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="9" />
-          </filter>
-          <radialGradient id="atlas-here">
-            <stop offset="0%" stopColor="var(--gold)" stopOpacity="0.32" />
-            <stop offset="100%" stopColor="var(--gold)" stopOpacity="0" />
-          </radialGradient>
-        </defs>
+  /**
+   * The world, and almost nothing else.
+   *
+   * Human review of the previous candidate said "the UI is a lot" and "there's
+   * no map really". The answer to both is subtraction: the island fills the
+   * screen, and the only persistent chrome is where Greyson is, how far along he
+   * is, one way in, and one way to everything else.
+   */
+  const renderWorld = () => <section className="stage" data-testid="world-stage">
+    <WorldMap
+      state={state}
+      facing={facing}
+      travelling={travelling}
+      mark={pulse}
+      sprite={GREYSON_SPRITES[facing]}
+      reducedMotion={state.settings.reducedMotion}
+      onSelectRegion={(territoryId) => dispatch({ type: 'ACTIVE_TERRITORY_SET', territoryId })}
+    />
 
-        <g className="atlas-edges">
-          {MAP_EDGES.map(([from, to]) => {
-            const a = nodeAt(from), b = nodeAt(to);
-            const known = [from, to].some((id) => (state.territories.find((t) => t.id === id)?.status ?? 'fogged') !== 'fogged');
-            return <line key={`${from}-${to}`} className={`atlas-edge${known ? ' is-known' : ''}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
-          })}
-        </g>
-
-        {/* Fog sits above the paths and below the nodes, so unknown country
-            genuinely obscures rather than merely tinting. */}
-        <g className="atlas-fog" aria-hidden="true">
-          {state.territories.filter((t) => t.status === 'fogged').map((t) => {
-            const node = nodeAt(t.id);
-            return <circle key={t.id} cx={node.x} cy={node.y} r={30} filter="url(#atlas-fog)" />;
-          })}
-        </g>
-
-        <circle className="atlas-here-glow" cx={activeNode.x} cy={activeNode.y} r={44} fill="url(#atlas-here)" aria-hidden="true" />
-        {pulse && <circle key={pulse.key} className="atlas-pulse" cx={nodeAt(pulse.territoryId).x} cy={nodeAt(pulse.territoryId).y} r={20} aria-hidden="true" />}
-
-        <g className="atlas-nodes">
-          {state.territories.map((territory) => {
-            const node = nodeAt(territory.id);
-            const isActive = territory.id === state.activeTerritory;
-            const covered = territory.coveredDimensions.length;
-            const total = territory.requiredDimensions.length;
-            const ratio = total > 0 ? covered / total : 0;
-            const circumference = 2 * Math.PI * 17;
-            const label = `${territory.label}: ${isActive ? 'current position, ' : ''}${STATUS_WORD[territory.status]}, ${covered} of ${total} dimensions mapped`;
-            return <g
-              key={territory.id}
-              className={`atlas-node t-${territory.status}${isActive ? ' is-active' : ''}`}
-              role={interactive ? 'button' : 'img'}
-              tabIndex={interactive ? 0 : undefined}
-              aria-label={label}
-              aria-current={isActive ? 'true' : undefined}
-              data-testid={`atlas-node-${territory.id}`}
-              data-status={territory.status}
-              onClick={interactive ? () => dispatch({ type: 'ACTIVE_TERRITORY_SET', territoryId: territory.id }) : undefined}
-              onKeyDown={interactive ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); dispatch({ type: 'ACTIVE_TERRITORY_SET', territoryId: territory.id }); } } : undefined}
-            >
-              <circle className="atlas-node-hit" cx={node.x} cy={node.y} r={26} />
-              <circle className="atlas-node-ring" cx={node.x} cy={node.y} r={17} />
-              {ratio > 0 && <circle
-                className="atlas-node-arc" cx={node.x} cy={node.y} r={17}
-                strokeDasharray={`${(circumference * ratio).toFixed(2)} ${circumference.toFixed(2)}`}
-                transform={`rotate(-90 ${node.x} ${node.y})`}
-              />}
-              <circle className="atlas-node-core" cx={node.x} cy={node.y} r={11} />
-              <text className="atlas-node-glyph" x={node.x} y={node.y} textAnchor="middle" dominantBaseline="central" aria-hidden="true">{STATUS_MARK[territory.status]}</text>
-              <text className="atlas-node-label" x={node.x} y={node.y + 33} textAnchor="middle" aria-hidden="true">{territory.label}</text>
-              <text className="atlas-node-count" x={node.x} y={node.y + 44} textAnchor="middle" aria-hidden="true">{covered}/{total}</text>
-            </g>;
-          })}
-        </g>
-      </svg>
-
-      {/* Greyson is a real inhabitant of the map, not a header decoration. He
-          moves to whichever region the expedition is working in. */}
-      <div
-        className={`avatar atlas-greyson face-${facing}`}
-        data-testid="atlas-greyson"
-        data-territory={state.activeTerritory}
-        style={{ left: `${(activeNode.x / MAP_VIEW.width) * 100}%`, top: `${(activeNode.y / MAP_VIEW.height) * 100}%` }}
-      >
-        <img src={GREYSON_SPRITES[facing]} alt={`Greyson, standing in ${activeTerritory.label}`} draggable={false} />
+    <div className="hud" data-testid="hud">
+      <div className="hud-place">
+        <strong data-testid="hud-territory">{activeTerritory.label}</strong>
+        <span className="hud-progress" data-testid="hud-progress" data-xp={state.xp} data-level={state.level} aria-label={`Level ${state.level}, ${xp.current} of ${xp.required} to the next level`}>
+          <i data-testid="hud-level">L{state.level}</i>
+          <span className="hud-track"><b style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></span>
+        </span>
       </div>
-      {pulse && <div key={pulse.key} className="atlas-mark" data-testid="atlas-mark" style={{ left: `${(nodeAt(pulse.territoryId).x / MAP_VIEW.width) * 100}%`, top: `${(nodeAt(pulse.territoryId).y / MAP_VIEW.height) * 100}%` }} aria-hidden="true">+{pulse.xp} XP</div>}
-    </div>;
-  };
+      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+        <span aria-hidden="true">☰</span>
+      </button>
+      {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
+    </div>
 
-  const renderMap = () => <section className="screen">
-    <div className="eyebrow">THE GREYSON MAP</div>
-    <header><div><h1>Atlas of One</h1><p>One person. More territory than a questionnaire can survive.</p></div>{isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}</header>
-    {renderProgress()}
-    <article className="quest-card" data-testid="objective-card">
-      <b aria-hidden="true">◆</b>
-      <div>
-        <span className="eyebrow">{objective.eyebrow}</span>
-        <strong>{objective.label}</strong>
-        <small>{objective.detail}</small>
-        <div className="quest-track"><i style={{width:`${Math.min(100,(objective.progress/Math.max(1,objective.target))*100)}%`}} /></div>
-        <small className="quest-count">{objective.progress} / {objective.target}</small>
-      </div>
-    </article>
-
-    {renderAtlas()}
-
-    <article className="card current-territory">
-      <span className="eyebrow">YOU ARE HERE</span>
-      <h2>{activeTerritory.label}</h2>
-      <p>{activeTerritory.coveredDimensions.length} of {activeTerritory.requiredDimensions.length} dimensions mapped{activeRemaining>0?` · ${activeRemaining} to go`:' · fully charted'}.</p>
-      <button className="primary" onClick={() => setScreen('talk')}>{activeTerritory.coveredDimensions.length===0?'Start mapping':'Continue encounter'}</button>
-    </article>
-    {(openBosses.length>0||openDoors.length>0||encounter)&&<article className="card encounters" data-testid="encounter-offers">
-      <span className="eyebrow">OPEN ENCOUNTERS</span>
-      <p>Earned from territory you have already mapped. All optional.</p>
-      {encounter&&<button className="primary full" data-testid="resume-encounter" onClick={()=>setScreen('talk')}>Resume {encounter.kind==='door'?encounter.title:encounter.heading}</button>}
-      {!encounter&&openBosses.map((boss)=>{const run=state.bossRuns.find((item)=>item.bossId===boss.id&&item.status==='active');const done=run?run.stages.filter((stage)=>stage.outcome!=='pending').length:0;return <button key={boss.id} className="offer boss" data-testid={`start-${boss.id}`} onClick={()=>{dispatch({type:'BOSS_STARTED',bossId:boss.id});setReply('');setScreen('talk');}}><span className="offer-tag" aria-hidden="true">▲ BOSS</span><strong>{run?'Resume: ':''}{boss.label}</strong><small>{run?`Stage ${done+1} of ${run.stages.length} · progress kept`:boss.description}</small></button>;})}
-      {!encounter&&openDoors.slice(0,3).map((door)=><button key={door.doorId} className="offer door" data-testid={`open-${door.doorId}`} onClick={()=>{dispatch({type:'DOOR_OPENED',doorId:door.doorId});setReply('');setScreen('talk');}}><span className="offer-tag" aria-hidden="true">◈ DOOR</span><strong>{territoryLabels[door.territoryIds[0]]} × {territoryLabels[door.territoryIds[1]]}</strong><small>What connects these two regions that neither shows alone.</small></button>)}
-    </article>}
+    {!talking && !encounter && <button className="world-enter" data-testid="enter-encounter" onClick={() => { setTalking(true); setReply(''); }}>
+      {state.turns.length === 0 ? 'Begin' : 'Continue'}
+    </button>}
+    {!talking && encounter && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
+      Resume {encounter.kind === 'door' ? encounter.title : encounter.heading}
+    </button>}
   </section>;
 
   /**
@@ -1023,7 +983,7 @@ export default function App() {
    * stop impersonating the game. STOP is deliberately first so the control that
    * has to work fastest is the one the thumb reaches first.
    */
-  const renderAgencySheet = (privateDimension: string) => moreOpen && <div className="more-sheet" data-testid="more-sheet" role="dialog" aria-label="Agency controls and moves" onKeyDown={(event)=>{ if(event.key==='Escape') setMoreOpen(false); }}>
+  const renderAgencySheet = (privateDimension: string) => moreOpen && <div ref={agencySheetRef} className="more-sheet" data-testid="more-sheet" role="dialog" aria-label="Agency controls and moves" onKeyDown={(event)=>{ if(event.key==='Escape') setMoreOpen(false); }}>
     <div className="more-head">
       <span className="eyebrow">ALWAYS AVAILABLE</span>
       <button className="more-close" data-testid="more-close" aria-label="Close controls" onClick={()=>setMoreOpen(false)}>×</button>
@@ -1045,63 +1005,61 @@ export default function App() {
    * showed six permanent controls and no game moves at all, which made the
    * control plane look like the product.
    */
+  /**
+   * The primary row shows only what matters in this exact moment.
+   *
+   * A move that is unlocked is not automatically a move worth offering: GO
+   * DEEPER needs a thread already running in this region, and REROLL only makes
+   * sense while the composer is still empty and the player is stuck on the
+   * question rather than part-way through answering it.
+   */
   const renderActionBar = (onPass: () => void, privateDimension: string) => {
     const moves: { id: string; label: string; hint: string; run: () => void }[] = [];
-    if (canGoDeeper && !promptOverride) moves.push({ id: 'go-deeper', label: 'GO DEEPER', hint: 'Pursue this thread further', run: invokeGoDeeper });
-    if (canReroll) moves.push({ id: 'reroll', label: 'REROLL', hint: 'Ask this a different way', run: invokeReroll });
+    if (canGoDeeper && !promptOverride && activeTerritory.coveredDimensions.length > 0) {
+      moves.push({ id: 'go-deeper', label: 'Go deeper', hint: 'Pursue this thread further', run: invokeGoDeeper });
+    }
+    if (canReroll && !answer.trim() && rerollCount < 3) {
+      moves.push({ id: 'reroll', label: 'Reroll', hint: 'Ask this a different way', run: invokeReroll });
+    }
     return <>
       <div className="action-bar" data-testid="action-bar" role="group" aria-label="Encounter actions">
         {state.sessionStatus === 'paused'
-          ? <button className="action action-resume" data-testid="action-resume" onClick={()=>dispatch({type:'SESSION_SET',status:'active'})}>RESUME</button>
-          : <button className="action" data-testid="agency-pass" onClick={onPass}>PASS</button>}
-        {moves.slice(0, 2).map((move) => <button key={move.id} className="action action-move" data-testid={`move-${move.id}`} title={move.hint} aria-label={`${move.label}: ${move.hint}`} onClick={move.run} disabled={state.sessionStatus==='paused'}>{move.label}</button>)}
-        <button className="action action-more" data-testid="action-more" aria-expanded={moreOpen} aria-haspopup="dialog" aria-label="More controls, including stop, private and serious" onClick={()=>setMoreOpen((open)=>!open)}>MORE…</button>
+          ? <button className="action action-resume" data-testid="action-resume" onClick={()=>dispatch({type:'SESSION_SET',status:'active'})}>Resume</button>
+          : <button className="action" data-testid="agency-pass" onClick={onPass}>Pass</button>}
+        {moves.slice(0, 2).map((move) => <button key={move.id} className="action action-move" data-testid={`move-${move.id}`} aria-label={`${move.label}: ${move.hint}`} onClick={move.run} disabled={state.sessionStatus==='paused'}>{move.label}</button>)}
+        <button className="action action-more" data-testid="action-more" aria-expanded={moreOpen} aria-haspopup="dialog" aria-label="More controls, including stop, private and serious" onClick={()=>setMoreOpen((open)=>!open)}>More</button>
       </div>
       {renderAgencySheet(privateDimension)}
     </>;
   };
 
-  const renderTalk = () => encounter ? renderEncounter() : <section className="screen talk-screen">
-    <div className="eyebrow">ENCOUNTER · {activeTerritory.label.toUpperCase()}</div>
-    <h1 className="screen-title talk-title">The Cartographer{quiet && <span className="chip">{state.presentation}</span>}{isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}</h1>
+  /**
+   * Conversation happens IN the world.
+   *
+   * The island stays on screen above this panel, so an answer visibly changes
+   * somewhere the player can still see rather than a page they left behind.
+   */
+  const renderConversation = () => <div className="convo" data-testid="convo">
+    <button className="convo-close" data-testid="leave-encounter" aria-label="Back to the map" onClick={()=>{ if(voiceMode==='talk') cancelVoice(); setTalking(false); setMoreOpen(false); }}>
+      <span aria-hidden="true">▾</span>
+    </button>
 
-    {/* The expedition stays visible while talking, so the conversation reads as
-        something happening inside the world rather than a form on its own. */}
-    <div className="expedition" data-testid="expedition-strip">
-      <img className={`expedition-avatar face-${facing}`} src={GREYSON_SPRITES[facing]} alt="" aria-hidden="true" draggable={false} />
-      <div className="expedition-body">
-        <div className="expedition-head">
-          <strong data-testid="expedition-territory">{activeTerritory.label}</strong>
-          <span className="expedition-status" data-status={activeTerritory.status}><i aria-hidden="true">{STATUS_MARK[activeTerritory.status]}</i> {STATUS_WORD[activeTerritory.status]}</span>
-        </div>
-        <div className="expedition-track"><i style={{width:`${Math.min(100,(activeTerritory.coveredDimensions.length/Math.max(1,activeTerritory.requiredDimensions.length))*100)}%`}} /></div>
-        <div className="expedition-foot">
-          <small>{activeTerritory.coveredDimensions.length}/{activeTerritory.requiredDimensions.length} mapped</small>
-          {/* The reaction sits beside the figure it just changed, rather than
-              floating over the header where it collided with the title. */}
-          <small className="expedition-readout">
-            {pulse && <b key={pulse.key} className="expedition-pulse" data-testid="answer-pulse">+{pulse.xp} XP</b>}
-            <span data-testid="expedition-xp">XP {state.xp} · L{state.level}</span>
-          </small>
-        </div>
-      </div>
-    </div>
-
-    <article className="card prompt">{reply && <p className="reply" role="status">{reply}</p>}<h2 data-testid="prompt-question">{prompt.question}</h2><small>Evidence dimension: {prompt.dimension}{promptOverride ? ` · ${promptOverride.kind === 'deeper' ? 'going deeper' : 'reframed'}` : ''}</small></article>
-    {state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}
-
-    <div className="mode-switch" role="tablist" aria-label="Input mode">
-      <button role="tab" aria-selected={voiceMode==='type'} className={voiceMode==='type'?'active':''} data-testid="mode-type" onClick={()=>toggleVoiceMode('type')}>Type</button>
-      <button role="tab" aria-selected={voiceMode==='talk'} className={voiceMode==='talk'?'active':''} data-testid="mode-talk" onClick={()=>toggleVoiceMode('talk')}>Talk</button>
-    </div>
+    <p className="convo-speaker">The Cartographer{quiet && <span className="chip">{state.presentation}</span>}</p>
+    {reply && <p className="convo-reply" role="status">{reply}</p>}
+    <h2 className="convo-question" data-testid="prompt-question">{prompt.question}</h2>
+    {/* Small, but the player needs to know what PRIVATE would close. */}
+    <small className="convo-dimension" data-testid="prompt-dimension">Evidence dimension: {prompt.dimension}{promptOverride ? ` · ${promptOverride.kind === 'deeper' ? 'going deeper' : 'reframed'}` : ''}</small>
+    {state.sessionStatus==='paused' && <p className="convo-paused">Session paused. Your Atlas is safe.</p>}
 
     {voiceMode==='type' ? (
       <div className="composer">
-        {/* Label wraps the field, matching the encounter composer. */}
-        <label className="answer">Your coordinate
-          <textarea rows={3} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="answer-input" placeholder="Say it however it actually comes out." />
+        <label className="answer">Your answer
+          <textarea rows={2} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="answer-input" placeholder="Say it however it comes out." />
         </label>
-        <button className="primary full" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'||isSubmitting}>{isSubmitting ? 'Mapping coordinate...' : 'Map this answer'}</button>
+        <div className="composer-send">
+          <button className="link-btn" data-testid="mode-talk" onClick={()=>toggleVoiceMode('talk')}>Speak instead</button>
+          <button className="primary" data-testid="submit-answer" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'||isSubmitting}>{isSubmitting ? 'Mapping coordinate...' : 'Map this answer'}</button>
+        </div>
       </div>
     ) : (
       <div className="voice-card" data-testid="voice-card">
@@ -1172,11 +1130,12 @@ export default function App() {
             <button data-testid="voice-fallback-type" onClick={()=>toggleVoiceMode('type')}>Switch to typing</button>
           </div>
         )}
+        <button className="link-btn" data-testid="mode-type" onClick={()=>toggleVoiceMode('type')}>Type instead</button>
       </div>
     )}
 
     {renderActionBar(()=>setReply('Passed. No penalty.'), prompt.dimension)}
-  </section>;
+  </div>;
 
   const fragmentCount = state.territories.filter((t)=>state.mapFragments.some((f)=>f.territoryId===t.id)).length;
   const unlockedAchievements = state.achievements.filter((a)=>a.unlockedAt);
@@ -1261,7 +1220,7 @@ export default function App() {
       setIsSubmitting(false);
       setState(deserializeCampaign(await file.text()));
       setMessage('Atlas imported and validated.');
-      setScreen('map');
+      setScreen('world');
     } catch (error) {
       setMessage(error instanceof Error ? `Import rejected: ${error.message}` : 'Import rejected.');
     }
@@ -1456,7 +1415,7 @@ export default function App() {
       voiceMode: onboardingMode === 'talk' ? 'talk' : 'text'
     });
     setVoiceMode(onboardingMode);
-    setScreen('map');
+    setScreen('world');
   };
 
   const renderOnboarding = () => (
@@ -1668,32 +1627,60 @@ export default function App() {
     </div>;
   }
 
+  /** One menu, holding the places that are not the world. */
+  const renderMenu = () => menuOpen && <div className="menu-scrim" data-testid="menu" onClick={()=>setMenuOpen(false)}>
+    <div className="menu" role="dialog" aria-label="Menu" onClick={(event)=>event.stopPropagation()} onKeyDown={(event)=>{ if(event.key==='Escape') setMenuOpen(false); }}>
+      <button className="menu-item" data-testid="go-vault" onClick={()=>{setScreen('vault');setMenuOpen(false);}}>
+        <span aria-hidden="true">▤</span><span><strong>Vault</strong><small>{state.mapFragments.length} of {state.territories.length} fragments · {state.insights.length} insight{state.insights.length===1?'':'s'}</small></span>
+      </button>
+      <button className="menu-item" data-testid="go-character" onClick={()=>{setScreen('me');setMenuOpen(false);}}>
+        <span aria-hidden="true">☗</span><span><strong>Greyson</strong><small>Level {state.level} · character, settings and your data</small></span>
+      </button>
+      {(openBosses.length>0||openDoors.length>0)&&<div className="menu-encounters" data-testid="encounter-offers">
+        <span className="eyebrow">OPEN ENCOUNTERS</span>
+        {openBosses.map((boss)=>{const run=state.bossRuns.find((item)=>item.bossId===boss.id&&item.status==='active');const done=run?run.stages.filter((stage)=>stage.outcome!=='pending').length:0;return <button key={boss.id} className="menu-item offer boss" data-testid={`start-${boss.id}`} onClick={()=>{dispatch({type:'BOSS_STARTED',bossId:boss.id});setReply('');setMenuOpen(false);setTalking(true);}}><span aria-hidden="true">▲</span><span><strong>{run?'Resume: ':''}{boss.label}</strong><small>{run?`Stage ${done+1} of ${run.stages.length} · progress kept`:boss.description}</small></span></button>;})}
+        {openDoors.slice(0,3).map((door)=><button key={door.doorId} className="menu-item offer door" data-testid={`open-${door.doorId}`} onClick={()=>{dispatch({type:'DOOR_OPENED',doorId:door.doorId});setReply('');setMenuOpen(false);setTalking(true);}}><span aria-hidden="true">◈</span><span><strong>{territoryLabels[door.territoryIds[0]]} × {territoryLabels[door.territoryIds[1]]}</strong><small>What connects these two regions that neither shows alone.</small></span></button>)}
+      </div>}
+      <button className="menu-close" data-testid="menu-close" onClick={()=>setMenuOpen(false)}>Close</button>
+    </div>
+  </div>;
+
+  /** Vault and the character record are visited, then left behind. */
+  const renderSheet = (title: string, body: JSX.Element) => <div className="sheet" data-testid="sheet">
+    <div className="sheet-bar">
+      <button className="sheet-back" data-testid="close-sheet" aria-label="Back to the map" onClick={()=>setScreen('world')}><span aria-hidden="true">←</span> Map</button>
+      <span className="sheet-title">{title}</span>
+    </div>
+    <div className="sheet-body">{body}</div>
+  </div>;
+
+  // Territory notices are carried by the island itself, so they never queue a banner.
+  const banners = notices.filter((notice) => notice.kind !== 'territory').slice(0, MAX_BANNERS);
+
   return <div className={`shell${waking ? ' is-waking' : ''}`}>
     {message&&<div className="toast" role="status">{message}<button aria-label="Dismiss" onClick={()=>setMessage('')}>×</button></div>}
     {showOnboarding ? (
       renderOnboarding()
     ) : (
       <>
-        {notices.length>0&&<div className="overlay">
-          {/* One card carries everything the answer earned. Acknowledging it
-              dispatches one acknowledgement PER notice, so nothing is dropped on
-              the way out - the old single-notice card cleared the whole queue and
-              silently destroyed the rest. */}
-          <article className={`milestone kind-${notices[0].kind}${quiet?' is-quiet':''}`} data-testid="milestone" role="dialog" aria-labelledby="milestone-title" aria-describedby="milestone-detail">
-            <span className="eyebrow">{MILESTONE_EYEBROW[notices[0].kind]}</span>
-            <h2 id="milestone-title" data-testid="milestone-title">{notices[0].title}</h2>
-            <p id="milestone-detail">{notices[0].detail}</p>
-            {notices.length>1&&<ul className="milestone-also" data-testid="milestone-also">
-              {notices.slice(1).map((item)=><li key={item.id} data-testid={`milestone-item-${item.kind}`}>
-                <b aria-hidden="true">{MILESTONE_GLYPH[item.kind]}</b>
-                <span><strong>{item.title}</strong><small>{item.detail}</small></span>
-              </li>)}
-            </ul>}
-            <button className="primary" data-testid="milestone-continue" onClick={()=>dispatch(...notices.map((item)=>({type:'PRESENTATION_NOTICE_ACKNOWLEDGED',noticeId:item.id}) as GameEvent))}>Continue</button>
-          </article>
+        {renderWorld()}
+        {talking && (encounter ? renderEncounter() : renderConversation())}
+
+        {/* Milestones land on the world, briefly, without blocking anything. */}
+        {banners.length>0&&<div className={`banners${quiet?' is-quiet':''}`} data-testid="milestone" role="status" aria-live="polite">
+          {banners.map((notice, index)=><article key={notice.id} className={`banner kind-${notice.kind}`} data-testid={`milestone-item-${notice.kind}`} style={{animationDelay:`${index*90}ms`}}>
+            <b aria-hidden="true">{MILESTONE_GLYPH[notice.kind]}</b>
+            <div>
+              <span className="banner-eyebrow">{MILESTONE_EYEBROW[notice.kind]}</span>
+              <strong {...(index===0?{'data-testid':'milestone-title'}:{})}>{notice.title}</strong>
+              {notice.kind==='level'&&<small>{notice.detail}</small>}
+            </div>
+          </article>)}
         </div>}
-        {screen==='map'?renderMap():screen==='talk'?renderTalk():screen==='vault'?renderVault():renderMe()}
-        <nav aria-label="Main">{(['map','talk','vault','me'] as Screen[]).map((item)=><button key={item} className={screen===item?'active':''} aria-current={screen===item?'page':undefined} onClick={()=>setScreen(item)}><span aria-hidden="true">{item==='map'?'⌖':item==='talk'?'◉':item==='vault'?'▤':'☗'}</span><small>{item==='me'?'Me':item[0].toUpperCase()+item.slice(1)}</small></button>)}</nav>
+
+        {renderMenu()}
+        {screen==='vault'&&renderSheet('Vault', renderVault())}
+        {screen==='me'&&renderSheet('Greyson', renderMe())}
       </>
     )}
   </div>;

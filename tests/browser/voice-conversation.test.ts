@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent, openAgency } from './helper';
+import { completeOnboardingIfPresent, openAgency, navigateTo } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -183,7 +183,7 @@ async function newVoiceSession(options: { analyser?: boolean; transcripts?: stri
   await page.waitForSelector('.shell');
   await completeOnboardingIfPresent(page);
   await page.waitForTimeout(400);
-  await page.click('nav button:has(small:text-is("Talk"))');
+  await navigateTo(page, 'Talk');
   await page.waitForSelector('[data-testid="mode-talk"]');
   // The single deliberate activation that starts the spoken conversation.
   await page.click('[data-testid="mode-talk"]');

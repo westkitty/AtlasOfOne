@@ -1,4 +1,4 @@
-import { openAgency, wakeAtlas } from './helper';
+import { openAgency, wakeAtlas, navigateTo } from './helper';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
@@ -135,16 +135,18 @@ describe('Phase 6 minimal canonical onboarding browser proof', () => {
   it('10. keyboard navigation can trigger Start', async () => {
     await page.focus('[data-testid="onboarding-start"]');
     await page.keyboard.press('Enter');
-    await page.waitForSelector('.map');
-    expect(await page.isVisible('.map')).toBe(true);
-    expect(await page.isVisible('nav')).toBe(true);
+    await page.waitForSelector('[data-testid="world"]');
+    expect(await page.isVisible('[data-testid="world"]')).toBe(true);
+    // Onboarding lands straight in the world, with the way in and the menu on it.
+    expect(await page.isVisible('[data-testid="enter-encounter"]')).toBe(true);
+    expect(await page.isVisible('[data-testid="open-menu"]')).toBe(true);
   });
 
   it('11. onboarding does not alter XP, evidence, or unlocks', async () => {
-    const xp = Number((await page.textContent('.xp span'))!.replace(/\D/g, ''));
+    // Progression is read from the values the world HUD renders from.
+    const xp = Number(await page.getAttribute('[data-testid="hud-progress"]', 'data-xp'));
     expect(xp).toBe(0);
-    const level = (await page.textContent('.level'))!.trim();
-    expect(level).toBe('L1');
+    expect(await page.textContent('[data-testid="hud-level"]')).toBe('L1');
   });
 
   it('12. onboarding completion survives reload locally in IndexedDB', async () => {
@@ -153,13 +155,13 @@ describe('Phase 6 minimal canonical onboarding browser proof', () => {
     // completed campaign comes back rather than replaying onboarding.
     await page.waitForSelector('[data-testid="cold-open"]');
     await wakeAtlas(page);
-    await page.waitForSelector('.map');
-    expect(await page.isVisible('.map')).toBe(true);
+    await page.waitForSelector('[data-testid="world"]');
+    expect(await page.isVisible('[data-testid="world"]')).toBe(true);
     expect(await page.locator('[data-testid="cold-open"]').count()).toBe(0);
   });
 
   it('13. permanent controls remain fully available on Talk screen afterward', async () => {
-    await page.click('nav button:has(small:text-is("Talk"))');
+    await navigateTo(page, 'Talk');
     await page.waitForSelector('[data-testid="action-bar"]');
     // PASS is primary; everything else is behind one tap of MORE and still
     // unconditionally available - onboarding grants no control, it only explains.

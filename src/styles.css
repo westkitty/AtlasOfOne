@@ -53,7 +53,7 @@ p { color: var(--muted); line-height: 1.5; margin: .4rem 0; }
 
 /* ---- shell + layout ---------------------------------------------------- */
 
-.shell { min-height: 100vh; padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 18px); }
+.shell { min-height: 100vh; min-height: 100dvh; }
 .screen { width: min(100%, 720px); margin: auto; padding: 22px var(--pad) 30px; }
 .screen > header { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; margin: 0 0 4px; }
 .screen > header p { margin: .3rem 0 0; }
@@ -90,86 +90,107 @@ p { color: var(--muted); line-height: 1.5; margin: .4rem 0; }
 .quest-track i { display: block; height: 100%; background: var(--gold); }
 .quest-count { font-weight: 800; font-size: .72rem; color: var(--ink) !important; }
 
-/* ---- the map: one world, not eight cards ------------------------------ */
+/* ---- the world -------------------------------------------------------- */
 
-.map {
+.world {
   position: relative;
-  margin-top: 16px; padding: 10px 8px 12px;
-  border: 1px solid var(--line); border-radius: 20px;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  background:
-    radial-gradient(120% 70% at 50% 8%, #1a2532, transparent 68%),
-    radial-gradient(90% 60% at 20% 90%, #141d2a, transparent 70%),
-    var(--panel-2);
+  background: #070b11;
+  touch-action: manipulation;
 }
-.atlas-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.world-svg { display: block; width: 100%; height: 100%; }
 
-/* Paths between regions. Unknown country keeps its routes hidden. */
-.atlas-edge { stroke: #2b3849; stroke-width: 1; stroke-dasharray: 3 6; opacity: .5; }
-.atlas-edge.is-known { stroke: #55688a; stroke-width: 1.5; stroke-dasharray: none; opacity: .95; }
+/* Sea and coast */
+.wm-land { fill: #1b2634; stroke: #46617f; stroke-width: 1.4; }
+.wm-coast-glow { fill: none; stroke: #38587c; stroke-width: 7; opacity: .7; }
 
-/* Fog is a soft mass over the unknown, not a hatch swatch. */
-.atlas-fog circle { fill: #0e141d; opacity: .92; }
+/* Trails. A sea crossing is dashed because it is not walked. */
+.wm-trail { fill: none; stroke: #4a5f7d; stroke-width: 2; stroke-linecap: round; opacity: .85; }
+.wm-trail.is-glimpsed { stroke: #33445c; stroke-width: 1.4; stroke-dasharray: 2 8; opacity: .5; }
+.wm-trail.is-known { stroke: #8b7a52; stroke-dasharray: none; }
+.wm-trail.is-sea { stroke-dasharray: 5 7; stroke-width: 1.6; }
 
-.atlas-here-glow { pointer-events: none; }
+/* Regions: land that has been walked looks walked. */
+.wm-region { cursor: pointer; }
+.wm-region-fill { fill: #1b2735; opacity: .9; }
+.wm-region-edge { fill: none; stroke: #2f4157; stroke-width: 1; stroke-dasharray: 3 5; }
+.wm-region.rv-hidden .wm-region-fill { fill: #121a24; }
+.wm-region.rv-glimpsed .wm-region-fill { fill: #1a2431; }
+.wm-region.r-exploring .wm-region-fill { fill: #212f40; }
+.wm-region.r-charted .wm-region-fill { fill: #27364a; }
+.wm-region.r-deeply-charted .wm-region-fill { fill: #2d3f55; }
+.wm-region.r-charted .wm-region-edge,
+.wm-region.r-deeply-charted .wm-region-edge { stroke: var(--gold-soft); stroke-dasharray: none; opacity: .7; }
+.wm-region.is-here .wm-region-edge { stroke: var(--gold); stroke-dasharray: none; stroke-width: 1.6; opacity: .95; }
 
-.atlas-node { cursor: pointer; }
-.atlas-node-hit { fill: transparent; }
-.atlas-node-ring { fill: #101823; stroke: #3a4a60; stroke-width: 1.5; }
-.atlas-node-arc { fill: none; stroke: var(--gold); stroke-width: 3; stroke-linecap: round; opacity: .9; }
-.atlas-node-core { fill: #16202c; stroke: #2e3c50; stroke-width: 1; }
-.atlas-node-glyph { fill: var(--muted); font-size: 11px; font-weight: 700; }
-.atlas-node-label { fill: var(--ink); font-size: 9.5px; font-weight: 700; letter-spacing: .02em; }
-.atlas-node-count { fill: var(--muted); font-size: 8px; letter-spacing: .04em; }
+.wm-landmark-ink { fill: none; stroke: #6e809b; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.wm-region.r-charted .wm-landmark-ink,
+.wm-region.r-deeply-charted .wm-landmark-ink { stroke: var(--gold-soft); }
+.wm-region.rv-glimpsed .wm-landmark-ink { stroke: #4a5a72; }
 
-/* State reads through form, light, opacity AND glyph - never colour alone. */
-.atlas-node.t-fogged { opacity: .5; }
-.atlas-node.t-fogged .atlas-node-ring { stroke-dasharray: 3 4; stroke: #33425a; }
-.atlas-node.t-fogged .atlas-node-label { fill: var(--muted); font-weight: 600; }
-.atlas-node.t-discovered { opacity: .78; }
-.atlas-node.t-exploring .atlas-node-ring { stroke: #6b7f9d; }
-.atlas-node.t-charted .atlas-node-core { fill: #1d2a3a; stroke: var(--gold-soft); }
-.atlas-node.t-charted .atlas-node-glyph,
-.atlas-node.t-deeply-charted .atlas-node-glyph { fill: var(--gold); }
-.atlas-node.t-deeply-charted .atlas-node-core { fill: #24313f; stroke: var(--gold); }
-.atlas-node.t-deeply-charted .atlas-node-ring { stroke: var(--gold-soft); }
-.atlas-node.is-active .atlas-node-ring { stroke: var(--gold); stroke-width: 2.5; }
-.atlas-node.is-active .atlas-node-label { fill: var(--gold-soft); }
-.atlas-node:focus-visible { outline: none; }
-.atlas-node:focus-visible .atlas-node-hit { fill: none; stroke: var(--gold); stroke-width: 2; }
-
-/* Greyson stands in the region the expedition is working in. */
-.avatar { display: grid; place-items: end center; }
-.avatar img {
-  width: 48px; height: 64px; object-fit: contain;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 6px 4px #0009);
+.wm-region-name {
+  fill: var(--ink); font: 700 11px Georgia, serif; letter-spacing: .02em;
+  paint-order: stroke; stroke: #0b1017; stroke-width: 3px; stroke-linejoin: round;
 }
-.atlas-greyson {
+.wm-region.rv-glimpsed .wm-region-name { fill: #7d8ea6; font-size: 10px; }
+.wm-region.is-here .wm-region-name { fill: var(--gold-soft); }
+.wm-region-sub { fill: var(--muted); font: 700 8px Inter, system-ui, sans-serif; letter-spacing: .06em; }
+.wm-region:focus-visible { outline: none; }
+.wm-region:focus-visible .wm-region-edge { stroke: var(--gold); stroke-width: 2.5; stroke-dasharray: none; }
+
+/* Fog: weather over unknown country, not a hatch swatch. */
+.wm-fog { fill: #0a1017; }
+.wm-fog.is-hidden { opacity: .97; }
+.wm-fog.is-glimpsed { opacity: .62; }
+.wm-fogbank { animation: fog-drift 34s ease-in-out infinite alternate; transform-origin: center; }
+@keyframes fog-drift {
+  from { transform: translate(-5px, 3px) scale(1.01); }
+  to { transform: translate(6px, -4px) scale(1.04); }
+}
+
+.wm-here-glow { pointer-events: none; }
+.wm-ping { fill: none; stroke: var(--gold); stroke-width: 2; opacity: 0; animation: wm-ping 1.2s ease-out; }
+@keyframes wm-ping {
+  0% { r: 10; opacity: .9; }
+  100% { r: 52; opacity: 0; }
+}
+
+/* Greyson walks the island. */
+.world-greyson {
   position: absolute; width: 48px; height: 64px;
   transform: translate(-50%, -86%);
-  transition: left .65s cubic-bezier(.4, 0, .2, 1), top .65s cubic-bezier(.4, 0, .2, 1);
-  pointer-events: none;
+  transition: left 1.15s cubic-bezier(.45, .05, .3, 1), top 1.15s cubic-bezier(.45, .05, .3, 1);
+  pointer-events: none; z-index: 3;
 }
-.atlas-greyson.face-right img { transform: scaleX(-1); }
+/* Native 48x64. A fractional downscale of pixel art shimmers and tears, so the
+   sprite is never resized away from the size it was drawn at. */
+.world-greyson img {
+  width: 48px; height: 64px; object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 5px 4px #000b);
+}
+.world-greyson.face-right img { transform: scaleX(-1); }
+.world-greyson.is-walking img { animation: greyson-step .34s steps(2, end) infinite alternate; }
+@keyframes greyson-step {
+  from { transform: translateY(0) scaleX(var(--flip, 1)); }
+  to { transform: translateY(-2.5px) scaleX(var(--flip, 1)); }
+}
+.world-greyson.face-right { --flip: -1; }
 
-/* The mark a landed coordinate leaves. Visible without motion, animated with it. */
-.atlas-pulse { fill: none; stroke: var(--gold); stroke-width: 2; opacity: 0; animation: atlas-ping 1.1s ease-out; }
-@keyframes atlas-ping {
-  0% { r: 12; opacity: .85; }
-  100% { r: 40; opacity: 0; }
+.world-mark {
+  position: absolute; transform: translate(-50%, -230%);
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--gold-soft); background: #1b2432e6;
+  color: var(--gold); font-size: .66rem; font-weight: 800; letter-spacing: .04em;
+  pointer-events: none; z-index: 4;
+  animation: world-mark-rise 1.3s ease-out;
 }
-.atlas-mark {
-  position: absolute; transform: translate(-50%, -190%);
-  padding: 3px 8px; border-radius: 999px;
-  border: 1px solid var(--gold-soft); background: #1b2432;
-  color: var(--gold); font-size: .68rem; font-weight: 800; letter-spacing: .04em;
-  pointer-events: none; animation: atlas-rise 1.2s ease-out;
-}
-@keyframes atlas-rise {
-  0% { opacity: 0; transform: translate(-50%, -150%); }
-  25% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -240%); }
+@keyframes world-mark-rise {
+  0% { opacity: 0; transform: translate(-50%, -190%); }
+  22% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -300%); }
 }
 
 /* ---- generic cards ---------------------------------------------------- */
@@ -234,7 +255,7 @@ p { color: var(--muted); line-height: 1.5; margin: .4rem 0; }
 
 .agency { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
 .agency button {
-  min-height: 44px; padding: 9px 6px;
+  min-height: 45px; padding: 9px 6px;
   border-radius: 10px; font-size: .72rem; font-weight: 800;
   letter-spacing: .04em;
 }
@@ -419,27 +440,206 @@ p { color: var(--muted); line-height: 1.5; margin: .4rem 0; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 @keyframes fade-in { from { opacity: 0; } }
 
-/* ---- bottom navigation --------------------------------------------- */
+/* ---- world shell: the map owns the screen ---------------------------- */
 
-nav {
-  position: fixed; z-index: 50; left: 50%; bottom: 0;
-  transform: translateX(-50%);
-  width: min(100%, 720px);
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
-  background: #0d131cf2; backdrop-filter: blur(16px);
-  border-top: 1px solid #283547;
+.stage {
+  position: fixed; inset: 0;
+  display: block;
 }
-nav button {
-  min-height: 54px; border: 0; border-radius: 12px;
-  background: transparent; color: #7f8fa4;
-  display: grid; place-items: center; gap: 2px;
-  transition: color .12s ease, background .12s ease;
+
+.hud {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: max(14px, env(safe-area-inset-top)) 14px 0;
+  pointer-events: none;
 }
-nav button span { font-size: 1.15rem; line-height: 1; }
-nav button small { font-weight: 800; font-size: .68rem; letter-spacing: .02em; }
-nav button.active { background: #1a2330; color: var(--gold-soft); }
+.hud > * { pointer-events: auto; }
+.hud-place { flex: 1; min-width: 0; }
+.hud-place strong {
+  display: block; font: 700 1.05rem/1.15 Georgia, serif; color: var(--ink);
+  text-shadow: 0 2px 10px #000a, 0 0 2px #000c;
+}
+.hud-progress { display: flex; align-items: center; gap: 7px; margin-top: 5px; }
+.hud-progress i {
+  font-style: normal; font-size: .6rem; font-weight: 800; letter-spacing: .08em;
+  color: var(--gold-soft); text-shadow: 0 1px 6px #000b;
+}
+.hud-track { width: 74px; height: 3px; border-radius: 999px; background: #ffffff1f; overflow: hidden; }
+.hud-track b { display: block; height: 100%; background: var(--gold); transition: width .5s ease; }
+.hud-menu {
+  flex: none; width: 44px; height: 44px; border-radius: 14px;
+  border: 1px solid #ffffff1f; background: #0d141ec4; color: var(--ink);
+  font-size: 1.1rem; backdrop-filter: blur(6px);
+}
+
+.world-enter {
+  position: absolute; z-index: 5;
+  left: 50%; transform: translateX(-50%);
+  bottom: calc(26px + env(safe-area-inset-bottom));
+  min-height: 50px; padding: 14px 30px;
+  border: 1px solid var(--gold-soft); border-radius: 999px;
+  background: var(--gold); color: #101823;
+  font-weight: 800; font-size: .92rem; letter-spacing: .02em;
+  box-shadow: 0 12px 34px #000a;
+  animation: enter-breathe 3.6s ease-in-out infinite;
+}
+@keyframes enter-breathe {
+  0%, 100% { box-shadow: 0 12px 34px #000a, 0 0 0 0 #d9c58f00; }
+  50% { box-shadow: 0 12px 34px #000a, 0 0 0 9px #d9c58f14; }
+}
+
+/* ---- conversation, layered over the world ---------------------------- */
+
+.convo {
+  position: fixed; z-index: 20;
+  left: 0; right: 0; bottom: 0;
+  max-height: 74vh; overflow-y: auto;
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  border-radius: 22px 22px 0 0;
+  background: linear-gradient(180deg, #131b26f2, #0d131bfa);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 -18px 46px #0009;
+  animation: convo-rise .28s cubic-bezier(.2, .9, .3, 1.05);
+}
+@keyframes convo-rise { from { transform: translateY(26px); opacity: 0; } }
+.convo-close {
+  display: block; width: 46px; height: 26px; margin: 0 auto 2px;
+  border: 0; background: transparent; color: var(--muted); font-size: 1rem; line-height: 1;
+}
+.convo-speaker {
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  font-size: .62rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--gold);
+}
+.convo-reply { margin: 8px 0 0; padding-left: 10px; border-left: 2px solid var(--line-soft); color: var(--muted); font-size: .88rem; }
+.convo-question { margin: 8px 0 2px; font: 700 1.24rem/1.3 Georgia, serif; color: var(--ink); }
+.convo-dimension { display: block; margin-top: 4px; color: var(--muted); font-size: .68rem; letter-spacing: .02em; }
+.convo-paused { margin: 8px 0 0; color: var(--gold-soft); font-size: .82rem; }
+
+.composer { margin-top: 12px; }
+.composer .answer {
+  display: block;
+  font-size: .6rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+}
+.composer .answer textarea { margin-top: 6px; }
+.composer textarea {
+  width: 100%; min-height: 62px; padding: 11px 12px;
+  border: 1px solid var(--line); border-radius: 14px; background: #0b1119; color: var(--ink);
+  font: inherit; line-height: 1.45; resize: vertical;
+}
+.composer textarea::placeholder { color: #4f5e73; }
+.composer-send { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.composer-send .primary { min-height: 46px; padding: 12px 20px; border-radius: 999px; font-size: .86rem; }
+.link-btn { border: 0; background: transparent; color: var(--muted); font-size: .78rem; text-decoration: underline; text-underline-offset: 3px; min-height: 44px; }
+
+/* ---- action surface: only what matters right now --------------------- */
+
+.action-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.action {
+  flex: 1 1 0; min-width: 72px; min-height: 44px;
+  padding: 11px 8px; border-radius: 12px;
+  font-size: .76rem; font-weight: 700; letter-spacing: .01em;
+  border: 1px solid var(--line-soft); background: #0f1620; color: var(--muted);
+}
+.action-move { border-color: #6d6040; color: var(--gold-soft); }
+.action-move:disabled { opacity: .45; }
+.action-resume { border-color: var(--gold-soft); background: var(--gold); color: #101823; }
+
+.more-sheet { margin-top: 10px; padding: 12px; border: 1px solid var(--line-soft); border-radius: 16px; background: #0e151ff2; }
+.more-head { display: flex; align-items: center; justify-content: space-between; }
+.more-close { border: 0; background: transparent; color: var(--muted); font-size: 1.4rem; line-height: 1; min-height: 44px; min-width: 44px; }
+.more-sheet .agency { margin-top: 8px; }
+.more-note { margin: 10px 2px 0; color: var(--muted); font-size: .72rem; }
+
+/* ---- milestones: brief, in-world, never blocking --------------------- */
+
+.banners {
+  position: fixed; z-index: 30;
+  left: 0; right: 0; top: calc(64px + env(safe-area-inset-top));
+  display: grid; gap: 8px;
+  padding: 0 14px;
+  pointer-events: none;
+}
+.banner {
+  display: flex; gap: 10px; align-items: center;
+  padding: 8px 12px;
+  border: 1px solid #6d6040; border-radius: 14px;
+  background: #151d29f2; backdrop-filter: blur(8px);
+  box-shadow: 0 10px 30px #0009;
+  animation: banner-in .34s cubic-bezier(.2, .9, .3, 1.1) backwards;
+}
+@keyframes banner-in { from { opacity: 0; transform: translateY(-10px); } }
+.banner b { flex: none; color: var(--gold); font-size: 1rem; line-height: 1.35; }
+.banner-eyebrow { display: block; font-size: .55rem; font-weight: 800; letter-spacing: .16em; color: var(--gold); }
+.banner strong { display: block; font: 700 .94rem/1.2 Georgia, serif; }
+.banner small { display: block; color: var(--muted); font-size: .74rem; line-height: 1.35; }
+.banner.kind-level { border-color: var(--gold); background: linear-gradient(150deg, #23303fF2, #151d29f2); }
+.banner.kind-level strong { font-size: 1.1rem; color: var(--gold-soft); }
+.banners.is-quiet .banner { border-color: var(--line-soft); background: #121924f2; box-shadow: none; animation: none; }
+.banners.is-quiet .banner b, .banners.is-quiet .banner-eyebrow { color: var(--muted); }
+.banners.is-quiet .banner.kind-level strong { color: var(--ink); font-size: .96rem; }
+
+/* Boss Fights and Mystery Doors keep their own presentation (deferred), but the
+   world now owns the viewport, so they layer over it instead of rendering
+   underneath the fixed map. */
+.encounter-screen {
+  position: fixed; z-index: 25; inset: 0;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #0e151ff7, #0b0f16);
+  backdrop-filter: blur(8px);
+  animation: sheet-in .24s ease-out;
+}
+
+/* ---- menu + sheets ---------------------------------------------------- */
+
+.menu-scrim {
+  position: fixed; inset: 0; z-index: 40;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 18px;
+  background: #05080cc4;
+  animation: fade-in .16s ease-out;
+}
+.menu {
+  width: min(420px, 100%);
+  /* Open encounters can make this list long; it must scroll rather than push
+     its own items off the top of a short screen. */
+  max-height: calc(100dvh - 36px); overflow-y: auto;
+  padding: 12px;
+  border: 1px solid var(--line); border-radius: 20px;
+  background: var(--panel);
+  animation: convo-rise .24s cubic-bezier(.2, .9, .3, 1.05);
+}
+.menu-item {
+  display: flex; align-items: center; gap: 13px; width: 100%;
+  padding: 14px 12px; margin-bottom: 8px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--panel-2); text-align: left;
+}
+.menu-item > span:first-child { flex: none; color: var(--gold); font-size: 1.15rem; }
+.menu-item strong { display: block; font: 700 1rem/1.2 Georgia, serif; }
+.menu-item small { display: block; margin-top: 2px; color: var(--muted); font-size: .74rem; }
+.menu-encounters { margin: 4px 0 8px; padding-top: 10px; border-top: 1px dashed var(--line-soft); }
+.menu-encounters .eyebrow { margin-bottom: 8px; }
+.menu-item.offer > span:first-child { color: var(--gold-soft); }
+.menu-close { width: 100%; min-height: 46px; border: 0; border-radius: 14px; background: transparent; color: var(--muted); font-weight: 700; }
+
+.sheet {
+  position: fixed; inset: 0; z-index: 35;
+  display: flex; flex-direction: column;
+  background: #0b0f16;
+  animation: sheet-in .24s ease-out;
+}
+@keyframes sheet-in { from { opacity: 0; transform: translateY(14px); } }
+.sheet-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: max(12px, env(safe-area-inset-top)) 14px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.sheet-back { min-height: 44px; padding: 0 6px; border: 0; background: transparent; color: var(--gold-soft); font-weight: 700; font-size: .88rem; }
+.sheet-title { font-size: .66rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.sheet-body { flex: 1; overflow-y: auto; }
+.sheet-body .screen { padding-top: 12px; }
 
 /* ---- responsive + motion ----------------------------------------- */
 
@@ -859,110 +1059,15 @@ html[data-reduced-motion="true"] .cold-open-sub { animation: none; opacity: 1; }
 html[data-reduced-motion="true"] .mic-bar { transition: none; }
 html[data-reduced-motion="true"] .mic-visualizer.is-static .mic-bar { animation: none; transform: scaleY(.4); }
 
-/* ---- talk: the world stays present ------------------------------------ */
-
-.expedition {
-  position: relative;
-  display: flex; align-items: center; gap: 12px;
-  margin-top: 14px; padding: 10px 12px;
-  border: 1px solid var(--line); border-radius: 14px;
-  background: linear-gradient(150deg, #16202c, var(--panel-2));
-}
-.expedition-avatar {
-  flex: none; width: 34px; height: 46px; object-fit: contain;
-  image-rendering: pixelated; filter: drop-shadow(0 4px 3px #0009);
-}
-.expedition-avatar.face-right { transform: scaleX(-1); }
-.expedition-body { flex: 1; min-width: 0; }
-.expedition-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.expedition-head strong { font: 700 1rem/1.2 Georgia, serif; }
-.expedition-status { flex: none; font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.expedition-status i { font-style: normal; color: var(--gold); }
-.expedition-status[data-status="fogged"] i { color: var(--muted); }
-.expedition-track { height: 5px; margin: 6px 0 4px; border-radius: 999px; background: #0f1620; overflow: hidden; }
-.expedition-track i { display: block; height: 100%; background: var(--gold); transition: width .45s ease; }
-.expedition-foot { display: flex; justify-content: space-between; gap: 8px; }
-.expedition-foot small { color: var(--muted); font-size: .68rem; letter-spacing: .03em; }
-.expedition-readout { display: inline-flex; align-items: center; gap: 6px; }
-.expedition-pulse {
-  padding: 2px 7px; border-radius: 999px;
-  border: 1px solid var(--gold-soft); background: #1b2432;
-  color: var(--gold); font-size: .66rem; font-weight: 800; letter-spacing: .04em;
-  animation: pulse-in .3s ease-out;
-}
-@keyframes pulse-in { from { opacity: 0; transform: translateY(-4px); } }
-
-.talk-title {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  margin: 2px 0 0; font: 700 1.25rem/1.2 Georgia, serif;
-}
-.composer { margin-top: 12px; }
-.composer .answer { display: block; margin-bottom: 6px; font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-soft); }
-.composer textarea {
-  width: 100%; padding: 12px; border-radius: 14px; resize: vertical;
-  border: 1px solid var(--line); background: #0f1620; color: var(--ink);
-  font: inherit; line-height: 1.5;
-}
-.composer textarea::placeholder { color: #56657c; }
-.composer .primary.full { margin-top: 10px; }
-
-/* ---- action surface: the game's controls, not the app's ---------------- */
-
-.action-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-.action {
-  flex: 1 1 0; min-width: 76px; min-height: 46px;
-  padding: 12px 8px; border-radius: 12px;
-  font-size: .7rem; font-weight: 800; letter-spacing: .05em;
-  border: 1px solid var(--line-soft); background: #101823; color: var(--muted);
-}
-.action-move { border-color: var(--gold-soft); background: #1a2331; color: var(--gold-soft); }
-.action-move:disabled { opacity: .45; }
-.action-more { flex: 0 0 auto; min-width: 72px; }
-.action-resume { border-color: var(--gold-soft); background: var(--gold); color: #101823; }
-
-.more-sheet {
-  margin-top: 10px; padding: 12px;
-  border: 1px solid var(--line-soft); border-radius: 16px; background: var(--panel-2);
-}
-.more-head { display: flex; align-items: center; justify-content: space-between; }
-.more-close { border: 0; background: transparent; color: var(--muted); font-size: 1.4rem; line-height: 1; min-height: 44px; min-width: 44px; }
-.more-sheet .agency { margin-top: 8px; }
-.more-note { margin: 10px 2px 0; color: var(--muted); font-size: .72rem; }
-
-/* ---- milestone: one card, everything that was earned ------------------- */
-
-.milestone {
-  width: min(340px, 88vw); padding: 20px 18px;
-  max-height: calc(100vh - 44px); display: flex; flex-direction: column;
-  border: 1px solid var(--gold-soft); border-radius: 20px;
-  background: linear-gradient(160deg, #1d2634, #131b26);
-  box-shadow: 0 24px 60px #000a;
-  text-align: center;
-  animation: milestone-in .32s cubic-bezier(.2, .9, .3, 1.2);
-}
-@keyframes milestone-in { from { opacity: 0; transform: translateY(10px) scale(.97); } }
-.milestone h2 { margin: .3rem 0 .4rem; font: 700 1.5rem/1.15 Georgia, serif; color: var(--gold); }
-.milestone > p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
-.milestone .primary { flex: none; margin-top: 16px; width: 100%; }
-.milestone-also {
-  list-style: none; margin: 14px 0 0; padding: 12px 0 0;
-  border-top: 1px dashed var(--line-soft); text-align: left;
-  min-height: 0; overflow-y: auto;
-}
-.milestone-also li { display: flex; gap: 10px; padding: 6px 0; }
-.milestone-also b { flex: none; color: var(--gold); font-size: .9rem; line-height: 1.4; }
-.milestone-also strong { display: block; font-size: .88rem; }
-.milestone-also small { display: block; color: var(--muted); font-size: .74rem; line-height: 1.4; }
-
-/* Quiet mode keeps the facts and drops the celebration. */
-.milestone.is-quiet { border-color: var(--line-soft); background: var(--panel-2); box-shadow: none; animation: none; }
-.milestone.is-quiet h2 { color: var(--ink); font-size: 1.2rem; }
-.milestone.is-quiet b { color: var(--muted); }
-
-html[data-reduced-motion="true"] .atlas-greyson { transition: none; }
-html[data-reduced-motion="true"] .atlas-mark,
-html[data-reduced-motion="true"] .expedition-pulse { animation: none; opacity: 1; }
+html[data-reduced-motion="true"] .world-greyson { transition: none; }
+html[data-reduced-motion="true"] .world-greyson.is-walking img { animation: none; }
+html[data-reduced-motion="true"] .wm-fogbank { animation: none; }
+html[data-reduced-motion="true"] .world-mark,
+html[data-reduced-motion="true"] .wm-ping { animation: none; opacity: 1; }
+html[data-reduced-motion="true"] .banner { animation: none; }
+html[data-reduced-motion="true"] .world-enter { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  .atlas-greyson { transition: none; }
-  .atlas-mark, .expedition-pulse { animation: none; opacity: 1; }
+  .world-greyson { transition: none; }
+  .world-greyson.is-walking img, .wm-fogbank, .banner, .world-enter { animation: none; }
+  .world-mark, .wm-ping { animation: none; opacity: 1; }
 }

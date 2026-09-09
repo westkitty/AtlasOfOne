@@ -124,7 +124,7 @@ async function boot(options: { row?: unknown; marker?: boolean } = {}): Promise<
   await page.waitForTimeout(700);
 
   const onboardingVisible = await page.isVisible('[data-testid="onboarding-step-2"]');
-  const navVisible = await page.isVisible('nav[aria-label="Main"]');
+  const navVisible = await page.isVisible('[data-testid="world"]');
   const stored = await readRawRow(page);
 
   return {
@@ -178,7 +178,7 @@ describe('KNOWN-005 — first-run continuity across real persistence', () => {
       await page.waitForTimeout(700);
 
       expect(await page.isVisible('[data-testid="onboarding-step-2"]'), 'onboarding is skipped').toBe(false);
-      expect(await page.isVisible('nav[aria-label="Main"]')).toBe(true);
+      expect(await page.isVisible('[data-testid="world"]')).toBe(true);
       expect((await readRawRow(page))!.onboardingCompleted, 'flag stays true').toBe(true);
     } finally {
       await context.close();

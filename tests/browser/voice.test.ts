@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { completeOnboardingIfPresent, openAgency } from './helper';
+import { completeOnboardingIfPresent, openAgency, navigateTo } from './helper';
 import { serveDist } from './server';
 
 const DIST = join(process.cwd(), 'dist', 'client');
@@ -35,22 +35,28 @@ afterAll(async () => {
 
 describe('browser voice mode and access gate', () => {
   it('loads cleanly and navigates to Talk screen', async () => {
-    await page.click('nav button:has(small:text-is("Talk"))');
-    await page.waitForSelector('.screen .screen-title');
-    expect(await page.textContent('.screen-title')).toMatch(/the cartographer/i);
+    await navigateTo(page, 'Talk');
+    // The conversation is a layer over the world, so the speaker is named there.
+    await page.waitForSelector('.convo-speaker');
+    expect(await page.textContent('.convo-speaker')).toMatch(/the cartographer/i);
   });
 
-  it('provides Type and Talk mode tabs with >=44px touch targets', async () => {
-    const typeBtn = page.locator('[data-testid="mode-type"]');
+  it('offers the other input mode as a real touch target, in both directions', async () => {
+    // Only the mode you are NOT in is offered: a tab for the mode you are
+    // already using is chrome the conversation does not need.
     const talkBtn = page.locator('[data-testid="mode-talk"]');
+    expect(await talkBtn.isVisible(), 'Speak instead is offered while typing').toBe(true);
+    expect(await page.locator('[data-testid="mode-type"]').isVisible()).toBe(false);
+    expect((await talkBtn.boundingBox())?.height).toBeGreaterThanOrEqual(44);
 
-    expect(await typeBtn.isVisible()).toBe(true);
-    expect(await talkBtn.isVisible()).toBe(true);
+    await talkBtn.click();
+    await page.waitForSelector('[data-testid="voice-card"]');
+    const typeBtn = page.locator('[data-testid="mode-type"]');
+    expect(await typeBtn.isVisible(), 'Type instead is offered while speaking').toBe(true);
+    expect((await typeBtn.boundingBox())?.height).toBeGreaterThanOrEqual(44);
 
-    const typeBox = await typeBtn.boundingBox();
-    const talkBox = await talkBtn.boundingBox();
-    expect(typeBox?.height).toBeGreaterThanOrEqual(44);
-    expect(talkBox?.height).toBeGreaterThanOrEqual(44);
+    await typeBtn.click();
+    await page.waitForSelector('[data-testid="answer-input"]');
   });
 
   it('switches to Talk mode and presents a usable voice surface', async () => {
@@ -98,7 +104,7 @@ describe('browser voice mode and access gate', () => {
   });
 
   it('manages access secret in Me screen', async () => {
-    await page.click('nav button:has(small:text-is("Me"))');
+    await navigateTo(page, 'Me');
     await page.waitForSelector('[data-testid="access-secret-input"]');
 
     const input = page.locator('[data-testid="access-secret-input"]');
@@ -119,7 +125,7 @@ describe('browser voice mode and access gate', () => {
   });
 
   it('switches back to Type mode seamlessly', async () => {
-    await page.click('nav button:has(small:text-is("Talk"))');
+    await navigateTo(page, 'Talk');
     await page.click('[data-testid="mode-type"]');
     await page.waitForSelector('[data-testid="answer-input"]');
     expect(await page.locator('[data-testid="answer-input"]').isVisible()).toBe(true);
