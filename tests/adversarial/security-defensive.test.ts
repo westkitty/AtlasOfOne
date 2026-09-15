@@ -96,7 +96,7 @@ describe('Phase 5 Adversarial QA: Security & Defensive Boundaries', () => {
 
     // 2. eventsFromTurn produces ONLY allowed event types
     const state = createInitialCampaign();
-    const prompt = { territoryId: 'identity', dimension: 'self', question: 'Test' };
+    const prompt = { id: 'prompt_identity_self', territoryId: 'identity', territoryLabel: 'Identity', dimension: 'self', question: 'Test' };
     const events = eventsFromTurn(prompt, 'Test answer', parsed, 'mock');
     for (const ev of events) {
       expect(['ANSWER_ACCEPTED', 'EVIDENCE_ADDED', 'INSIGHT_ADDED']).toContain(ev.type);

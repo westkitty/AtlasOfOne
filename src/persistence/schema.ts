@@ -22,7 +22,7 @@ export const campaignStateSchemaV1 = z.object({
   doorRuns: z.array(z.object({ id: z.string(), doorId: z.string(), territoryIds: z.array(z.string()), evidenceIds: z.array(z.string()), dimensions: z.array(z.string()), status: z.enum(['open','complete']), openedAt: timestamp, completedAt: timestamp.optional() })).default([]),
   activeDoor: z.string().nullable().default(null),
   privateTopics: z.array(z.string()), presentation: z.enum(['normal','quiet']), sessionStatus: z.enum(['active','paused']), campaignCompleted: z.boolean(),
-  presentationQueue: z.array(z.object({ id: z.string(), kind: z.enum(['level','unlock','achievement','quest','territory']), title: z.string(), detail: z.string(), createdAt: timestamp })),
+  presentationQueue: z.array(z.object({ id: z.string(), kind: z.enum(['level','unlock','achievement','quest','territory','fragment']), title: z.string(), detail: z.string(), createdAt: timestamp })),
   campaignHistory: z.array(z.object({ id: z.string(), type: z.string(), at: timestamp, detail: z.string().optional() })),
   finalAssessment: finalAssessmentSchema.nullable().optional().default(null),
   onboardingCompleted: z.boolean().optional().default(false),

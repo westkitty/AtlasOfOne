@@ -1,5 +1,5 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
-import { createServer, type Server } from 'node:http';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 
 const TYPES: Record<string, string> = {
@@ -8,13 +8,18 @@ const TYPES: Record<string, string> = {
   '.webmanifest': 'application/manifest+json', '.txt': 'text/plain'
 };
 
+export interface StaticHost {
+  url: string;
+  close: () => Promise<void>;
+}
+
 /**
  * Minimal static host for the production client bundle. The browser journey runs
  * against real build output over real HTTP; the Worker is not involved because
  * the campaign engine and MockCartographer are entirely client-side.
  */
-export function serveDist(root: string): Promise<{ url: string; close: () => Promise<void> }> {
-  const server: Server = createServer((request, response) => {
+export function serveDist(root: string): Promise<StaticHost> {
+  const server: Server = createServer((request: IncomingMessage, response: ServerResponse) => {
     const path = decodeURIComponent((request.url ?? '/').split('?')[0]);
     const candidate = join(root, normalize(path).replace(/^(\.\.[/\\])+/, ''));
     const file = existsSync(candidate) && statSync(candidate).isFile() ? candidate : join(root, 'index.html');

@@ -8,7 +8,16 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/atlas.svg', 'assets/greyson/map/*.png'],
+      // Atlas is offline-first and the world IS these images, so the whole
+      // generated art pack is precached alongside the shell.
+      includeAssets: [
+        'icons/atlas.svg',
+        'assets/greyson/map/*.png',
+        'assets/atlas/v3/manifest.json',
+        'assets/atlas/v3/world/*.png',
+        'assets/atlas/v3/world/masks/*.png',
+        'assets/atlas/v3/greyson/*.png'
+      ],
       manifest: {
         name: 'Atlas of One',
         short_name: 'Atlas',

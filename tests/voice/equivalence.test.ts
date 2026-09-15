@@ -33,7 +33,7 @@ describe('typed and spoken equivalence', () => {
     expect(nextStateSpoken.evidence.map((e) => ({ dimension: e.dimension, claim: e.claim, basis: e.basis, territories: e.territories })))
       .toEqual(nextStateTyped.evidence.map((e) => ({ dimension: e.dimension, claim: e.claim, basis: e.basis, territories: e.territories })));
     expect(nextStateSpoken.turns.length).toBe(nextStateTyped.turns.length);
-    expect(nextStateSpoken.turns[0].content).toBe(nextStateTyped.turns[0].content);
+    expect(nextStateSpoken.turns[0].answer).toBe(nextStateTyped.turns[0].answer);
     expect(nextStateSpoken.territories.map((t) => ({ id: t.id, status: t.status, coveredDimensions: t.coveredDimensions })))
       .toEqual(nextStateTyped.territories.map((t) => ({ id: t.id, status: t.status, coveredDimensions: t.coveredDimensions })));
     expect(nextStateSpoken.achievements.map((a) => ({ id: a.id, unlocked: Boolean(a.unlockedAt) })))

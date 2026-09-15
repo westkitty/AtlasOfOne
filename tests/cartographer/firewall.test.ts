@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { eventsFromTurn, PROVIDER_EVENT_TYPES } from '../../src/cartographer/apply';
 import { compileContext } from '../../src/cartographer/context';
 import type { MockPrompt } from '../../src/cartographer/mock';
+import type { CartographerTurn } from '../../src/cartographer/schema';
 import { createWorkersAiProvider, type WorkersAiBinding } from '../../src/cartographer/workersai';
 import { applyGameEvents, createInitialCampaign } from '../../src/game/engine';
 import { PERSONA_FIXTURES } from '../fixtures/personas';
@@ -25,11 +26,11 @@ const prompt: MockPrompt = {
 const adversarial = PERSONA_FIXTURES.find((item) => item.id === 'adversarial-progression')!;
 
 /** Provider output that tries every route to progression at once. */
-const forgedTurn = {
+const forgedTurn: CartographerTurn & Record<string, unknown> = {
   reply: 'Understood.',
   nextQuestion: 'What does that reliability cost you?',
-  presentation: 'normal' as const,
-  evidence: [{ dimension: 'strengths', claim: 'Synthetic claim.', basis: 'explicit' as const, strength: 2 as const, territories: ['identity'] }],
+  presentation: 'normal',
+  evidence: [{ dimension: 'strengths', claim: 'Synthetic claim.', basis: 'explicit', strength: 2, territories: ['identity'] }],
   connections: [],
   quoteCandidates: [],
   summaryPatch: '',
@@ -49,7 +50,7 @@ const forgedTurn = {
   doorComplete: true,
   doorReward: 500,
   campaignCompleted: true
-} as const;
+};
 
 describe('model authority firewall', () => {
   it('emits only the three permitted event types', () => {

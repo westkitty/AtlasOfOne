@@ -31,7 +31,7 @@ export interface EvidenceRecord { id: string; dimension: string; claim: string; 
 export interface InsightRecord { id: string; title: string; summary: string; evidenceIds: string[]; confidence: 'low' | 'moderate' | 'strong'; status: InsightStatus; createdAt: string; }
 export interface ContradictionRecord { id: string; claim: string; evidenceIds: string[]; status: 'open' | 'resolved'; }
 export interface MapFragment { id: string; territoryId: string; label: string; unlockedAt: string; }
-export interface PresentationNotice { id: string; kind: 'level' | 'unlock' | 'achievement' | 'quest' | 'territory'; title: string; detail: string; createdAt: string; }
+export interface PresentationNotice { id: string; kind: 'level' | 'unlock' | 'achievement' | 'quest' | 'territory' | 'fragment'; title: string; detail: string; createdAt: string; }
 export interface GameHistoryEntry { id: string; type: GameEvent['type']; at: string; detail?: string; }
 
 export interface BossDefinition { id: string; territoryId: string; label: string; description: string; levelRequired: number; minCoveredDimensions: number; xpReward: number; }
@@ -105,6 +105,7 @@ export type GameEvent =
   | { type: 'SESSION_SET'; status: SessionStatus }
   | { type: 'SASS_SET'; sass: SassLevel }
   | { type: 'ACTIVE_TERRITORY_SET'; territoryId: string }
+  | { type: 'PRESENTATION_NOTICE_ACKNOWLEDGED'; noticeId: string }
   | { type: 'PRESENTATION_QUEUE_CLEARED' }
   | { type: 'FINAL_ASSESSMENT_SET'; assessment: FinalAssessment }
   | { type: 'ONBOARDING_COMPLETED'; sass?: SassLevel; voiceMode?: 'text' | 'talk' }

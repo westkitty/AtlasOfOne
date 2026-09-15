@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "deploy": "npm run build && wrangler deploy",
     "test:browser": "npm run build && vitest run --config vitest.browser.config.ts",
-    "test:live": "vitest run --config vitest.live.config.ts"
+    "test:live": "vitest run --config vitest.live.config.ts",
+    "art:build": "ART_WORK=${ART_WORK:-.art-src} python3 tools/art/build_assets.py"
   },
   "dependencies": {
     "dexie": "^4.2.0",

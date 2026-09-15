@@ -7,7 +7,7 @@ import { applyGameEvents, campaignReachedEndState } from '../../src/game/engine'
 import type { EvidenceRecord, TurnRecord } from '../../src/game/types';
 import { serializeCampaign } from '../../src/persistence/transfer';
 import { seededCampaign } from '../fixtures/synthetic';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, wakeAtlas, navigateTo } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -152,11 +152,15 @@ const allCharted = (s: Record<string, any>) =>
   s.territories.every((t: any) => t.status === 'charted' || t.status === 'deeply-charted');
 
 async function dismissNotices() {
-  while (await page.isVisible('.overlay')) await page.click('.overlay button:text("Continue")');
+  // Milestones are brief, non-blocking banners that clear themselves, so this
+  // waits them out rather than clicking a modal away.
+  if (await page.isVisible('[data-testid="milestone"]').catch(() => false)) {
+    await page.locator('[data-testid="milestone"]').waitFor({ state: 'detached', timeout: 20_000 }).catch(() => undefined);
+  }
 }
 async function goto(screen: string) {
   await dismissNotices();
-  await page.click(`nav button:has(small:text-is("${screen}"))`);
+  await navigateTo(page, screen);
 }
 
 beforeAll(async () => {
@@ -179,6 +183,7 @@ beforeAll(async () => {
 
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   await completeOnboardingIfPresent(page);
 
   // SETUP ONLY: place the prepared campaign on disk before the visible session.
@@ -200,6 +205,7 @@ beforeAll(async () => {
   );
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   await page.waitForTimeout(700);
 }, 180_000);
 
@@ -270,6 +276,7 @@ describe('PND-004 — one continuous retraction → export → delete → import
     // And it survives hydration.
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.shell');
+  await wakeAtlas(page);
     await page.waitForTimeout(700);
     const reloaded = (await persisted())!;
     expect(reloaded.turns.find((t: any) => t.id === targetTurnId).retracted).toBe(true);
@@ -316,13 +323,13 @@ describe('PND-004 — one continuous retraction → export → delete → import
       expect(after.turns.length).toBe(0);
     }
     await goto('Map');
-    expect(Number((await page.textContent('.xp span'))!.replace(/\D/g, '')), 'XP reset').toBe(0);
+    expect(Number(await page.getAttribute('[data-testid="hud-progress"]', 'data-xp')), 'XP reset').toBe(0);
 
     // Observed, not assumed: the app stays usable and navigation is still
     // present, so the Me-screen import control remains reachable inside this
     // session. UNV-023 concerns a brand-new profile, which is a different case.
-    expect(await page.isVisible('nav[aria-label="Main"]'), 'navigation still reachable after delete').toBe(true);
-    expect(await page.locator('[data-testid="onboarding-begin"]').count(), 'not sent back to first run').toBe(0);
+    expect(await page.isVisible('[data-testid="open-menu"]'), 'the menu holding import/export is still reachable after delete').toBe(true);
+    expect(await page.locator('[data-testid="onboarding-step-2"]').count(), 'not sent back to first run').toBe(0);
   }, 180_000);
 
   it('stage 4. the player imports the exact exported file and the retraction is restored', async () => {
@@ -357,6 +364,7 @@ describe('PND-004 — one continuous retraction → export → delete → import
     // And it survives hydration.
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.shell');
+  await wakeAtlas(page);
     await page.waitForTimeout(700);
     expect(anchorsOf((await persisted())!)).toEqual(afterRetraction);
   }, 180_000);
@@ -392,6 +400,7 @@ describe('PND-004 — one continuous retraction → export → delete → import
     // And it survives hydration.
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.shell');
+  await wakeAtlas(page);
     await page.waitForTimeout(700);
     const reloaded = (await persisted())!;
     expect(reloaded.finalAssessment?.id, 'assessment persisted across reload').toBe(after.finalAssessment.id);

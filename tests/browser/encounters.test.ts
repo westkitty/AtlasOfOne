@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { availableBosses, availableDoors } from '../../src/game/encounters';
 import { serializeCampaign } from '../../src/persistence/transfer';
 import { seededCampaign } from '../fixtures/synthetic';
-import { completeOnboardingIfPresent } from './helper';
+import { completeOnboardingIfPresent, wakeAtlas, navigateTo } from './helper';
 import { serveDist } from './server';
 
 /**
@@ -22,22 +22,41 @@ let page: Page;
 let host: { url: string; close: () => Promise<void> };
 const pageErrors: string[] = [];
 
-const xpOf = async () => Number((await page.textContent('.xp span'))!.replace(/\D/g, ''));
+// The world HUD renders a level pip and a hairline, so progression is read
+// from the values it is rendering from rather than a stats panel.
+const xpOf = async () => Number(await page.getAttribute('[data-testid="hud-progress"]', 'data-xp'));
 
 async function dismissNotices() {
-  while (await page.isVisible('.overlay')) await page.click('.overlay button:text("Continue")');
+  // Milestones are brief, non-blocking banners that clear themselves, so this
+  // waits them out rather than clicking a modal away.
+  if (await page.isVisible('[data-testid="milestone"]').catch(() => false)) {
+    await page.locator('[data-testid="milestone"]').waitFor({ state: 'detached', timeout: 20_000 }).catch(() => undefined);
+  }
 }
 async function goto(screen: string) {
   await dismissNotices();
-  await page.click(`nav button:has(small:text-is("${screen}"))`);
+  await navigateTo(page, screen);
 }
 
-/** Enter an encounter from the Map, resuming one already in progress if present. */
+/**
+ * Open the menu that now holds the Boss Fight and Mystery Door offers.
+ *
+ * Their presentation is unchanged; the world simply owns the screen, so the
+ * offers moved off it into the one menu rather than sitting in a card on the map.
+ */
+async function openOffers() {
+  await goto('Map');
+  if (!(await page.isVisible('[data-testid="menu"]'))) await page.click('[data-testid="open-menu"]');
+  await page.waitForSelector('[data-testid="menu"]', { state: 'visible' });
+}
+
+/** Enter an encounter from the world, resuming one already in progress if present. */
 async function enterFromMap(offer: string) {
   await goto('Map');
   const resume = '[data-testid="resume-encounter"]';
-  if (await page.isVisible(resume)) await page.click(resume);
-  else await page.locator(offer).first().click();
+  if (await page.isVisible(resume)) { await page.click(resume); return; }
+  await openOffers();
+  await page.locator(offer).first().click();
 }
 
 /** Leave whatever encounter is running so the Map shows fresh offers again. */
@@ -64,6 +83,8 @@ async function loadSeed() {
   });
   await page.waitForSelector('.toast:text-matches("imported and validated")');
   await goto('Map');
+  // Encounter offers live in the menu now; their presentation is unchanged.
+  await page.click('[data-testid="open-menu"]');
   await page.waitForSelector('[data-testid="encounter-offers"]');
   return seed;
 }
@@ -76,6 +97,7 @@ beforeAll(async () => {
   page.on('pageerror', (error: Error) => pageErrors.push(error.message));
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
+  await wakeAtlas(page);
   await completeOnboardingIfPresent(page);
   await loadSeed();
 }, 120_000);
@@ -87,7 +109,7 @@ afterAll(async () => {
 
 describe('Boss Fight in the browser', () => {
   it('is offered from mapped state and opens a staged encounter', async () => {
-    await goto('Map');
+    await openOffers();
     await page.click('[data-testid="start-boss-values"]');
     await page.waitForSelector('[data-testid="encounter-boss"]');
     expect(await page.textContent('.eyebrow')).toBe('BOSS FIGHT');
@@ -118,6 +140,7 @@ describe('Boss Fight in the browser', () => {
     await page.waitForSelector('.answer textarea');
     await goto('Map');
     // The offer now advertises a kept run rather than a fresh start.
+    await openOffers();
     await expect.poll(() => page.textContent('[data-testid="start-boss-values"]')).toContain('Resume:');
     await expect.poll(() => page.textContent('[data-testid="start-boss-values"]')).toContain('Stage 1 of 3');
     await page.click('[data-testid="start-boss-values"]');
@@ -148,7 +171,7 @@ describe('Boss Fight in the browser', () => {
   });
 
   it('does not offer a resolved Boss Fight again', async () => {
-    await goto('Map');
+    await openOffers();
     expect(await page.isVisible('[data-testid="start-boss-values"]')).toBe(false);
   });
 });
@@ -156,6 +179,7 @@ describe('Boss Fight in the browser', () => {
 describe('Mystery Door in the browser', () => {
   it('opens a cross-territory crossing built from earned evidence', async () => {
     await ensureNoEncounter();
+    await openOffers();
     await page.locator('[data-testid^="open-door_"]').first().click();
     await page.waitForSelector('[data-testid="encounter-door"]');
     expect(await page.textContent('.eyebrow')).toBe('MYSTERY DOOR');
@@ -179,6 +203,7 @@ describe('Mystery Door in the browser', () => {
     await page.waitForSelector('.answer textarea');
     await goto('Map');
     expect(await xpOf()).toBe(before);
+    await openOffers();
     expect(await page.locator('[data-testid^="open-door_"]').count()).toBeGreaterThan(0);
   });
 
@@ -203,7 +228,8 @@ describe('Mystery Door in the browser', () => {
     await goto('Map');
     const before = await xpOf();
     await page.reload({ waitUntil: 'load' });
-    await page.waitForSelector('.map');
+    await wakeAtlas(page);
+    await page.waitForSelector('[data-testid="world"]');
     await expect.poll(xpOf).toBe(before);
     expect(await page.isVisible('[data-testid="start-boss-values"]')).toBe(false);
   });
@@ -211,6 +237,7 @@ describe('Mystery Door in the browser', () => {
   it('stays laid out and controllable inside a Door at a 320px viewport', async () => {
     await ensureNoEncounter();
     await page.setViewportSize({ width: 320, height: 640 });
+    await openOffers();
     await page.locator('[data-testid^="open-door_"]').first().click();
     await page.waitForSelector('[data-testid="encounter-door"]');
 
@@ -230,11 +257,15 @@ describe('Mystery Door in the browser', () => {
       expect(box.height, `${control} height`).toBeGreaterThanOrEqual(44);
     }
 
-    // Scrolled to the end, the leave control clears the fixed bottom nav.
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    const leave = (await page.locator('[data-testid="encounter-leave"]').boundingBox())!;
-    const navBox = (await page.locator('nav').boundingBox())!;
-    expect(leave.y + leave.height).toBeLessThanOrEqual(navBox.y + 1);
+    // The encounter is its own scrolling layer over the world, so scrolling to
+    // the end brings the leave control fully on screen. The panel animates in,
+    // so this waits for layout to settle rather than sampling mid-transition.
+    const viewportHeight = await page.evaluate(() => window.innerHeight);
+    await expect.poll(async () => {
+      await page.locator('[data-testid="encounter-leave"]').scrollIntoViewIfNeeded();
+      const box = await page.locator('[data-testid="encounter-leave"]').boundingBox();
+      return box ? box.y + box.height : Number.MAX_SAFE_INTEGER;
+    }, { timeout: 5_000 }).toBeLessThanOrEqual(viewportHeight + 1);
 
     await page.click('[data-testid="encounter-leave"]');
     await page.setViewportSize({ width: 390, height: 844 });

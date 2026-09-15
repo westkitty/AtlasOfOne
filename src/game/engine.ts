@@ -1,8 +1,15 @@
 import { ACHIEVEMENT_DEFINITIONS, DOOR_XP_REWARD, LEVEL_THRESHOLDS, QUEST_DEFINITIONS, TERRITORY_DEFINITIONS, UNLOCK_DEFINITIONS } from './data';
 import { activeBossRun, activeDoorRun, bossDefinition, currentBossStageIndex, doorCandidate, doorRunIsPresentable, isBossAvailable, planBossStages } from './encounters';
-import type { AchievementState, BossRunState, CampaignState, DoorRunState, EvidenceRecord, GameEvent, TerritoryState, TerritoryStatus, UnlockState } from './types';
+import type { AchievementState, BossRunState, CampaignState, DoorRunState, EvidenceRecord, GameEvent, PresentationNotice, TerritoryState, TerritoryStatus, UnlockState } from './types';
 
 const now = () => new Date().toISOString();
+/**
+ * Ranked territory states. Reaching `charted` or better is a real milestone, and
+ * every further step up is too — going from charted to deeply charted finishes a
+ * region and deserves saying so.
+ */
+const STATUS_RANK: Record<TerritoryStatus, number> = { fogged: 0, discovered: 1, exploring: 2, charted: 3, 'deeply-charted': 4 };
+const CHARTED_RANK = STATUS_RANK.charted;
 const uid = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 const unique = <T,>(items: T[]) => [...new Set(items)];
 
@@ -52,6 +59,54 @@ export function levelForXp(xp: number): number {
   let level = 1;
   LEVEL_THRESHOLDS.forEach((threshold, index) => { if (xp >= threshold) level = index + 1; });
   return Math.min(8, level);
+}
+
+/**
+ * Whether a territory still has somewhere to go: at least one required dimension
+ * that is neither already covered nor marked private.
+ *
+ * A territory with no viable dimension cannot produce a new question, which is
+ * what previously stranded the campaign — see `reconcileActiveTerritory`.
+ */
+export function territoryIsViable(territory: TerritoryState, privateTopics: string[]): boolean {
+  return territory.requiredDimensions.some(
+    (dimension) => !privateTopics.includes(dimension) && !territory.coveredDimensions.includes(dimension)
+  );
+}
+
+/**
+ * The next territory the expedition can actually work in, searched forward from
+ * the current one and wrapping once.
+ *
+ * Selection is a pure read of campaign state in the campaign's own stable
+ * territory order, so it is fully deterministic: no model, no randomness, no
+ * recency heuristic. Returns `null` when nothing anywhere is viable, which is
+ * the deterministic end state and must not be papered over with a new question.
+ */
+export function nextViableTerritory(state: CampaignState): string | null {
+  const index = state.territories.findIndex((territory) => territory.id === state.activeTerritory);
+  const ordered = index < 0
+    ? state.territories
+    : [...state.territories.slice(index + 1), ...state.territories.slice(0, index + 1)];
+  return ordered.find((territory) => territoryIsViable(territory, state.privateTopics))?.id ?? null;
+}
+
+/**
+ * Move the expedition on when the current territory is exhausted.
+ *
+ * Before this existed, `activeTerritory` never changed on its own. Once every
+ * Identity dimension was covered, `getMockPrompt` fell back to the first
+ * available dimension and re-asked it forever — turns 5 through 10 of the
+ * ten-turn diagnostic were all the same self-description question.
+ *
+ * This awards nothing and changes no threshold. It only decides *where* the
+ * next question comes from, and only when the current place has none left.
+ */
+function reconcileActiveTerritory(state: CampaignState): CampaignState {
+  const active = state.territories.find((territory) => territory.id === state.activeTerritory);
+  if (active && territoryIsViable(active, state.privateTopics)) return state;
+  const next = nextViableTerritory(state);
+  return next && next !== state.activeTerritory ? { ...state, activeTerritory: next } : state;
 }
 
 export function territoryStatusForCoverage(covered: number, total: number): TerritoryStatus {
@@ -106,11 +161,39 @@ function reconcileProgression(state: CampaignState, previous: CampaignState): Ca
     'door-opener': state.doorRuns.some((run) => run.status === 'complete')
   };
   const achievements = state.achievements.map((achievement): AchievementState => achievement.unlockedAt || !predicates[achievement.id] ? achievement : { ...achievement, unlockedAt: now() });
-  const notices = [...state.presentationQueue];
-  if (level > previous.level) notices.push({ id: uid('notice'), kind: 'level', title: `Level ${level}`, detail: 'A new layer of the Atlas is available.', createdAt: now() });
-  unlocks.filter((item) => item.unlockedAt && !previous.unlocks.find((old) => old.id === item.id)?.unlockedAt).forEach((item) => notices.push({ id: uid('notice'), kind: 'unlock', title: item.label, detail: item.description, createdAt: now() }));
-  achievements.filter((item) => item.unlockedAt && !previous.achievements.find((old) => old.id === item.id)?.unlockedAt).forEach((item) => notices.push({ id: uid('notice'), kind: 'achievement', title: item.label, detail: item.description, createdAt: now() }));
-  return { ...state, level, unlocks, achievements, presentationQueue: notices };
+  /**
+   * Fresh notices, built in display-priority order so the first is the headline.
+   *
+   * Every deterministic grant that a player earned gets one. Previously only
+   * level, unlock and achievement did, so a completed quest, an advanced
+   * territory and an acquired map fragment reached state without ever being
+   * announced — the Identity Fragment simply appeared in the Vault unremarked.
+   */
+  const fresh: PresentationNotice[] = [];
+  const notice = (kind: PresentationNotice['kind'], title: string, detail: string) =>
+    fresh.push({ id: uid('notice'), kind, title, detail, createdAt: now() });
+
+  if (level > previous.level) notice('level', `Level ${level}`, 'A new layer of the Atlas is available.');
+  unlocks
+    .filter((item) => item.unlockedAt && !previous.unlocks.find((old) => old.id === item.id)?.unlockedAt)
+    .forEach((item) => notice('unlock', `${item.label} unlocked`, item.description));
+  state.quests
+    .filter((quest) => quest.status === 'complete' && previous.quests.find((old) => old.id === quest.id)?.status !== 'complete')
+    .forEach((quest) => notice('quest', `Quest complete: ${quest.label}`, `${quest.description} Reward: ${quest.xpBonus} XP.`));
+  state.mapFragments
+    .filter((fragment) => !previous.mapFragments.some((old) => old.id === fragment.id))
+    .forEach((fragment) => notice('fragment', `${fragment.label} recovered`, 'A piece of the Atlas is yours. Find it in the Vault.'));
+  // Only the thresholds that actually mean something are announced; smaller
+  // coverage movement is carried by the map itself and the per-answer reaction.
+  state.territories
+    .filter((territory) => STATUS_RANK[territory.status] >= CHARTED_RANK
+      && STATUS_RANK[territory.status] > STATUS_RANK[previous.territories.find((old) => old.id === territory.id)?.status ?? 'fogged'])
+    .forEach((territory) => notice('territory', `${territory.label} ${territory.status === 'deeply-charted' ? 'deeply charted' : 'charted'}`, `${territory.coveredDimensions.length} of ${territory.requiredDimensions.length} dimensions mapped.`));
+  achievements
+    .filter((item) => item.unlockedAt && !previous.achievements.find((old) => old.id === item.id)?.unlockedAt)
+    .forEach((item) => notice('achievement', item.label, item.description));
+
+  return { ...state, level, unlocks, achievements, presentationQueue: [...state.presentationQueue, ...fresh] };
 }
 
 /**
@@ -256,6 +339,12 @@ export function applyGameEvent(state: CampaignState, event: GameEvent): Campaign
     case 'SESSION_SET': next = { ...state, sessionStatus: event.status }; break;
     case 'SASS_SET': next = { ...state, settings: { ...state.settings, sass: event.sass } }; break;
     case 'ACTIVE_TERRITORY_SET': if (state.territories.some((item) => item.id === event.territoryId)) next = { ...state, activeTerritory: event.territoryId }; break;
+    case 'PRESENTATION_NOTICE_ACKNOWLEDGED':
+      // Removes exactly one notice. Acknowledging a headline must never take its
+      // siblings with it, which is what the old whole-queue clear did: turn 2 of
+      // the diagnostic granted six things and the player was shown one.
+      next = { ...state, presentationQueue: state.presentationQueue.filter((item) => item.id !== event.noticeId) };
+      break;
     case 'PRESENTATION_QUEUE_CLEARED': next = { ...state, presentationQueue: [] }; break;
     case 'FINAL_ASSESSMENT_SET': next = { ...state, finalAssessment: event.assessment }; break;
     case 'ONBOARDING_COMPLETED':
@@ -277,8 +366,17 @@ export function applyGameEvent(state: CampaignState, event: GameEvent): Campaign
       next = state; break;
   }
   next = reconcileTerritories(next);
+  // Only events that can retire dimensions relocate the expedition. A manual
+  // ACTIVE_TERRITORY_SET is a player decision and is left exactly as chosen.
+  if (RELOCATING_EVENTS.includes(event.type)) next = reconcileActiveTerritory(next);
   next = reconcileProgression(next, previous);
   return history(next, event);
 }
+
+/**
+ * Events after which the current territory may have run out of askable
+ * dimensions, and the expedition therefore has to move on.
+ */
+const RELOCATING_EVENTS: GameEvent['type'][] = ['ANSWER_ACCEPTED', 'EVIDENCE_ADDED', 'PRIVATE_TOPIC_ADDED', 'ANSWER_RETRACTED'];
 
 export const applyGameEvents = (state: CampaignState, events: GameEvent[]) => events.reduce(applyGameEvent, state);

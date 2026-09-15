@@ -1,0 +1,2992 @@
+{
+ "assetPackVersion": "atlas-v3",
+ "base": "/assets/atlas/v3/",
+ "character": {
+  "anchor": "bottom-centre",
+  "animations": {
+   "arrive-back": {
+    "fps": 6,
+    "frames": 4,
+    "loop": false,
+    "src": "greyson/arrive-back-{n}.png",
+    "still": "greyson/arrive-back-00.png"
+   },
+   "arrive-front": {
+    "fps": 6,
+    "frames": 4,
+    "loop": false,
+    "src": "greyson/arrive-front-{n}.png",
+    "still": "greyson/arrive-front-00.png"
+   },
+   "arrive-left": {
+    "fps": 6,
+    "frames": 4,
+    "loop": false,
+    "src": "greyson/arrive-left-{n}.png",
+    "still": "greyson/arrive-left-00.png"
+   },
+   "discover-front": {
+    "fps": 7,
+    "frames": 6,
+    "loop": false,
+    "src": "greyson/discover-front-{n}.png",
+    "still": "greyson/discover-front-00.png"
+   },
+   "idle-back": {
+    "fps": 4,
+    "frames": 4,
+    "loop": true,
+    "src": "greyson/idle-back-{n}.png",
+    "still": "greyson/idle-back-00.png"
+   },
+   "idle-front": {
+    "fps": 4,
+    "frames": 4,
+    "loop": true,
+    "src": "greyson/idle-front-{n}.png",
+    "still": "greyson/idle-front-00.png"
+   },
+   "idle-left": {
+    "fps": 4,
+    "frames": 4,
+    "loop": true,
+    "src": "greyson/idle-left-{n}.png",
+    "still": "greyson/idle-left-00.png"
+   },
+   "idle-qback-left": {
+    "fps": 4,
+    "frames": 4,
+    "loop": true,
+    "src": "greyson/idle-qback-left-{n}.png",
+    "still": "greyson/idle-qback-left-00.png"
+   },
+   "idle-qfront-left": {
+    "fps": 4,
+    "frames": 4,
+    "loop": true,
+    "src": "greyson/idle-qfront-left-{n}.png",
+    "still": "greyson/idle-qfront-left-00.png"
+   },
+   "look-up-back": {
+    "fps": 4,
+    "frames": 4,
+    "loop": true,
+    "src": "greyson/look-up-back-{n}.png",
+    "still": "greyson/look-up-back-00.png"
+   },
+   "sit-left": {
+    "fps": 3,
+    "frames": 4,
+    "loop": true,
+    "src": "greyson/sit-left-{n}.png",
+    "still": "greyson/sit-left-00.png"
+   },
+   "think-front": {
+    "fps": 5,
+    "frames": 6,
+    "loop": true,
+    "src": "greyson/think-front-{n}.png",
+    "still": "greyson/think-front-00.png"
+   },
+   "walk-back": {
+    "fps": 10,
+    "frames": 8,
+    "loop": true,
+    "src": "greyson/walk-back-{n}.png",
+    "still": "greyson/walk-back-00.png"
+   },
+   "walk-front": {
+    "fps": 10,
+    "frames": 8,
+    "loop": true,
+    "src": "greyson/walk-front-{n}.png",
+    "still": "greyson/walk-front-00.png"
+   },
+   "walk-left": {
+    "fps": 10,
+    "frames": 8,
+    "loop": true,
+    "src": "greyson/walk-left-{n}.png",
+    "still": "greyson/walk-left-00.png"
+   },
+   "walk-qback-left": {
+    "fps": 10,
+    "frames": 8,
+    "loop": true,
+    "src": "greyson/walk-qback-left-{n}.png",
+    "still": "greyson/walk-qback-left-00.png"
+   },
+   "walk-qfront-left": {
+    "fps": 10,
+    "frames": 8,
+    "loop": true,
+    "src": "greyson/walk-qfront-left-{n}.png",
+    "still": "greyson/walk-qfront-left-00.png"
+   }
+  },
+  "frame": [
+   48,
+   64
+  ],
+  "mirrors": {
+   "qback-right": "qback-left",
+   "qfront-right": "qfront-left",
+   "right": "left"
+  },
+  "portrait": "greyson/portrait-neutral.png",
+  "portraits": {
+   "neutral": "greyson/portrait-neutral.png",
+   "serious": "greyson/portrait-serious.png",
+   "warm": "greyson/portrait-warm.png",
+   "wry": "greyson/portrait-wry.png"
+  }
+ },
+ "effects": {
+  "coordinate-mark": {
+   "fps": 10,
+   "frames": 6,
+   "loop": false,
+   "size": [
+    32,
+    32
+   ],
+   "src": "effects/coordinate-mark-{n}.png"
+  },
+  "fog-lift": {
+   "fps": 12,
+   "frames": 8,
+   "loop": false,
+   "size": [
+    96,
+    96
+   ],
+   "src": "effects/fog-lift-{n}.png"
+  },
+  "landmark-glow": {
+   "fps": 6,
+   "frames": 4,
+   "loop": true,
+   "size": [
+    48,
+    48
+   ],
+   "src": "effects/landmark-glow-{n}.png"
+  },
+  "marker-here": {
+   "fps": 4,
+   "frames": 4,
+   "loop": true,
+   "size": [
+    32,
+    32
+   ],
+   "src": "effects/marker-here-{n}.png"
+  },
+  "trail-light": {
+   "fps": 10,
+   "frames": 6,
+   "loop": false,
+   "size": [
+    64,
+    64
+   ],
+   "src": "effects/trail-light-{n}.png"
+  }
+ },
+ "files": {
+  "effects/coordinate-mark-00.png": {
+   "bytes": 129,
+   "sha256": "c0e4078257daebf4650933b51c1ab80473bdf4013d32bca63ce9bbb1d5844203",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/coordinate-mark-01.png": {
+   "bytes": 130,
+   "sha256": "c91711907cfd4644c7d037ffdfa2e41b10ceb74a3bb4869a22b9b9e40c2a69f0",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/coordinate-mark-02.png": {
+   "bytes": 131,
+   "sha256": "d735629bcd3a1a8b2fdf9d9921f6128418d28b6179576bf80d4072d36cd3e516",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/coordinate-mark-03.png": {
+   "bytes": 128,
+   "sha256": "64ccc0a987d242eb33295d488f702085398458ace936672bfa33185b56654dbe",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/coordinate-mark-04.png": {
+   "bytes": 126,
+   "sha256": "6ff675e4e28f3be17ae22b51869537f58a8c0cec9521f87dfef5cccc815d3d17",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/coordinate-mark-05.png": {
+   "bytes": 126,
+   "sha256": "86ca05a3b128c302d6774dfc93cef9370c3d37e65b2b3a2b0cb30d096046db75",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/fog-lift-00.png": {
+   "bytes": 468,
+   "sha256": "66c3c9606d37324004e7e13f2e367fbbfe8b684cc32c1cf65737752ccb14a092",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-01.png": {
+   "bytes": 513,
+   "sha256": "dd2d53de21179ac8a23a0e7b74c5e2585233c33f5fdbade6a89a332affa2005d",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-02.png": {
+   "bytes": 530,
+   "sha256": "5d0793dda08146796a2bebd88a2bfc83f667fa0167f0d78a25222b487062fdbd",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-03.png": {
+   "bytes": 531,
+   "sha256": "d9615ed07ec888b51d41806e5e6413d0f8e851776b921cd886558130fb53e1e8",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-04.png": {
+   "bytes": 557,
+   "sha256": "700a194a062bccd63cfdb3997b05c47d7644816193bb6b1e3fc32376dc0442ab",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-05.png": {
+   "bytes": 543,
+   "sha256": "990399c68e2e932f0c6146b22301544eddb5f3d46d3d105adf22ffe4c7886e86",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-06.png": {
+   "bytes": 542,
+   "sha256": "c5a49d2b6e7d969c3e8684544f7a55b5e29e187e2ed6ec3531c6424d55de57fd",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-07.png": {
+   "bytes": 574,
+   "sha256": "83133bcb033a3a5ac27499f5b769460641c1c22c36a5ce49a6efccb8d2d6bc5c",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/landmark-glow-00.png": {
+   "bytes": 195,
+   "sha256": "8bf48181497352d7e64c1858f22a66950001b26ae2cac9f2911b000bb55f8bcb",
+   "size": [
+    48,
+    48
+   ]
+  },
+  "effects/landmark-glow-01.png": {
+   "bytes": 190,
+   "sha256": "08d9ba493bcbdd5b43c0f51d1382029f17d50941b3a3c4bff3a5f791d0524a94",
+   "size": [
+    48,
+    48
+   ]
+  },
+  "effects/landmark-glow-02.png": {
+   "bytes": 210,
+   "sha256": "7cf27301062e772baf186923b234fab4d889aee30f1e58a2b84a9d48a88879ad",
+   "size": [
+    48,
+    48
+   ]
+  },
+  "effects/landmark-glow-03.png": {
+   "bytes": 224,
+   "sha256": "5479cce4007f876c2dd8dc915c430a5037fe525791136b6da78ddd218cc066d9",
+   "size": [
+    48,
+    48
+   ]
+  },
+  "effects/marker-here-00.png": {
+   "bytes": 146,
+   "sha256": "81c6601372b3f2239bdbd2a3e2bce234bb62478165901bc3c01c553beea7a88f",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/marker-here-01.png": {
+   "bytes": 148,
+   "sha256": "0b1e07b7fe6e26c254ae2f308e80bcf4b86903d90ecfe2be0b77788cdf0357fa",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/marker-here-02.png": {
+   "bytes": 155,
+   "sha256": "b45a1d62db299ca8d57003733df5a60db40d52f75d492de411acd2b7c2763122",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/marker-here-03.png": {
+   "bytes": 148,
+   "sha256": "0b1e07b7fe6e26c254ae2f308e80bcf4b86903d90ecfe2be0b77788cdf0357fa",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/trail-light-00.png": {
+   "bytes": 128,
+   "sha256": "2372a81d3f0873c210de1db86e397914c0c62fc89bdd58d9d7e72e678b4e7b29",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "effects/trail-light-01.png": {
+   "bytes": 140,
+   "sha256": "a52d41d3ed6cbc15e62afcd476fb72cfbfdbbfd5e8a1990fb0f59355df5a4701",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "effects/trail-light-02.png": {
+   "bytes": 150,
+   "sha256": "74dfa7f24f7b6935188ca12e6491639c490ff9fa23f8f369d2fa3dc735052cd9",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "effects/trail-light-03.png": {
+   "bytes": 156,
+   "sha256": "f42495cde405a3fc25cad60524b520ba6258fde1d2656e8dc208eaa570f3a0a7",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "effects/trail-light-04.png": {
+   "bytes": 168,
+   "sha256": "6e8e870fcfee0c025d09c1282bd6d9ad49e66a346ef495b3299beb32a56e7075",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "effects/trail-light-05.png": {
+   "bytes": 169,
+   "sha256": "3e0490386ca56e09dcc5be67e760710e6b9f3d05dbde62d021f071043a6f86b2",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "greyson/arrive-back-00.png": {
+   "bytes": 635,
+   "sha256": "b4d27850ef8981e2269d985ff768f15c7e2f4625987d7eb97ba5b39fcb68a68b",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-back-01.png": {
+   "bytes": 644,
+   "sha256": "676da0bfcea1c010f749ba92cb0f2b068aa6b1cc75c99ef2fcd16b5da0e1c1b8",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-back-02.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-back-03.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-front-00.png": {
+   "bytes": 818,
+   "sha256": "4e0d779c229fc25db9ec4656b20ea8e1fdad704e19fe6f4986932f6771bfc31f",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-front-01.png": {
+   "bytes": 807,
+   "sha256": "8dd85d666e5cf8ff8a226229eedd8d078246edef6bcdb63618e55481311ed38b",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-front-02.png": {
+   "bytes": 803,
+   "sha256": "898a05b7c39d0bcda2afae36cdb08268664b442f43696947d40ba78e1e7dc1d6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-front-03.png": {
+   "bytes": 803,
+   "sha256": "898a05b7c39d0bcda2afae36cdb08268664b442f43696947d40ba78e1e7dc1d6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-left-00.png": {
+   "bytes": 669,
+   "sha256": "afbae30f7fa34e89d8a9b9d7ef698ed4f59fb91b5b6136d13147bf69846eab20",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-left-01.png": {
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-left-02.png": {
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-left-03.png": {
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-00.png": {
+   "bytes": 807,
+   "sha256": "67110bddcd3a857cc5991d927280c1a6ed7de1c598fabe5c42a6577b44c821c6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-01.png": {
+   "bytes": 835,
+   "sha256": "977814800287ca0eb8f25133be2c1b2cc6126359ec835812a1ac1c26376fa439",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-02.png": {
+   "bytes": 841,
+   "sha256": "68bc3866675f97e298febc95d8c79dbee6b439c5a74e5c50779e2f31882f7109",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-03.png": {
+   "bytes": 834,
+   "sha256": "0006023ac4e4cca5316adf7d0f0a1cae918e3f01c63fb0114f288ecadece3e51",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-04.png": {
+   "bytes": 841,
+   "sha256": "68bc3866675f97e298febc95d8c79dbee6b439c5a74e5c50779e2f31882f7109",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-05.png": {
+   "bytes": 835,
+   "sha256": "977814800287ca0eb8f25133be2c1b2cc6126359ec835812a1ac1c26376fa439",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-back-00.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-back-01.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-back-02.png": {
+   "bytes": 644,
+   "sha256": "676da0bfcea1c010f749ba92cb0f2b068aa6b1cc75c99ef2fcd16b5da0e1c1b8",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-back-03.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-front-00.png": {
+   "bytes": 803,
+   "sha256": "898a05b7c39d0bcda2afae36cdb08268664b442f43696947d40ba78e1e7dc1d6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-front-01.png": {
+   "bytes": 803,
+   "sha256": "898a05b7c39d0bcda2afae36cdb08268664b442f43696947d40ba78e1e7dc1d6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-front-02.png": {
+   "bytes": 807,
+   "sha256": "8dd85d666e5cf8ff8a226229eedd8d078246edef6bcdb63618e55481311ed38b",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-front-03.png": {
+   "bytes": 803,
+   "sha256": "898a05b7c39d0bcda2afae36cdb08268664b442f43696947d40ba78e1e7dc1d6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-left-00.png": {
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-left-01.png": {
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-left-02.png": {
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-left-03.png": {
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-qback-left-00.png": {
+   "bytes": 647,
+   "sha256": "23854dff993586efe1d1ae17caad8b21b54c0dea1c4682193ca28caef24db113",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-qback-left-01.png": {
+   "bytes": 647,
+   "sha256": "23854dff993586efe1d1ae17caad8b21b54c0dea1c4682193ca28caef24db113",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-qback-left-02.png": {
+   "bytes": 648,
+   "sha256": "2f96e2bf34832cb4548fcb96575036da4511e3246547ca98c4885b93f8dbe5d8",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-qback-left-03.png": {
+   "bytes": 647,
+   "sha256": "23854dff993586efe1d1ae17caad8b21b54c0dea1c4682193ca28caef24db113",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-qfront-left-00.png": {
+   "bytes": 804,
+   "sha256": "e07e92bcc428a35fec4ff17dbfd59e3afd3b17ef1cc3e7402346888865367f6e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-qfront-left-01.png": {
+   "bytes": 804,
+   "sha256": "e07e92bcc428a35fec4ff17dbfd59e3afd3b17ef1cc3e7402346888865367f6e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-qfront-left-02.png": {
+   "bytes": 816,
+   "sha256": "7bfc35c71885a20086bdc16f1c12af0a6b112db1a26f6b1576618be7e7cd46ef",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/idle-qfront-left-03.png": {
+   "bytes": 804,
+   "sha256": "e07e92bcc428a35fec4ff17dbfd59e3afd3b17ef1cc3e7402346888865367f6e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/look-up-back-00.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/look-up-back-01.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/look-up-back-02.png": {
+   "bytes": 644,
+   "sha256": "676da0bfcea1c010f749ba92cb0f2b068aa6b1cc75c99ef2fcd16b5da0e1c1b8",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/look-up-back-03.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/portrait-neutral.png": {
+   "bytes": 647,
+   "sha256": "078d32ccb187b1235c88bc5080dfb34c11eff187c1b8e90b432dba455f09abb7",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "greyson/portrait-serious.png": {
+   "bytes": 647,
+   "sha256": "078d32ccb187b1235c88bc5080dfb34c11eff187c1b8e90b432dba455f09abb7",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "greyson/portrait-warm.png": {
+   "bytes": 656,
+   "sha256": "00e7b94d5599ee0b3a6b8ccabc3298c0bd250bd3ab22fa4734921e54b8624630",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "greyson/portrait-wry.png": {
+   "bytes": 671,
+   "sha256": "3416673dbff665e4cb8bab07297a2bca34a020ee2a75b03228c974a0e38976db",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "greyson/sit-left-00.png": {
+   "bytes": 666,
+   "sha256": "6d7d7ba8ae9b20cdac2cb88a62441a858f96efc74117b7a0ee1981d804e7e994",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/sit-left-01.png": {
+   "bytes": 666,
+   "sha256": "6d7d7ba8ae9b20cdac2cb88a62441a858f96efc74117b7a0ee1981d804e7e994",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/sit-left-02.png": {
+   "bytes": 667,
+   "sha256": "d05265431fd4c572d83607d174f74b26728728f07cacf6314795aea956658a60",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/sit-left-03.png": {
+   "bytes": 666,
+   "sha256": "6d7d7ba8ae9b20cdac2cb88a62441a858f96efc74117b7a0ee1981d804e7e994",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-00.png": {
+   "bytes": 801,
+   "sha256": "dd2eac5c3fad41a9e96de9eaaddc42235dc5974e9acc47226ba5f26d44f83879",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-01.png": {
+   "bytes": 806,
+   "sha256": "9716bba20643cbe142daa1bc1c0aee72f68a436f1082fe362c787478b782b2fa",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-02.png": {
+   "bytes": 795,
+   "sha256": "b8917c53c87818db707672b29d7cb735d3447642b567571b8b277839ae2000e0",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-03.png": {
+   "bytes": 793,
+   "sha256": "aad238acb405c71a8f99eb8a20563ada3c7581b3d528ddc07159ed36883176eb",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-04.png": {
+   "bytes": 807,
+   "sha256": "1b125fe869807718ce4483089161e0fa40cbb8b60a71cb4b80d9969559229325",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-05.png": {
+   "bytes": 811,
+   "sha256": "f927ad11ea4c7ac905b4a1c5b952aeb28cc20905c68c32d490b5ed0cbc3ca6aa",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-back-00.png": {
+   "bytes": 638,
+   "sha256": "4f19aa490ee685e67c6420ff45b6f23af5a3995769cddcf19b92b826928a192b",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-back-01.png": {
+   "bytes": 678,
+   "sha256": "6ab5c95571c36a99956cf83321dcbb8ea2e4512ab6380993df57c9a16a820853",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-back-02.png": {
+   "bytes": 649,
+   "sha256": "c74c53a6e4af94eb04cd9e83f65ce9630581544022f3f80f3d2c201d15e9ffc5",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-back-03.png": {
+   "bytes": 678,
+   "sha256": "6ab5c95571c36a99956cf83321dcbb8ea2e4512ab6380993df57c9a16a820853",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-back-04.png": {
+   "bytes": 638,
+   "sha256": "4f19aa490ee685e67c6420ff45b6f23af5a3995769cddcf19b92b826928a192b",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-back-05.png": {
+   "bytes": 690,
+   "sha256": "4cdb716edba5c6daf18424f08866b78bb71826ca86fd53b0a1149dd24c190235",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-back-06.png": {
+   "bytes": 675,
+   "sha256": "9b6ae69258b6bd90a6fff48f8b823c7c9d58b81dedafa747b2f52d8f2de54d9f",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-back-07.png": {
+   "bytes": 690,
+   "sha256": "4cdb716edba5c6daf18424f08866b78bb71826ca86fd53b0a1149dd24c190235",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-front-00.png": {
+   "bytes": 802,
+   "sha256": "08f666704a275430e506a6c1eb024cc98a3d7173a7efcba01ed80b7543f30ad8",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-front-01.png": {
+   "bytes": 818,
+   "sha256": "d2b1d2c331e4c3538669794e09034de81b7e8bc5ddbdf21d79a4713e2186fd24",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-front-02.png": {
+   "bytes": 795,
+   "sha256": "5bd9cab88154d0bed28b9d6977ea2937ba2a6a9a7c1701aa01b9bdb6a7484717",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-front-03.png": {
+   "bytes": 818,
+   "sha256": "d2b1d2c331e4c3538669794e09034de81b7e8bc5ddbdf21d79a4713e2186fd24",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-front-04.png": {
+   "bytes": 802,
+   "sha256": "08f666704a275430e506a6c1eb024cc98a3d7173a7efcba01ed80b7543f30ad8",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-front-05.png": {
+   "bytes": 811,
+   "sha256": "40b06a61ffcd4ddf250d72f6784813ac1d86bcfa9732cc62d08c0349e11b8f4a",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-front-06.png": {
+   "bytes": 838,
+   "sha256": "9240bbc5a4dd9acf9bc9169e6ef1a58cdd7319a3621e6d04d44b5c7e544b24a3",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-front-07.png": {
+   "bytes": 811,
+   "sha256": "40b06a61ffcd4ddf250d72f6784813ac1d86bcfa9732cc62d08c0349e11b8f4a",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-left-00.png": {
+   "bytes": 650,
+   "sha256": "8e2409c6cfe145775829612e991d52fef9a6a2479aaaac4ea12ed4b06bc80a25",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-left-01.png": {
+   "bytes": 649,
+   "sha256": "c04ce4276f2ee1f4e36fa583a9e2abe303048d79d5627af6a2270e7e181ea754",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-left-02.png": {
+   "bytes": 651,
+   "sha256": "4a3afa2c6704a21e1520a8eb6e2b8283cc5e2ac5d9a9fcc0fa5a6de2be57427e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-left-03.png": {
+   "bytes": 649,
+   "sha256": "c04ce4276f2ee1f4e36fa583a9e2abe303048d79d5627af6a2270e7e181ea754",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-left-04.png": {
+   "bytes": 650,
+   "sha256": "8e2409c6cfe145775829612e991d52fef9a6a2479aaaac4ea12ed4b06bc80a25",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-left-05.png": {
+   "bytes": 725,
+   "sha256": "bcf3497425fd7ffd149dbc018ad6063212b93d2136406d8f7d38d6ecdd55f1ba",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-left-06.png": {
+   "bytes": 722,
+   "sha256": "e0f60eff359273dc2ecf39345deefc9b5fbc092737ec485883e9093b0309623e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-left-07.png": {
+   "bytes": 725,
+   "sha256": "bcf3497425fd7ffd149dbc018ad6063212b93d2136406d8f7d38d6ecdd55f1ba",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-00.png": {
+   "bytes": 642,
+   "sha256": "63b8dadbbeccbca0f62b7c70db07907263fe77808c88faf176d890c70781b387",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-01.png": {
+   "bytes": 689,
+   "sha256": "16d4ecb6eadba86d47aba69600b09e3b4ba3ccb84179c20ba7240dc763c4de9d",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-02.png": {
+   "bytes": 661,
+   "sha256": "321f917badfe47ad46c8452dd030df073cfd28827a325f61734cad65977af1da",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-03.png": {
+   "bytes": 689,
+   "sha256": "16d4ecb6eadba86d47aba69600b09e3b4ba3ccb84179c20ba7240dc763c4de9d",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-04.png": {
+   "bytes": 642,
+   "sha256": "63b8dadbbeccbca0f62b7c70db07907263fe77808c88faf176d890c70781b387",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-05.png": {
+   "bytes": 695,
+   "sha256": "33bb43765a85076e9431b17c948642319dd7a38048837902484051d73e5e3add",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-06.png": {
+   "bytes": 687,
+   "sha256": "299bf2b30e68d5b985a36e6f7d701efef5187cb992a41bafd23543b619424711",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-07.png": {
+   "bytes": 695,
+   "sha256": "33bb43765a85076e9431b17c948642319dd7a38048837902484051d73e5e3add",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-00.png": {
+   "bytes": 806,
+   "sha256": "7c3f741ff83e1f44ee713e9d1db315d79941ee2ae431a4ec0dc45affc26552d6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-01.png": {
+   "bytes": 831,
+   "sha256": "a5ca7b517d2c7ced59630cdc59b88f2a97f6dc1af556904723780eef0a400b9d",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-02.png": {
+   "bytes": 808,
+   "sha256": "2e10dc6c87bcf00c0b8507fc59132bf53533791db817c8d8f7539bca8be0e1d4",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-03.png": {
+   "bytes": 831,
+   "sha256": "a5ca7b517d2c7ced59630cdc59b88f2a97f6dc1af556904723780eef0a400b9d",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-04.png": {
+   "bytes": 806,
+   "sha256": "7c3f741ff83e1f44ee713e9d1db315d79941ee2ae431a4ec0dc45affc26552d6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-05.png": {
+   "bytes": 814,
+   "sha256": "faacf715efc662824cfac45fbe8785a1ec66694adc269e82c3c507222b966e04",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-06.png": {
+   "bytes": 841,
+   "sha256": "5cf5c595a28e15fc90cc9f559557aa88a74e6ea9a8e1fbe65edd211e9001c940",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-07.png": {
+   "bytes": 814,
+   "sha256": "faacf715efc662824cfac45fbe8785a1ec66694adc269e82c3c507222b966e04",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "ui/ability-unlocked.png": {
+   "bytes": 162,
+   "sha256": "61f55558f58432bb2e70069ff1e0bc232f1187ca8d5f206c8ac58d4808fc9f37",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "ui/achievement.png": {
+   "bytes": 198,
+   "sha256": "90cc02e16acfb6fccc2209265f45452b754a1f06c6b88c329e2558b52f43752f",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "ui/artifact-recovered.png": {
+   "bytes": 173,
+   "sha256": "6fab2039ef2bc33904aa39de1281a25c691074ea6a9c7b54686115842439445b",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "ui/cold-open-mark.png": {
+   "bytes": 196,
+   "sha256": "ea5639a9da198cf1a3289e102b5a0023559a2feb0135b6482b43d638fc19b307",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "ui/icon-192.png": {
+   "bytes": 885,
+   "sha256": "29fde8054c051f37bdc623cc21fc8a43aa162ae7224813a3d020216c65531ffa",
+   "size": [
+    192,
+    192
+   ]
+  },
+  "ui/icon-512.png": {
+   "bytes": 2539,
+   "sha256": "c77878418576f0318a92cc0b602799aa61bc3fd4eca9d21e11d0888d29c20b4c",
+   "size": [
+    512,
+    512
+   ]
+  },
+  "ui/level-up.png": {
+   "bytes": 162,
+   "sha256": "ddcc5e8e9af4ec52bc25854e990af161038521ad12147d257623acdcf1541dfb",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "ui/quest-complete.png": {
+   "bytes": 204,
+   "sha256": "736be66fc7ddfc8ce2e3aa89641e19634427ae37c16e808b871cd5ea2305a0f9",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "ui/territory-charted.png": {
+   "bytes": 212,
+   "sha256": "571d7a5f9621be8e4d69f9187430388b547149e850db8316d6e26ef9baf9daf4",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "vault/fragment-cognition.png": {
+   "bytes": 672,
+   "sha256": "a11dbb968fb33e836689d75334ea3b58a9019cda36fe3d7a6a266cf8b6a95e95",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-empty.png": {
+   "bytes": 372,
+   "sha256": "c4e050209476b0535f7175402084d0f7ad1fdac6d91a40b5963a8fc0090661ef",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-fears.png": {
+   "bytes": 685,
+   "sha256": "72eaa81138ef50d42a296b476ad5be88807fa160967049b0d492d7065df2fce7",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-future.png": {
+   "bytes": 600,
+   "sha256": "c77c5c9e8c918af0064e6ccb9866a7189c702e5dca127f010de3a021e9d4d00c",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-identity.png": {
+   "bytes": 621,
+   "sha256": "d4f2b3a32a0d25b163931b19fc1d1f5bf7ffa84ffde65fe5fe58408958deabcf",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-interests.png": {
+   "bytes": 685,
+   "sha256": "d367071abdf13755f064e2f00c5dc8a8604bf986df915bd4c9e6247d0d8cc193",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-politics.png": {
+   "bytes": 630,
+   "sha256": "dd589b25530ffc5b5c06c6343c5da4f077f99a0f9143be0b81f990854b3c4084",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-relationships.png": {
+   "bytes": 668,
+   "sha256": "c1a6bf0401d50cd025c15bc24a3add15a85735382440cab77916f44cbb0989ec",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-values.png": {
+   "bytes": 596,
+   "sha256": "edd2cbf76d6ac41e519b202925be44d2195dde31de7988f0ad16f6fc81687e80",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "world/island-glimpsed.png": {
+   "bytes": 42702,
+   "sha256": "9aab64ad9d8ef8739c252b6350c7ce725f3533431bd0ebb8a7f01f069c9398ca",
+   "size": [
+    360,
+    640
+   ]
+  },
+  "world/island-hidden.png": {
+   "bytes": 36640,
+   "sha256": "0d9a22c31af3f009a39040f51bafb4697a2356bd7f9141ddd0a8580370eb67f7",
+   "size": [
+    360,
+    640
+   ]
+  },
+  "world/island-revealed.png": {
+   "bytes": 46451,
+   "sha256": "e0137cc69e4b956404f8a1f24142fff81b1880c43314af2d9ebfdf4694e8ce7c",
+   "size": [
+    360,
+    640
+   ]
+  },
+  "world/masks/cognition.png": {
+   "bytes": 2049,
+   "sha256": "97c8699246626d9b9e2448503255ceb30367238c4232451d62dd1db589f2be15",
+   "size": [
+    360,
+    640
+   ]
+  },
+  "world/masks/fears.png": {
+   "bytes": 2072,
+   "sha256": "e382922c69a82da8fd7d619cbc1e07c84cbfa046601f1d8fa4ce04de57f34f22",
+   "size": [
+    360,
+    640
+   ]
+  },
+  "world/masks/future.png": {
+   "bytes": 481,
+   "sha256": "2df906fd832f8cf3e27bd27a568de81174c065727bec2a965372b9bdbb3ad104",
+   "size": [
+    360,
+    640
+   ]
+  },
+  "world/masks/identity.png": {
+   "bytes": 3406,
+   "sha256": "42091be7c54447ec988cba16639be02b93209b239bb5f47134a206bd7a51abaa",
+   "size": [
+    360,
+    640
+   ]
+  },
+  "world/masks/interests.png": {
+   "bytes": 2470,
+   "sha256": "fdf879a0d9f7ee84476024695b0976a5a2a3785a5b8854bd77eb03126c3cedb4",
+   "size": [
+    360,
+    640
+   ]
+  },
+  "world/masks/politics.png": {
+   "bytes": 2026,
+   "sha256": "7f3b30e50137ac6d678398a15bd9a4308cc9be3fd013f3f258a466caaeae43c8",
+   "size": [
+    360,
+    640
+   ]
+  },
+  "world/masks/relationships.png": {
+   "bytes": 2762,
+   "sha256": "d1649f58d2eb509c051d7c06f9121cba5626353c03f7b7952f53555b584e83a4",
+   "size": [
+    360,
+    640
+   ]
+  },
+  "world/masks/values.png": {
+   "bytes": 2286,
+   "sha256": "4610e7aafa67f2016cbd7edf552665fe652c899f1177bb185d1137e54b39f748",
+   "size": [
+    360,
+    640
+   ]
+  },
+  "world/sea.png": {
+   "bytes": 8125,
+   "sha256": "47a1e6b4b57c8bb4e94a855cd8f4b817c12b06452dc2a84f873be0de70833ef4",
+   "size": [
+    360,
+    640
+   ]
+  }
+ },
+ "schemaVersion": 1,
+ "ui": {
+  "glyphs": {
+   "ability-unlocked": "ui/ability-unlocked.png",
+   "achievement": "ui/achievement.png",
+   "artifact-recovered": "ui/artifact-recovered.png",
+   "level-up": "ui/level-up.png",
+   "quest-complete": "ui/quest-complete.png",
+   "territory-charted": "ui/territory-charted.png"
+  },
+  "icons": {
+   "192": "ui/icon-192.png",
+   "512": "ui/icon-512.png",
+   "cold_open": "ui/cold-open-mark.png"
+  }
+ },
+ "vault": {
+  "fragments": {
+   "cognition": "vault/fragment-cognition.png",
+   "empty": "vault/fragment-empty.png",
+   "fears": "vault/fragment-fears.png",
+   "future": "vault/fragment-future.png",
+   "identity": "vault/fragment-identity.png",
+   "interests": "vault/fragment-interests.png",
+   "politics": "vault/fragment-politics.png",
+   "relationships": "vault/fragment-relationships.png",
+   "values": "vault/fragment-values.png"
+  }
+ },
+ "world": {
+  "height": 640,
+  "layers": {
+   "glimpsed": "world/island-glimpsed.png",
+   "hidden": "world/island-hidden.png",
+   "revealed": "world/island-revealed.png",
+   "sea": "world/sea.png"
+  },
+  "regions": [
+   {
+    "centre": [
+     188,
+     104
+    ],
+    "id": "politics",
+    "label": "The Republic of Greyson",
+    "landmark": "city",
+    "mask": "world/masks/politics.png",
+    "stand": [
+     188,
+     132
+    ]
+   },
+   {
+    "centre": [
+     86,
+     210
+    ],
+    "id": "values",
+    "label": "Values",
+    "landmark": "cairn",
+    "mask": "world/masks/values.png",
+    "stand": [
+     92,
+     232
+    ]
+   },
+   {
+    "centre": [
+     290,
+     218
+    ],
+    "id": "cognition",
+    "label": "Cognition",
+    "landmark": "terraces",
+    "mask": "world/masks/cognition.png",
+    "stand": [
+     284,
+     240
+    ]
+   },
+   {
+    "centre": [
+     178,
+     330
+    ],
+    "id": "identity",
+    "label": "Identity",
+    "landmark": "stones",
+    "mask": "world/masks/identity.png",
+    "stand": [
+     178,
+     352
+    ]
+   },
+   {
+    "centre": [
+     92,
+     442
+    ],
+    "id": "relationships",
+    "label": "Relationships",
+    "landmark": "settlement",
+    "mask": "world/masks/relationships.png",
+    "stand": [
+     98,
+     460
+    ]
+   },
+   {
+    "centre": [
+     288,
+     444
+    ],
+    "id": "fears",
+    "label": "Fear Map",
+    "landmark": "marsh",
+    "mask": "world/masks/fears.png",
+    "stand": [
+     284,
+     462
+    ]
+   },
+   {
+    "centre": [
+     168,
+     530
+    ],
+    "id": "interests",
+    "label": "Interests",
+    "landmark": "grove",
+    "mask": "world/masks/interests.png",
+    "stand": [
+     168,
+     548
+    ]
+   },
+   {
+    "centre": [
+     268,
+     592
+    ],
+    "id": "future",
+    "label": "Future",
+    "landmark": "lighthouse",
+    "mask": "world/masks/future.png",
+    "stand": [
+     268,
+     606
+    ]
+   }
+  ],
+  "trails": [
+   {
+    "from": "identity",
+    "sea": false,
+    "to": "values",
+    "waypoints": [
+     [
+      178.0,
+      352.0
+     ],
+     [
+      177.6,
+      351.7
+     ],
+     [
+      176.7,
+      351.0
+     ],
+     [
+      175.4,
+      349.9
+     ],
+     [
+      173.6,
+      348.6
+     ],
+     [
+      171.4,
+      346.8
+     ],
+     [
+      168.8,
+      344.8
+     ],
+     [
+      165.8,
+      342.4
+     ],
+     [
+      162.2,
+      339.6
+     ],
+     [
+      158.8,
+      336.7
+     ],
+     [
+      155.4,
+      333.6
+     ],
+     [
+      152.1,
+      330.2
+     ],
+     [
+      148.9,
+      326.8
+     ],
+     [
+      145.7,
+      323.1
+     ],
+     [
+      142.6,
+      319.2
+     ],
+     [
+      139.5,
+      315.1
+     ],
+     [
+      136.5,
+      310.9
+     ],
+     [
+      133.6,
+      306.6
+     ],
+     [
+      130.8,
+      302.4
+     ],
+     [
+      128.1,
+      298.1
+     ],
+     [
+      125.4,
+      293.9
+     ],
+     [
+      122.9,
+      289.6
+     ],
+     [
+      120.5,
+      285.4
+     ],
+     [
+      118.1,
+      281.1
+     ],
+     [
+      115.9,
+      276.9
+     ],
+     [
+      113.7,
+      272.7
+     ],
+     [
+      111.5,
+      268.6
+     ],
+     [
+      109.3,
+      264.5
+     ],
+     [
+      107.2,
+      260.5
+     ],
+     [
+      105.1,
+      256.6
+     ],
+     [
+      103.0,
+      252.7
+     ],
+     [
+      101.0,
+      248.9
+     ],
+     [
+      99.0,
+      245.1
+     ],
+     [
+      97.2,
+      241.8
+     ],
+     [
+      95.8,
+      239.0
+     ],
+     [
+      94.5,
+      236.7
+     ],
+     [
+      93.5,
+      234.8
+     ],
+     [
+      92.8,
+      233.4
+     ],
+     [
+      92.2,
+      232.5
+     ],
+     [
+      92.0,
+      232.0
+     ]
+    ]
+   },
+   {
+    "from": "identity",
+    "sea": false,
+    "to": "cognition",
+    "waypoints": [
+     [
+      178.0,
+      352.0
+     ],
+     [
+      178.6,
+      351.7
+     ],
+     [
+      179.7,
+      351.1
+     ],
+     [
+      181.4,
+      350.1
+     ],
+     [
+      183.6,
+      348.9
+     ],
+     [
+      186.4,
+      347.3
+     ],
+     [
+      189.8,
+      345.4
+     ],
+     [
+      193.8,
+      343.2
+     ],
+     [
+      198.2,
+      340.8
+     ],
+     [
+      202.7,
+      338.1
+     ],
+     [
+      207.1,
+      335.2
+     ],
+     [
+      211.4,
+      332.1
+     ],
+     [
+      215.6,
+      328.9
+     ],
+     [
+      219.8,
+      325.4
+     ],
+     [
+      223.9,
+      321.8
+     ],
+     [
+      228.0,
+      318.0
+     ],
+     [
+      232.0,
+      314.0
+     ],
+     [
+      235.8,
+      310.0
+     ],
+     [
+      239.5,
+      306.0
+     ],
+     [
+      243.1,
+      302.0
+     ],
+     [
+      246.4,
+      298.0
+     ],
+     [
+      249.7,
+      294.0
+     ],
+     [
+      252.7,
+      290.0
+     ],
+     [
+      255.6,
+      286.0
+     ],
+     [
+      258.4,
+      282.0
+     ],
+     [
+      261.0,
+      278.1
+     ],
+     [
+      263.6,
+      274.2
+     ],
+     [
+      266.1,
+      270.4
+     ],
+     [
+      268.4,
+      266.6
+     ],
+     [
+      270.7,
+      262.9
+     ],
+     [
+      272.9,
+      259.3
+     ],
+     [
+      275.0,
+      255.8
+     ],
+     [
+      277.0,
+      252.2
+     ],
+     [
+      278.8,
+      249.2
+     ],
+     [
+      280.2,
+      246.6
+     ],
+     [
+      281.5,
+      244.4
+     ],
+     [
+      282.5,
+      242.6
+     ],
+     [
+      283.2,
+      241.3
+     ],
+     [
+      283.8,
+      240.4
+     ],
+     [
+      284.0,
+      240.0
+     ]
+    ]
+   },
+   {
+    "from": "identity",
+    "sea": false,
+    "to": "relationships",
+    "waypoints": [
+     [
+      178.0,
+      352.0
+     ],
+     [
+      177.7,
+      352.5
+     ],
+     [
+      177.0,
+      353.6
+     ],
+     [
+      175.9,
+      355.2
+     ],
+     [
+      174.6,
+      357.3
+     ],
+     [
+      172.8,
+      360.0
+     ],
+     [
+      170.8,
+      363.2
+     ],
+     [
+      168.4,
+      366.9
+     ],
+     [
+      165.6,
+      371.1
+     ],
+     [
+      162.8,
+      375.3
+     ],
+     [
+      159.9,
+      379.3
+     ],
+     [
+      157.0,
+      383.3
+     ],
+     [
+      154.0,
+      387.2
+     ],
+     [
+      150.9,
+      391.0
+     ],
+     [
+      147.8,
+      394.7
+     ],
+     [
+      144.6,
+      398.2
+     ],
+     [
+      141.4,
+      401.8
+     ],
+     [
+      138.2,
+      405.2
+     ],
+     [
+      135.2,
+      408.7
+     ],
+     [
+      132.4,
+      412.1
+     ],
+     [
+      129.6,
+      415.4
+     ],
+     [
+      127.0,
+      418.8
+     ],
+     [
+      124.5,
+      422.1
+     ],
+     [
+      122.1,
+      425.4
+     ],
+     [
+      119.9,
+      428.6
+     ],
+     [
+      117.7,
+      431.8
+     ],
+     [
+      115.6,
+      434.8
+     ],
+     [
+      113.5,
+      437.8
+     ],
+     [
+      111.5,
+      440.7
+     ],
+     [
+      109.6,
+      443.5
+     ],
+     [
+      107.7,
+      446.2
+     ],
+     [
+      105.9,
+      448.8
+     ],
+     [
+      104.1,
+      451.2
+     ],
+     [
+      102.6,
+      453.4
+     ],
+     [
+      101.3,
+      455.3
+     ],
+     [
+      100.2,
+      456.9
+     ],
+     [
+      99.3,
+      458.1
+     ],
+     [
+      98.7,
+      459.1
+     ],
+     [
+      98.2,
+      459.7
+     ],
+     [
+      98.0,
+      460.0
+     ]
+    ]
+   },
+   {
+    "from": "identity",
+    "sea": false,
+    "to": "fears",
+    "waypoints": [
+     [
+      178.0,
+      352.0
+     ],
+     [
+      178.5,
+      352.4
+     ],
+     [
+      179.6,
+      353.2
+     ],
+     [
+      181.2,
+      354.4
+     ],
+     [
+      183.3,
+      356.1
+     ],
+     [
+      186.0,
+      358.1
+     ],
+     [
+      189.2,
+      360.5
+     ],
+     [
+      192.9,
+      363.4
+     ],
+     [
+      197.1,
+      366.6
+     ],
+     [
+      201.4,
+      369.9
+     ],
+     [
+      205.6,
+      373.1
+     ],
+     [
+      209.9,
+      376.4
+     ],
+     [
+      214.1,
+      379.6
+     ],
+     [
+      218.4,
+      382.9
+     ],
+     [
+      222.6,
+      386.1
+     ],
+     [
+      226.9,
+      389.4
+     ],
+     [
+      231.1,
+      392.6
+     ],
+     [
+      235.2,
+      395.9
+     ],
+     [
+      239.2,
+      399.3
+     ],
+     [
+      242.9,
+      402.8
+     ],
+     [
+      246.6,
+      406.2
+     ],
+     [
+      250.0,
+      409.8
+     ],
+     [
+      253.3,
+      413.4
+     ],
+     [
+      256.5,
+      417.1
+     ],
+     [
+      259.5,
+      420.9
+     ],
+     [
+      262.3,
+      424.6
+     ],
+     [
+      265.0,
+      428.3
+     ],
+     [
+      267.6,
+      431.9
+     ],
+     [
+      269.9,
+      435.6
+     ],
+     [
+      272.2,
+      439.2
+     ],
+     [
+      274.2,
+      442.7
+     ],
+     [
+      276.1,
+      446.2
+     ],
+     [
+      277.9,
+      449.8
+     ],
+     [
+      279.4,
+      452.8
+     ],
+     [
+      280.7,
+      455.4
+     ],
+     [
+      281.8,
+      457.6
+     ],
+     [
+      282.7,
+      459.4
+     ],
+     [
+      283.3,
+      460.7
+     ],
+     [
+      283.8,
+      461.6
+     ],
+     [
+      284.0,
+      462.0
+     ]
+    ]
+   },
+   {
+    "from": "values",
+    "sea": false,
+    "to": "politics",
+    "waypoints": [
+     [
+      92.0,
+      232.0
+     ],
+     [
+      92.2,
+      231.4
+     ],
+     [
+      92.6,
+      230.3
+     ],
+     [
+      93.1,
+      228.6
+     ],
+     [
+      93.9,
+      226.4
+     ],
+     [
+      94.8,
+      223.6
+     ],
+     [
+      95.9,
+      220.2
+     ],
+     [
+      97.2,
+      216.2
+     ],
+     [
+      98.8,
+      211.8
+     ],
+     [
+      100.4,
+      207.2
+     ],
+     [
+      102.2,
+      202.8
+     ],
+     [
+      104.2,
+      198.2
+     ],
+     [
+      106.3,
+      193.8
+     ],
+     [
+      108.6,
+      189.2
+     ],
+     [
+      111.0,
+      184.8
+     ],
+     [
+      113.6,
+      180.2
+     ],
+     [
+      116.4,
+      175.8
+     ],
+     [
+      119.2,
+      171.5
+     ],
+     [
+      122.2,
+      167.4
+     ],
+     [
+      125.4,
+      163.6
+     ],
+     [
+      128.6,
+      159.9
+     ],
+     [
+      132.0,
+      156.5
+     ],
+     [
+      135.5,
+      153.3
+     ],
+     [
+      139.1,
+      150.4
+     ],
+     [
+      142.9,
+      147.6
+     ],
+     [
+      146.7,
+      145.1
+     ],
+     [
+      150.5,
+      142.9
+     ],
+     [
+      154.3,
+      140.9
+     ],
+     [
+      158.2,
+      139.1
+     ],
+     [
+      162.1,
+      137.6
+     ],
+     [
+      166.0,
+      136.4
+     ],
+     [
+      170.0,
+      135.4
+     ],
+     [
+      174.0,
+      134.6
+     ],
+     [
+      177.5,
+      134.0
+     ],
+     [
+      180.5,
+      133.4
+     ],
+     [
+      183.0,
+      132.9
+     ],
+     [
+      185.0,
+      132.6
+     ],
+     [
+      186.5,
+      132.3
+     ],
+     [
+      187.5,
+      132.1
+     ],
+     [
+      188.0,
+      132.0
+     ]
+    ]
+   },
+   {
+    "from": "cognition",
+    "sea": false,
+    "to": "politics",
+    "waypoints": [
+     [
+      284.0,
+      240.0
+     ],
+     [
+      283.8,
+      239.4
+     ],
+     [
+      283.4,
+      238.2
+     ],
+     [
+      282.9,
+      236.4
+     ],
+     [
+      282.1,
+      234.1
+     ],
+     [
+      281.2,
+      231.1
+     ],
+     [
+      280.1,
+      227.5
+     ],
+     [
+      278.8,
+      223.4
+     ],
+     [
+      277.2,
+      218.6
+     ],
+     [
+      275.6,
+      213.9
+     ],
+     [
+      273.7,
+      209.3
+     ],
+     [
+      271.6,
+      204.8
+     ],
+     [
+      269.4,
+      200.2
+     ],
+     [
+      266.9,
+      195.8
+     ],
+     [
+      264.3,
+      191.4
+     ],
+     [
+      261.5,
+      187.1
+     ],
+     [
+      258.5,
+      182.9
+     ],
+     [
+      255.4,
+      178.8
+     ],
+     [
+      252.2,
+      174.8
+     ],
+     [
+      248.9,
+      170.9
+     ],
+     [
+      245.6,
+      167.1
+     ],
+     [
+      242.1,
+      163.5
+     ],
+     [
+      238.5,
+      160.0
+     ],
+     [
+      234.9,
+      156.6
+     ],
+     [
+      231.1,
+      153.4
+     ],
+     [
+      227.4,
+      150.4
+     ],
+     [
+      223.6,
+      147.6
+     ],
+     [
+      219.9,
+      145.1
+     ],
+     [
+      216.1,
+      142.9
+     ],
+     [
+      212.4,
+      140.9
+     ],
+     [
+      208.6,
+      139.1
+     ],
+     [
+      204.9,
+      137.6
+     ],
+     [
+      201.1,
+      136.4
+     ],
+     [
+      197.8,
+      135.3
+     ],
+     [
+      195.0,
+      134.3
+     ],
+     [
+      192.7,
+      133.6
+     ],
+     [
+      190.8,
+      132.9
+     ],
+     [
+      189.4,
+      132.5
+     ],
+     [
+      188.5,
+      132.2
+     ],
+     [
+      188.0,
+      132.0
+     ]
+    ]
+   },
+   {
+    "from": "relationships",
+    "sea": false,
+    "to": "interests",
+    "waypoints": [
+     [
+      98.0,
+      460.0
+     ],
+     [
+      98.3,
+      460.5
+     ],
+     [
+      98.9,
+      461.5
+     ],
+     [
+      99.9,
+      463.0
+     ],
+     [
+      101.1,
+      465.0
+     ],
+     [
+      102.7,
+      467.5
+     ],
+     [
+      104.6,
+      470.5
+     ],
+     [
+      106.8,
+      474.0
+     ],
+     [
+      109.2,
+      478.0
+     ],
+     [
+      111.8,
+      481.9
+     ],
+     [
+      114.3,
+      485.6
+     ],
+     [
+      116.9,
+      489.2
+     ],
+     [
+      119.6,
+      492.8
+     ],
+     [
+      122.2,
+      496.1
+     ],
+     [
+      124.9,
+      499.4
+     ],
+     [
+      127.6,
+      502.5
+     ],
+     [
+      130.4,
+      505.5
+     ],
+     [
+      133.2,
+      508.6
+     ],
+     [
+      136.2,
+      511.9
+     ],
+     [
+      139.2,
+      515.2
+     ],
+     [
+      142.3,
+      518.8
+     ],
+     [
+      145.5,
+      522.4
+     ],
+     [
+      148.8,
+      526.1
+     ],
+     [
+      152.2,
+      530.0
+     ],
+     [
+      155.8,
+      534.0
+     ],
+     [
+      158.8,
+      537.5
+     ],
+     [
+      161.4,
+      540.5
+     ],
+     [
+      163.6,
+      543.0
+     ],
+     [
+      165.4,
+      545.0
+     ],
+     [
+      166.7,
+      546.5
+     ],
+     [
+      167.6,
+      547.5
+     ],
+     [
+      168.0,
+      548.0
+     ]
+    ]
+   },
+   {
+    "from": "interests",
+    "sea": true,
+    "to": "future",
+    "waypoints": [
+     [
+      168.0,
+      548.0
+     ],
+     [
+      168.5,
+      548.3
+     ],
+     [
+      169.4,
+      549.0
+     ],
+     [
+      170.8,
+      550.1
+     ],
+     [
+      172.7,
+      551.4
+     ],
+     [
+      175.0,
+      553.2
+     ],
+     [
+      177.8,
+      555.2
+     ],
+     [
+      181.1,
+      557.6
+     ],
+     [
+      184.9,
+      560.4
+     ],
+     [
+      188.6,
+      563.1
+     ],
+     [
+      192.4,
+      565.7
+     ],
+     [
+      196.1,
+      568.2
+     ],
+     [
+      199.9,
+      570.8
+     ],
+     [
+      203.6,
+      573.2
+     ],
+     [
+      207.4,
+      575.6
+     ],
+     [
+      211.1,
+      577.9
+     ],
+     [
+      214.9,
+      580.1
+     ],
+     [
+      218.8,
+      582.4
+     ],
+     [
+      222.8,
+      584.6
+     ],
+     [
+      227.1,
+      586.9
+     ],
+     [
+      231.4,
+      589.1
+     ],
+     [
+      236.0,
+      591.4
+     ],
+     [
+      240.7,
+      593.6
+     ],
+     [
+      245.5,
+      595.9
+     ],
+     [
+      250.5,
+      598.1
+     ],
+     [
+      254.9,
+      600.1
+     ],
+     [
+      258.6,
+      601.8
+     ],
+     [
+      261.8,
+      603.2
+     ],
+     [
+      264.2,
+      604.3
+     ],
+     [
+      266.1,
+      605.2
+     ],
+     [
+      267.4,
+      605.7
+     ],
+     [
+      268.0,
+      606.0
+     ]
+    ]
+   },
+   {
+    "from": "fears",
+    "sea": true,
+    "to": "future",
+    "waypoints": [
+     [
+      284.0,
+      462.0
+     ],
+     [
+      284.2,
+      462.6
+     ],
+     [
+      284.6,
+      463.9
+     ],
+     [
+      285.1,
+      465.8
+     ],
+     [
+      285.9,
+      468.2
+     ],
+     [
+      286.8,
+      471.4
+     ],
+     [
+      287.9,
+      475.1
+     ],
+     [
+      289.2,
+      479.5
+     ],
+     [
+      290.8,
+      484.5
+     ],
+     [
+      292.0,
+      489.6
+     ],
+     [
+      293.0,
+      494.7
+     ],
+     [
+      293.8,
+      499.9
+     ],
+     [
+      294.2,
+      505.1
+     ],
+     [
+      294.5,
+      510.4
+     ],
+     [
+      294.5,
+      515.8
+     ],
+     [
+      294.2,
+      521.2
+     ],
+     [
+      293.8,
+      526.8
+     ],
+     [
+      292.9,
+      532.5
+     ],
+     [
+      291.8,
+      538.5
+     ],
+     [
+      290.4,
+      544.8
+     ],
+     [
+      288.6,
+      551.2
+     ],
+     [
+      286.6,
+      558.0
+     ],
+     [
+      284.2,
+      565.0
+     ],
+     [
+      281.5,
+      572.2
+     ],
+     [
+      278.5,
+      579.8
+     ],
+     [
+      275.9,
+      586.3
+     ],
+     [
+      273.6,
+      591.9
+     ],
+     [
+      271.8,
+      596.6
+     ],
+     [
+      270.2,
+      600.4
+     ],
+     [
+      269.1,
+      603.2
+     ],
+     [
+      268.4,
+      605.1
+     ],
+     [
+      268.0,
+      606.0
+     ]
+    ]
+   }
+  ],
+  "width": 360
+ }
+}

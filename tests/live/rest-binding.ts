@@ -1,3 +1,4 @@
+import process from 'node:process';
 import type { WorkersAiBinding } from '../../src/cartographer/workersai';
 
 /**

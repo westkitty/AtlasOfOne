@@ -104,7 +104,7 @@ describe('Phase 5 Adversarial QA: Player Archetype Fixtures', () => {
     state = { ...state, activeTerritory: politicalTerritory.id };
 
     const complexAnswer = 'My politics are libertarian-socialist: anti-authoritarian municipalism with radical democratic worker control, neither Soviet state planning nor corporate capitalism.';
-    const prompt = { territoryId: politicalTerritory.id, dimension: 'authority', question: 'What gives authority its legitimacy?' };
+    const prompt = { id: `prompt_${politicalTerritory.id}_authority`, territoryId: politicalTerritory.id, territoryLabel: politicalTerritory.label, dimension: 'authority', question: 'What gives authority its legitimacy?' };
     const mockTurn = createMockTurn(state, prompt, complexAnswer);
     const events = eventsFromTurn(prompt, complexAnswer, mockTurn, 'mock');
     state = applyGameEvents(state, events);
