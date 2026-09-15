@@ -89,7 +89,7 @@ async function speakOnce(page: Page) {
   await navigateTo(page, 'Talk');
   await page.click('[data-testid="mode-talk"]');
   await page.waitForFunction(() => ((window as any).__spoken?.length ?? 0) > 0, undefined, { timeout: 15_000 });
-  return page.evaluate(() => (window as any).__spoken as { text: string; voice: string | null; rate: number; volume: number; pitch: number }[]);
+  return page.evaluate(() => (window as any).__spoken as { text: string; voice: string | null; lang: string; rate: number; volume: number; pitch: number }[]);
 }
 
 beforeAll(async () => {

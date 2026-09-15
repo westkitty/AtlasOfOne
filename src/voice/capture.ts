@@ -135,7 +135,7 @@ export async function startAudioCapture(): Promise<ActiveAudioCapture> {
 
   const sample = () => {
     if (!monitoring || !analyser || !frame) return;
-    analyser.getByteTimeDomainData(frame);
+    analyser.getByteTimeDomainData(frame as any);
     const next = presentationLevel(frameLevel(frame));
     // Rise quickly so speech registers, fall gently so the meter reads as one
     // continuous voice rather than a strobe.

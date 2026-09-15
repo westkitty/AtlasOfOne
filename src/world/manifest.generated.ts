@@ -7,6 +7,34 @@ export const ATLAS_MANIFEST = {
   "character": {
     "anchor": "bottom-centre",
     "animations": {
+      "arrive-back": {
+        "fps": 6,
+        "frames": 4,
+        "loop": false,
+        "src": "greyson/arrive-back-{n}.png",
+        "still": "greyson/arrive-back-00.png"
+      },
+      "arrive-front": {
+        "fps": 6,
+        "frames": 4,
+        "loop": false,
+        "src": "greyson/arrive-front-{n}.png",
+        "still": "greyson/arrive-front-00.png"
+      },
+      "arrive-left": {
+        "fps": 6,
+        "frames": 4,
+        "loop": false,
+        "src": "greyson/arrive-left-{n}.png",
+        "still": "greyson/arrive-left-00.png"
+      },
+      "discover-front": {
+        "fps": 7,
+        "frames": 6,
+        "loop": false,
+        "src": "greyson/discover-front-{n}.png",
+        "still": "greyson/discover-front-00.png"
+      },
       "idle-back": {
         "fps": 4,
         "frames": 4,
@@ -42,6 +70,27 @@ export const ATLAS_MANIFEST = {
         "src": "greyson/idle-qfront-left-{n}.png",
         "still": "greyson/idle-qfront-left-00.png"
       },
+      "look-up-back": {
+        "fps": 4,
+        "frames": 4,
+        "loop": true,
+        "src": "greyson/look-up-back-{n}.png",
+        "still": "greyson/look-up-back-00.png"
+      },
+      "sit-left": {
+        "fps": 3,
+        "frames": 4,
+        "loop": true,
+        "src": "greyson/sit-left-{n}.png",
+        "still": "greyson/sit-left-00.png"
+      },
+      "think-front": {
+        "fps": 5,
+        "frames": 6,
+        "loop": true,
+        "src": "greyson/think-front-{n}.png",
+        "still": "greyson/think-front-00.png"
+      },
       "walk-back": {
         "fps": 10,
         "frames": 8,
@@ -62,6 +111,20 @@ export const ATLAS_MANIFEST = {
         "loop": true,
         "src": "greyson/walk-left-{n}.png",
         "still": "greyson/walk-left-00.png"
+      },
+      "walk-qback-left": {
+        "fps": 10,
+        "frames": 8,
+        "loop": true,
+        "src": "greyson/walk-qback-left-{n}.png",
+        "still": "greyson/walk-qback-left-00.png"
+      },
+      "walk-qfront-left": {
+        "fps": 10,
+        "frames": 8,
+        "loop": true,
+        "src": "greyson/walk-qfront-left-{n}.png",
+        "still": "greyson/walk-qfront-left-00.png"
       }
     },
     "frame": [
@@ -73,9 +136,95 @@ export const ATLAS_MANIFEST = {
       "qfront-right": "qfront-left",
       "right": "left"
     },
-    "portrait": "greyson/portrait-neutral.png"
+    "portrait": "greyson/portrait-neutral.png",
+    "portraits": {
+      "neutral": "greyson/portrait-neutral.png",
+      "serious": "greyson/portrait-serious.png",
+      "warm": "greyson/portrait-warm.png",
+      "wry": "greyson/portrait-wry.png"
+    }
+  },
+  "effects": {
+    "coordinate-mark": {
+      "fps": 10,
+      "frames": 6,
+      "loop": false,
+      "size": [
+        32,
+        32
+      ],
+      "src": "effects/coordinate-mark-{n}.png"
+    },
+    "fog-lift": {
+      "fps": 12,
+      "frames": 8,
+      "loop": false,
+      "size": [
+        96,
+        96
+      ],
+      "src": "effects/fog-lift-{n}.png"
+    },
+    "landmark-glow": {
+      "fps": 6,
+      "frames": 4,
+      "loop": true,
+      "size": [
+        48,
+        48
+      ],
+      "src": "effects/landmark-glow-{n}.png"
+    },
+    "marker-here": {
+      "fps": 4,
+      "frames": 4,
+      "loop": true,
+      "size": [
+        32,
+        32
+      ],
+      "src": "effects/marker-here-{n}.png"
+    },
+    "trail-light": {
+      "fps": 10,
+      "frames": 6,
+      "loop": false,
+      "size": [
+        64,
+        64
+      ],
+      "src": "effects/trail-light-{n}.png"
+    }
   },
   "schemaVersion": 1,
+  "ui": {
+    "glyphs": {
+      "ability-unlocked": "ui/ability-unlocked.png",
+      "achievement": "ui/achievement.png",
+      "artifact-recovered": "ui/artifact-recovered.png",
+      "level-up": "ui/level-up.png",
+      "quest-complete": "ui/quest-complete.png",
+      "territory-charted": "ui/territory-charted.png"
+    },
+    "icons": {
+      "192": "ui/icon-192.png",
+      "512": "ui/icon-512.png",
+      "cold_open": "ui/cold-open-mark.png"
+    }
+  },
+  "vault": {
+    "fragments": {
+      "cognition": "vault/fragment-cognition.png",
+      "empty": "vault/fragment-empty.png",
+      "fears": "vault/fragment-fears.png",
+      "future": "vault/fragment-future.png",
+      "identity": "vault/fragment-identity.png",
+      "interests": "vault/fragment-interests.png",
+      "politics": "vault/fragment-politics.png",
+      "relationships": "vault/fragment-relationships.png",
+      "values": "vault/fragment-values.png"
+    }
+  },
   "world": {
     "height": 640,
     "layers": {

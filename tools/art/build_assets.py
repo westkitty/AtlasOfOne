@@ -107,6 +107,10 @@ ANIMATIONS = {
     'idle-front': (4, 4), 'idle-back': (4, 4), 'idle-left': (4, 4),
     'idle-qfront-left': (4, 4), 'idle-qback-left': (4, 4),
     'walk-front': (8, 10), 'walk-back': (8, 10), 'walk-left': (8, 10),
+    'walk-qfront-left': (8, 10), 'walk-qback-left': (8, 10),
+    'arrive-front': (4, 6), 'arrive-back': (4, 6), 'arrive-left': (4, 6),
+    'think-front': (6, 5), 'sit-left': (4, 3), 'discover-front': (6, 7),
+    'look-up-back': (4, 4),
 }
 IDLE_FAMILIES = [k for k in ANIMATIONS if k.startswith('idle')]
 
@@ -134,18 +138,22 @@ def build_character(index, workdir):
 
     # The source ships four identical frames per idle; author a real breath.
     for family in IDLE_FAMILIES:
-        base = final[f'{family}-00.png']
-        for phase in range(4):
-            final[f'{family}-{phase:02d}.png'] = cc.breathe(base, phase)
+        if f'{family}-00.png' in final:
+            base = final[f'{family}-00.png']
+            for phase in range(4):
+                final[f'{family}-{phase:02d}.png'] = cc.breathe(base, phase)
 
     for name, arr in final.items():
         save(Image.fromarray(arr), f'greyson/{name}', index)
 
-    portrait_src = os.path.join(src, 'portrait-neutral.png')
-    if os.path.exists(portrait_src):
-        p, _ = cc.keep_main_figure(cc.load_rgba(portrait_src))
-        save(Image.fromarray(cc.polish_edges(cc.quantize(cc.despeckle_edge(p), palette))),
-             'greyson/portrait-neutral.png', index)
+    portraits = {}
+    for emo in ['neutral', 'serious', 'warm', 'wry']:
+        portrait_src = os.path.join(src, f'portrait-{emo}.png')
+        if os.path.exists(portrait_src):
+            p, _ = cc.keep_main_figure(cc.load_rgba(portrait_src))
+            save(Image.fromarray(cc.polish_edges(cc.quantize(cc.despeckle_edge(p), palette))),
+                 f'greyson/portrait-{emo}.png', index)
+            portraits[emo] = f'greyson/portrait-{emo}.png'
 
     baselines = {cc.anchor_stats(a)['bottom'] for a in final.values()}
     colours = [len(set(map(tuple, a[a[..., 3] > 128][:, :3].tolist()))) for a in final.values()]
@@ -154,13 +162,14 @@ def build_character(index, workdir):
         'frame': [48, 64],
         'anchor': 'bottom-centre',
         'animations': {
-            name: {'frames': n, 'fps': fps, 'loop': True,
+            name: {'frames': n, 'fps': fps, 'loop': not name.startswith('arrive') and not name.startswith('discover'),
                    'src': f'greyson/{name}-{{n}}.png',
                    'still': f'greyson/{name}-00.png'}
             for name, (n, fps) in ANIMATIONS.items()
         },
         'mirrors': {'right': 'left', 'qfront-right': 'qfront-left', 'qback-right': 'qback-left'},
         'portrait': 'greyson/portrait-neutral.png',
+        'portraits': portraits,
     }, {
         'sourceFrames': len(raw), 'detachedPixelsRemoved': removed,
         'blackPocketPixelsCleared': pockets, 'paletteSize': int(len(set(map(tuple, palette.tolist())))),
@@ -168,6 +177,33 @@ def build_character(index, workdir):
         'footBaselines': sorted(baselines),
         'idleAuthored': IDLE_FAMILIES,
     }
+
+
+def build_extra_assets(index, workdir):
+    vault = {}
+    vault_src = os.path.join(workdir, 'vault') if workdir and os.path.isdir(os.path.join(workdir, 'vault')) else None
+    if vault_src:
+        for p in sorted(glob.glob(f'{vault_src}/*.png')):
+            name = os.path.basename(p)
+            save(Image.open(p), f'vault/{name}', index)
+            frag_id = name.replace('fragment-', '').replace('.png', '')
+            vault[frag_id] = f'vault/{name}'
+
+    ui = {'glyphs': {}, 'icons': {}}
+    ui_src = os.path.join(workdir, 'ui') if workdir and os.path.isdir(os.path.join(workdir, 'ui')) else None
+    if ui_src:
+        for p in sorted(glob.glob(f'{ui_src}/*.png')):
+            name = os.path.basename(p)
+            save(Image.open(p), f'ui/{name}', index)
+            base = name.replace('.png', '')
+            if 'icon-' in base:
+                ui['icons'][base.replace('icon-', '')] = f'ui/{name}'
+            elif base == 'cold-open-mark':
+                ui['icons']['cold_open'] = f'ui/{name}'
+            else:
+                ui['glyphs'][base] = f'ui/{name}'
+
+    return vault, ui
 
 
 def main():
@@ -181,6 +217,7 @@ def main():
     index = {}
     world = build_world(index)
     character, qa = build_character(index, workdir)
+    vault, ui = build_extra_assets(index, workdir)
 
     manifest = {
         'schemaVersion': 1,
@@ -188,6 +225,8 @@ def main():
         'base': '/assets/atlas/v3/',
         'world': world,
         'character': character,
+        'vault': {'fragments': vault} if vault else {},
+        'ui': ui if ui['glyphs'] else {},
         'files': index,
     }
     with open(os.path.join(OUT, 'manifest.json'), 'w') as fh:

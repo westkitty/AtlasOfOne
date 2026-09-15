@@ -45,7 +45,7 @@ let page: Page;
 let host: { url: string; close: () => Promise<void> };
 
 /** Read committed campaign state. Never writes — the game must play itself. */
-const readState = (target: Page): Promise<CampaignState> => target.evaluate(() => new Promise((resolve) => {
+const readState = (target: Page): Promise<CampaignState> => target.evaluate(() => new Promise<CampaignState | null>((resolve) => {
   const request = indexedDB.open('atlas-of-one');
   request.onerror = () => resolve(null);
   request.onsuccess = () => {

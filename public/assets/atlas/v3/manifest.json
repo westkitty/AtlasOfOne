@@ -4,6 +4,34 @@
  "character": {
   "anchor": "bottom-centre",
   "animations": {
+   "arrive-back": {
+    "fps": 6,
+    "frames": 4,
+    "loop": false,
+    "src": "greyson/arrive-back-{n}.png",
+    "still": "greyson/arrive-back-00.png"
+   },
+   "arrive-front": {
+    "fps": 6,
+    "frames": 4,
+    "loop": false,
+    "src": "greyson/arrive-front-{n}.png",
+    "still": "greyson/arrive-front-00.png"
+   },
+   "arrive-left": {
+    "fps": 6,
+    "frames": 4,
+    "loop": false,
+    "src": "greyson/arrive-left-{n}.png",
+    "still": "greyson/arrive-left-00.png"
+   },
+   "discover-front": {
+    "fps": 7,
+    "frames": 6,
+    "loop": false,
+    "src": "greyson/discover-front-{n}.png",
+    "still": "greyson/discover-front-00.png"
+   },
    "idle-back": {
     "fps": 4,
     "frames": 4,
@@ -39,6 +67,27 @@
     "src": "greyson/idle-qfront-left-{n}.png",
     "still": "greyson/idle-qfront-left-00.png"
    },
+   "look-up-back": {
+    "fps": 4,
+    "frames": 4,
+    "loop": true,
+    "src": "greyson/look-up-back-{n}.png",
+    "still": "greyson/look-up-back-00.png"
+   },
+   "sit-left": {
+    "fps": 3,
+    "frames": 4,
+    "loop": true,
+    "src": "greyson/sit-left-{n}.png",
+    "still": "greyson/sit-left-00.png"
+   },
+   "think-front": {
+    "fps": 5,
+    "frames": 6,
+    "loop": true,
+    "src": "greyson/think-front-{n}.png",
+    "still": "greyson/think-front-00.png"
+   },
    "walk-back": {
     "fps": 10,
     "frames": 8,
@@ -59,6 +108,20 @@
     "loop": true,
     "src": "greyson/walk-left-{n}.png",
     "still": "greyson/walk-left-00.png"
+   },
+   "walk-qback-left": {
+    "fps": 10,
+    "frames": 8,
+    "loop": true,
+    "src": "greyson/walk-qback-left-{n}.png",
+    "still": "greyson/walk-qback-left-00.png"
+   },
+   "walk-qfront-left": {
+    "fps": 10,
+    "frames": 8,
+    "loop": true,
+    "src": "greyson/walk-qfront-left-{n}.png",
+    "still": "greyson/walk-qfront-left-00.png"
    }
   },
   "frame": [
@@ -70,366 +133,1200 @@
    "qfront-right": "qfront-left",
    "right": "left"
   },
-  "portrait": "greyson/portrait-neutral.png"
+  "portrait": "greyson/portrait-neutral.png",
+  "portraits": {
+   "neutral": "greyson/portrait-neutral.png",
+   "serious": "greyson/portrait-serious.png",
+   "warm": "greyson/portrait-warm.png",
+   "wry": "greyson/portrait-wry.png"
+  }
+ },
+ "effects": {
+  "coordinate-mark": {
+   "fps": 10,
+   "frames": 6,
+   "loop": false,
+   "size": [
+    32,
+    32
+   ],
+   "src": "effects/coordinate-mark-{n}.png"
+  },
+  "fog-lift": {
+   "fps": 12,
+   "frames": 8,
+   "loop": false,
+   "size": [
+    96,
+    96
+   ],
+   "src": "effects/fog-lift-{n}.png"
+  },
+  "landmark-glow": {
+   "fps": 6,
+   "frames": 4,
+   "loop": true,
+   "size": [
+    48,
+    48
+   ],
+   "src": "effects/landmark-glow-{n}.png"
+  },
+  "marker-here": {
+   "fps": 4,
+   "frames": 4,
+   "loop": true,
+   "size": [
+    32,
+    32
+   ],
+   "src": "effects/marker-here-{n}.png"
+  },
+  "trail-light": {
+   "fps": 10,
+   "frames": 6,
+   "loop": false,
+   "size": [
+    64,
+    64
+   ],
+   "src": "effects/trail-light-{n}.png"
+  }
  },
  "files": {
+  "effects/coordinate-mark-00.png": {
+   "bytes": 129,
+   "sha256": "c0e4078257daebf4650933b51c1ab80473bdf4013d32bca63ce9bbb1d5844203",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/coordinate-mark-01.png": {
+   "bytes": 130,
+   "sha256": "c91711907cfd4644c7d037ffdfa2e41b10ceb74a3bb4869a22b9b9e40c2a69f0",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/coordinate-mark-02.png": {
+   "bytes": 131,
+   "sha256": "d735629bcd3a1a8b2fdf9d9921f6128418d28b6179576bf80d4072d36cd3e516",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/coordinate-mark-03.png": {
+   "bytes": 128,
+   "sha256": "64ccc0a987d242eb33295d488f702085398458ace936672bfa33185b56654dbe",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/coordinate-mark-04.png": {
+   "bytes": 126,
+   "sha256": "6ff675e4e28f3be17ae22b51869537f58a8c0cec9521f87dfef5cccc815d3d17",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/coordinate-mark-05.png": {
+   "bytes": 126,
+   "sha256": "86ca05a3b128c302d6774dfc93cef9370c3d37e65b2b3a2b0cb30d096046db75",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/fog-lift-00.png": {
+   "bytes": 468,
+   "sha256": "66c3c9606d37324004e7e13f2e367fbbfe8b684cc32c1cf65737752ccb14a092",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-01.png": {
+   "bytes": 513,
+   "sha256": "dd2d53de21179ac8a23a0e7b74c5e2585233c33f5fdbade6a89a332affa2005d",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-02.png": {
+   "bytes": 530,
+   "sha256": "5d0793dda08146796a2bebd88a2bfc83f667fa0167f0d78a25222b487062fdbd",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-03.png": {
+   "bytes": 531,
+   "sha256": "d9615ed07ec888b51d41806e5e6413d0f8e851776b921cd886558130fb53e1e8",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-04.png": {
+   "bytes": 557,
+   "sha256": "700a194a062bccd63cfdb3997b05c47d7644816193bb6b1e3fc32376dc0442ab",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-05.png": {
+   "bytes": 543,
+   "sha256": "990399c68e2e932f0c6146b22301544eddb5f3d46d3d105adf22ffe4c7886e86",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-06.png": {
+   "bytes": 542,
+   "sha256": "c5a49d2b6e7d969c3e8684544f7a55b5e29e187e2ed6ec3531c6424d55de57fd",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/fog-lift-07.png": {
+   "bytes": 574,
+   "sha256": "83133bcb033a3a5ac27499f5b769460641c1c22c36a5ce49a6efccb8d2d6bc5c",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "effects/landmark-glow-00.png": {
+   "bytes": 195,
+   "sha256": "8bf48181497352d7e64c1858f22a66950001b26ae2cac9f2911b000bb55f8bcb",
+   "size": [
+    48,
+    48
+   ]
+  },
+  "effects/landmark-glow-01.png": {
+   "bytes": 190,
+   "sha256": "08d9ba493bcbdd5b43c0f51d1382029f17d50941b3a3c4bff3a5f791d0524a94",
+   "size": [
+    48,
+    48
+   ]
+  },
+  "effects/landmark-glow-02.png": {
+   "bytes": 210,
+   "sha256": "7cf27301062e772baf186923b234fab4d889aee30f1e58a2b84a9d48a88879ad",
+   "size": [
+    48,
+    48
+   ]
+  },
+  "effects/landmark-glow-03.png": {
+   "bytes": 224,
+   "sha256": "5479cce4007f876c2dd8dc915c430a5037fe525791136b6da78ddd218cc066d9",
+   "size": [
+    48,
+    48
+   ]
+  },
+  "effects/marker-here-00.png": {
+   "bytes": 146,
+   "sha256": "81c6601372b3f2239bdbd2a3e2bce234bb62478165901bc3c01c553beea7a88f",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/marker-here-01.png": {
+   "bytes": 148,
+   "sha256": "0b1e07b7fe6e26c254ae2f308e80bcf4b86903d90ecfe2be0b77788cdf0357fa",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/marker-here-02.png": {
+   "bytes": 155,
+   "sha256": "b45a1d62db299ca8d57003733df5a60db40d52f75d492de411acd2b7c2763122",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/marker-here-03.png": {
+   "bytes": 148,
+   "sha256": "0b1e07b7fe6e26c254ae2f308e80bcf4b86903d90ecfe2be0b77788cdf0357fa",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "effects/trail-light-00.png": {
+   "bytes": 128,
+   "sha256": "2372a81d3f0873c210de1db86e397914c0c62fc89bdd58d9d7e72e678b4e7b29",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "effects/trail-light-01.png": {
+   "bytes": 140,
+   "sha256": "a52d41d3ed6cbc15e62afcd476fb72cfbfdbbfd5e8a1990fb0f59355df5a4701",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "effects/trail-light-02.png": {
+   "bytes": 150,
+   "sha256": "74dfa7f24f7b6935188ca12e6491639c490ff9fa23f8f369d2fa3dc735052cd9",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "effects/trail-light-03.png": {
+   "bytes": 156,
+   "sha256": "f42495cde405a3fc25cad60524b520ba6258fde1d2656e8dc208eaa570f3a0a7",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "effects/trail-light-04.png": {
+   "bytes": 168,
+   "sha256": "6e8e870fcfee0c025d09c1282bd6d9ad49e66a346ef495b3299beb32a56e7075",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "effects/trail-light-05.png": {
+   "bytes": 169,
+   "sha256": "3e0490386ca56e09dcc5be67e760710e6b9f3d05dbde62d021f071043a6f86b2",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "greyson/arrive-back-00.png": {
+   "bytes": 635,
+   "sha256": "b4d27850ef8981e2269d985ff768f15c7e2f4625987d7eb97ba5b39fcb68a68b",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-back-01.png": {
+   "bytes": 644,
+   "sha256": "676da0bfcea1c010f749ba92cb0f2b068aa6b1cc75c99ef2fcd16b5da0e1c1b8",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-back-02.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-back-03.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-front-00.png": {
+   "bytes": 818,
+   "sha256": "4e0d779c229fc25db9ec4656b20ea8e1fdad704e19fe6f4986932f6771bfc31f",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-front-01.png": {
+   "bytes": 807,
+   "sha256": "8dd85d666e5cf8ff8a226229eedd8d078246edef6bcdb63618e55481311ed38b",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-front-02.png": {
+   "bytes": 803,
+   "sha256": "898a05b7c39d0bcda2afae36cdb08268664b442f43696947d40ba78e1e7dc1d6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-front-03.png": {
+   "bytes": 803,
+   "sha256": "898a05b7c39d0bcda2afae36cdb08268664b442f43696947d40ba78e1e7dc1d6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-left-00.png": {
+   "bytes": 669,
+   "sha256": "afbae30f7fa34e89d8a9b9d7ef698ed4f59fb91b5b6136d13147bf69846eab20",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-left-01.png": {
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-left-02.png": {
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/arrive-left-03.png": {
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-00.png": {
+   "bytes": 807,
+   "sha256": "67110bddcd3a857cc5991d927280c1a6ed7de1c598fabe5c42a6577b44c821c6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-01.png": {
+   "bytes": 835,
+   "sha256": "977814800287ca0eb8f25133be2c1b2cc6126359ec835812a1ac1c26376fa439",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-02.png": {
+   "bytes": 841,
+   "sha256": "68bc3866675f97e298febc95d8c79dbee6b439c5a74e5c50779e2f31882f7109",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-03.png": {
+   "bytes": 834,
+   "sha256": "0006023ac4e4cca5316adf7d0f0a1cae918e3f01c63fb0114f288ecadece3e51",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-04.png": {
+   "bytes": 841,
+   "sha256": "68bc3866675f97e298febc95d8c79dbee6b439c5a74e5c50779e2f31882f7109",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/discover-front-05.png": {
+   "bytes": 835,
+   "sha256": "977814800287ca0eb8f25133be2c1b2cc6126359ec835812a1ac1c26376fa439",
+   "size": [
+    48,
+    64
+   ]
+  },
   "greyson/idle-back-00.png": {
-   "bytes": 2968,
-   "sha256": "024806c96b750839ef9be6da3a5e5b4891734bfea20b65a41ff7dc88bcd724a2",
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-back-01.png": {
-   "bytes": 2932,
-   "sha256": "e6c93541b3e28ba08fb331391fb635eb7ca2a33e38e711234184f955e1c3d7a3",
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-back-02.png": {
-   "bytes": 2890,
-   "sha256": "33fc3f007f922553ad28e820ae47e5cc6ebef413ce80bb757d53b5cc2b79a5d7",
+   "bytes": 644,
+   "sha256": "676da0bfcea1c010f749ba92cb0f2b068aa6b1cc75c99ef2fcd16b5da0e1c1b8",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-back-03.png": {
-   "bytes": 2968,
-   "sha256": "024806c96b750839ef9be6da3a5e5b4891734bfea20b65a41ff7dc88bcd724a2",
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-front-00.png": {
-   "bytes": 3652,
-   "sha256": "2ae8b97bc9fb3aeb69e5798ce06328d9bc7b37572deecb86ea66fc95a45993a0",
+   "bytes": 803,
+   "sha256": "898a05b7c39d0bcda2afae36cdb08268664b442f43696947d40ba78e1e7dc1d6",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-front-01.png": {
-   "bytes": 3592,
-   "sha256": "eacba228dfae19214efa1f137803109cad23769d3cb62a27cd2f7c278cda4032",
+   "bytes": 803,
+   "sha256": "898a05b7c39d0bcda2afae36cdb08268664b442f43696947d40ba78e1e7dc1d6",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-front-02.png": {
-   "bytes": 3507,
-   "sha256": "b3f728c020f849aba7cfd9891905e4a8c60ba0c1443dbbd23be32e59627f9c62",
+   "bytes": 807,
+   "sha256": "8dd85d666e5cf8ff8a226229eedd8d078246edef6bcdb63618e55481311ed38b",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-front-03.png": {
-   "bytes": 3652,
-   "sha256": "2ae8b97bc9fb3aeb69e5798ce06328d9bc7b37572deecb86ea66fc95a45993a0",
+   "bytes": 803,
+   "sha256": "898a05b7c39d0bcda2afae36cdb08268664b442f43696947d40ba78e1e7dc1d6",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-left-00.png": {
-   "bytes": 2664,
-   "sha256": "23dfef77e9bac1308cfbe0d1f6eec9310d7c1abb011d490a3dadfadb6aacab06",
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-left-01.png": {
-   "bytes": 2625,
-   "sha256": "5c2e360dc1edd773d30302a8268420e9d6e99cfbdadd83d039ad5d8cfcdbaf2d",
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-left-02.png": {
-   "bytes": 2586,
-   "sha256": "4f4b8fdaaad901ce3ec0c0c560c847abab4f99ed6f760fbcdb7ca099d483f5c5",
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-left-03.png": {
-   "bytes": 2664,
-   "sha256": "23dfef77e9bac1308cfbe0d1f6eec9310d7c1abb011d490a3dadfadb6aacab06",
+   "bytes": 654,
+   "sha256": "20f5babb1ee4cd9e6aa5b4ed284b84882aae29cdf2ad6e1db2dd197e917d107e",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-qback-left-00.png": {
-   "bytes": 2980,
-   "sha256": "e0aa62171549db1539a3061d0cbde1b5f8309aa039bc85d90dbcd9e9a1b0343c",
+   "bytes": 647,
+   "sha256": "23854dff993586efe1d1ae17caad8b21b54c0dea1c4682193ca28caef24db113",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-qback-left-01.png": {
-   "bytes": 2950,
-   "sha256": "c6892af80edc8a2370123c9c8348569c8d2c235ece8284174da39b35cd2fea4d",
+   "bytes": 647,
+   "sha256": "23854dff993586efe1d1ae17caad8b21b54c0dea1c4682193ca28caef24db113",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-qback-left-02.png": {
-   "bytes": 2903,
-   "sha256": "0624184a8a15f6d85f3951db04cd398f8fe1da8d47c406f302943c7385b25d6f",
+   "bytes": 648,
+   "sha256": "2f96e2bf34832cb4548fcb96575036da4511e3246547ca98c4885b93f8dbe5d8",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-qback-left-03.png": {
-   "bytes": 2980,
-   "sha256": "e0aa62171549db1539a3061d0cbde1b5f8309aa039bc85d90dbcd9e9a1b0343c",
+   "bytes": 647,
+   "sha256": "23854dff993586efe1d1ae17caad8b21b54c0dea1c4682193ca28caef24db113",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-qfront-left-00.png": {
-   "bytes": 3458,
-   "sha256": "58247f91cf9c2f6ecb57bc1147059086d6f208af28f1dba2abcdf54495365a76",
+   "bytes": 804,
+   "sha256": "e07e92bcc428a35fec4ff17dbfd59e3afd3b17ef1cc3e7402346888865367f6e",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-qfront-left-01.png": {
-   "bytes": 3410,
-   "sha256": "b56705e4f9b8f5fd324c7df371f90db2a376eec7cca475375513cf755306e0c7",
+   "bytes": 804,
+   "sha256": "e07e92bcc428a35fec4ff17dbfd59e3afd3b17ef1cc3e7402346888865367f6e",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-qfront-left-02.png": {
-   "bytes": 3355,
-   "sha256": "8209f6b74b1879216ad5638486b356720b00184c5b2e2ace267918ea209e8608",
+   "bytes": 816,
+   "sha256": "7bfc35c71885a20086bdc16f1c12af0a6b112db1a26f6b1576618be7e7cd46ef",
    "size": [
     48,
     64
    ]
   },
   "greyson/idle-qfront-left-03.png": {
-   "bytes": 3458,
-   "sha256": "58247f91cf9c2f6ecb57bc1147059086d6f208af28f1dba2abcdf54495365a76",
+   "bytes": 804,
+   "sha256": "e07e92bcc428a35fec4ff17dbfd59e3afd3b17ef1cc3e7402346888865367f6e",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/look-up-back-00.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/look-up-back-01.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/look-up-back-02.png": {
+   "bytes": 644,
+   "sha256": "676da0bfcea1c010f749ba92cb0f2b068aa6b1cc75c99ef2fcd16b5da0e1c1b8",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/look-up-back-03.png": {
+   "bytes": 643,
+   "sha256": "b809f4d45422c60b9013e497645abfbe9ee88c7c07e715fc7a5f6cbc9ed84bde",
    "size": [
     48,
     64
    ]
   },
   "greyson/portrait-neutral.png": {
-   "bytes": 7947,
-   "sha256": "c1272b2c0e17714fb0c1c51f26b35cafb41a26cbee0b101fde6565d1a2d8e818",
+   "bytes": 647,
+   "sha256": "078d32ccb187b1235c88bc5080dfb34c11eff187c1b8e90b432dba455f09abb7",
    "size": [
     96,
     96
    ]
   },
+  "greyson/portrait-serious.png": {
+   "bytes": 647,
+   "sha256": "078d32ccb187b1235c88bc5080dfb34c11eff187c1b8e90b432dba455f09abb7",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "greyson/portrait-warm.png": {
+   "bytes": 656,
+   "sha256": "00e7b94d5599ee0b3a6b8ccabc3298c0bd250bd3ab22fa4734921e54b8624630",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "greyson/portrait-wry.png": {
+   "bytes": 671,
+   "sha256": "3416673dbff665e4cb8bab07297a2bca34a020ee2a75b03228c974a0e38976db",
+   "size": [
+    96,
+    96
+   ]
+  },
+  "greyson/sit-left-00.png": {
+   "bytes": 666,
+   "sha256": "6d7d7ba8ae9b20cdac2cb88a62441a858f96efc74117b7a0ee1981d804e7e994",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/sit-left-01.png": {
+   "bytes": 666,
+   "sha256": "6d7d7ba8ae9b20cdac2cb88a62441a858f96efc74117b7a0ee1981d804e7e994",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/sit-left-02.png": {
+   "bytes": 667,
+   "sha256": "d05265431fd4c572d83607d174f74b26728728f07cacf6314795aea956658a60",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/sit-left-03.png": {
+   "bytes": 666,
+   "sha256": "6d7d7ba8ae9b20cdac2cb88a62441a858f96efc74117b7a0ee1981d804e7e994",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-00.png": {
+   "bytes": 801,
+   "sha256": "dd2eac5c3fad41a9e96de9eaaddc42235dc5974e9acc47226ba5f26d44f83879",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-01.png": {
+   "bytes": 806,
+   "sha256": "9716bba20643cbe142daa1bc1c0aee72f68a436f1082fe362c787478b782b2fa",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-02.png": {
+   "bytes": 795,
+   "sha256": "b8917c53c87818db707672b29d7cb735d3447642b567571b8b277839ae2000e0",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-03.png": {
+   "bytes": 793,
+   "sha256": "aad238acb405c71a8f99eb8a20563ada3c7581b3d528ddc07159ed36883176eb",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-04.png": {
+   "bytes": 807,
+   "sha256": "1b125fe869807718ce4483089161e0fa40cbb8b60a71cb4b80d9969559229325",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/think-front-05.png": {
+   "bytes": 811,
+   "sha256": "f927ad11ea4c7ac905b4a1c5b952aeb28cc20905c68c32d490b5ed0cbc3ca6aa",
+   "size": [
+    48,
+    64
+   ]
+  },
   "greyson/walk-back-00.png": {
-   "bytes": 2352,
-   "sha256": "16ce56ea60a5d507218ade1e5e34b1dac9ddd98f127ac85cc0f4e75c2efd5d23",
+   "bytes": 638,
+   "sha256": "4f19aa490ee685e67c6420ff45b6f23af5a3995769cddcf19b92b826928a192b",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-back-01.png": {
-   "bytes": 2415,
-   "sha256": "4fae0166cb813d5b46589c2eedbaf40eb7fe90213e434fe6a6a85471ad6c9bcd",
+   "bytes": 678,
+   "sha256": "6ab5c95571c36a99956cf83321dcbb8ea2e4512ab6380993df57c9a16a820853",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-back-02.png": {
-   "bytes": 2441,
-   "sha256": "91a8992815d67f0db2499abf2196eeb292e012487b6503a98fad7b30f8025ac5",
+   "bytes": 649,
+   "sha256": "c74c53a6e4af94eb04cd9e83f65ce9630581544022f3f80f3d2c201d15e9ffc5",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-back-03.png": {
-   "bytes": 2560,
-   "sha256": "1a1032fb1c8a79cdae682d4ca68c28a17eddbbcecce523f9f452858b6c197b87",
+   "bytes": 678,
+   "sha256": "6ab5c95571c36a99956cf83321dcbb8ea2e4512ab6380993df57c9a16a820853",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-back-04.png": {
-   "bytes": 2426,
-   "sha256": "cf52b5df6fce04770076d1c0d4fcb6c57688f876c37e82bcb039243b7691bea8",
+   "bytes": 638,
+   "sha256": "4f19aa490ee685e67c6420ff45b6f23af5a3995769cddcf19b92b826928a192b",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-back-05.png": {
-   "bytes": 2537,
-   "sha256": "6bfaef7e4e13f317e0faa5bf03ec4db3f7f08532422235558cfcdce284911583",
+   "bytes": 690,
+   "sha256": "4cdb716edba5c6daf18424f08866b78bb71826ca86fd53b0a1149dd24c190235",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-back-06.png": {
-   "bytes": 2621,
-   "sha256": "cf8d38587042aaf2a8db4ba6743ee29e8fb21de2200a882e531a562fd74e7d57",
+   "bytes": 675,
+   "sha256": "9b6ae69258b6bd90a6fff48f8b823c7c9d58b81dedafa747b2f52d8f2de54d9f",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-back-07.png": {
-   "bytes": 2511,
-   "sha256": "9d76c039b28c91ce493b680be60aee960f0b1c838237987afa0fab4435dc6701",
+   "bytes": 690,
+   "sha256": "4cdb716edba5c6daf18424f08866b78bb71826ca86fd53b0a1149dd24c190235",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-front-00.png": {
-   "bytes": 2867,
-   "sha256": "c4d70f3252fc037aa7ad1f652d2564e3c939e30e62719aa95fbdad59c34a84c3",
+   "bytes": 802,
+   "sha256": "08f666704a275430e506a6c1eb024cc98a3d7173a7efcba01ed80b7543f30ad8",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-front-01.png": {
-   "bytes": 2771,
-   "sha256": "ed644429d3291638b0a81bbc94297740572bc8f32c660bbba71881680779a87d",
+   "bytes": 818,
+   "sha256": "d2b1d2c331e4c3538669794e09034de81b7e8bc5ddbdf21d79a4713e2186fd24",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-front-02.png": {
-   "bytes": 2788,
-   "sha256": "2a2f54204cae525ce3780aea6b245bd858ca4f6e77428e54fff38c50581253e0",
+   "bytes": 795,
+   "sha256": "5bd9cab88154d0bed28b9d6977ea2937ba2a6a9a7c1701aa01b9bdb6a7484717",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-front-03.png": {
-   "bytes": 2746,
-   "sha256": "d9f05464fc37c5ee385b270fdb8918948a86deec2e2a6bed83deeca63df53e8b",
+   "bytes": 818,
+   "sha256": "d2b1d2c331e4c3538669794e09034de81b7e8bc5ddbdf21d79a4713e2186fd24",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-front-04.png": {
-   "bytes": 2815,
-   "sha256": "855f5d3aa98b65bc09638dfe65abdf5a914244bd09dd912dfa8f69f529c78e32",
+   "bytes": 802,
+   "sha256": "08f666704a275430e506a6c1eb024cc98a3d7173a7efcba01ed80b7543f30ad8",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-front-05.png": {
-   "bytes": 2818,
-   "sha256": "6f0a7bfe08e3e6259e7bf2603d4263458991432fe57c4610c8b3cd2746e25d0e",
+   "bytes": 811,
+   "sha256": "40b06a61ffcd4ddf250d72f6784813ac1d86bcfa9732cc62d08c0349e11b8f4a",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-front-06.png": {
-   "bytes": 2668,
-   "sha256": "760867b390e23da0260c6733cb10b8a85ec146ed87bbae63c2bc83caf4e6d0c8",
+   "bytes": 838,
+   "sha256": "9240bbc5a4dd9acf9bc9169e6ef1a58cdd7319a3621e6d04d44b5c7e544b24a3",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-front-07.png": {
-   "bytes": 2974,
-   "sha256": "d01bc8a9288c47e0ec6b3e19c85857cf42c7a05ddf951f1fb8422eaa9a5f7e4e",
+   "bytes": 811,
+   "sha256": "40b06a61ffcd4ddf250d72f6784813ac1d86bcfa9732cc62d08c0349e11b8f4a",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-left-00.png": {
-   "bytes": 2584,
-   "sha256": "700e17b469ca666533ebadb41381b9dd2346653b1284b4d6b23cac75dcfd7758",
+   "bytes": 650,
+   "sha256": "8e2409c6cfe145775829612e991d52fef9a6a2479aaaac4ea12ed4b06bc80a25",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-left-01.png": {
-   "bytes": 2443,
-   "sha256": "b6017d09fc3ec4e2815190cfac9452fac8225c1489d631afc38d50a755587a0c",
+   "bytes": 649,
+   "sha256": "c04ce4276f2ee1f4e36fa583a9e2abe303048d79d5627af6a2270e7e181ea754",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-left-02.png": {
-   "bytes": 2584,
-   "sha256": "e70c0992f9dc668458bc164a609f63ade8bf73a5dfc6991b7a8c667fbbef9563",
+   "bytes": 651,
+   "sha256": "4a3afa2c6704a21e1520a8eb6e2b8283cc5e2ac5d9a9fcc0fa5a6de2be57427e",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-left-03.png": {
-   "bytes": 2505,
-   "sha256": "d838fd424c4e25606d9e0a66173aeda7132a905ea28af6f4ed2814ab7f0534d9",
+   "bytes": 649,
+   "sha256": "c04ce4276f2ee1f4e36fa583a9e2abe303048d79d5627af6a2270e7e181ea754",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-left-04.png": {
-   "bytes": 2571,
-   "sha256": "3d55825152a59f1574fab80a617085ebb2c3d53896d1a54d337ce3d50ac90825",
+   "bytes": 650,
+   "sha256": "8e2409c6cfe145775829612e991d52fef9a6a2479aaaac4ea12ed4b06bc80a25",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-left-05.png": {
-   "bytes": 2710,
-   "sha256": "dc0914350e48d27ebebd207541fd9a3d4eb7a3e683eb4037b3f76ff36c9bec23",
+   "bytes": 725,
+   "sha256": "bcf3497425fd7ffd149dbc018ad6063212b93d2136406d8f7d38d6ecdd55f1ba",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-left-06.png": {
-   "bytes": 2680,
-   "sha256": "8357b241037ed3ee2dfe61c279f406da224c562a38207e3e8b6ad6b72bb93caf",
+   "bytes": 722,
+   "sha256": "e0f60eff359273dc2ecf39345deefc9b5fbc092737ec485883e9093b0309623e",
    "size": [
     48,
     64
    ]
   },
   "greyson/walk-left-07.png": {
-   "bytes": 2509,
-   "sha256": "40dc0212b5d6933d12f4deb831596560e7220d79c3c1f11574857a65711692dd",
+   "bytes": 725,
+   "sha256": "bcf3497425fd7ffd149dbc018ad6063212b93d2136406d8f7d38d6ecdd55f1ba",
    "size": [
     48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-00.png": {
+   "bytes": 642,
+   "sha256": "63b8dadbbeccbca0f62b7c70db07907263fe77808c88faf176d890c70781b387",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-01.png": {
+   "bytes": 689,
+   "sha256": "16d4ecb6eadba86d47aba69600b09e3b4ba3ccb84179c20ba7240dc763c4de9d",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-02.png": {
+   "bytes": 661,
+   "sha256": "321f917badfe47ad46c8452dd030df073cfd28827a325f61734cad65977af1da",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-03.png": {
+   "bytes": 689,
+   "sha256": "16d4ecb6eadba86d47aba69600b09e3b4ba3ccb84179c20ba7240dc763c4de9d",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-04.png": {
+   "bytes": 642,
+   "sha256": "63b8dadbbeccbca0f62b7c70db07907263fe77808c88faf176d890c70781b387",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-05.png": {
+   "bytes": 695,
+   "sha256": "33bb43765a85076e9431b17c948642319dd7a38048837902484051d73e5e3add",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-06.png": {
+   "bytes": 687,
+   "sha256": "299bf2b30e68d5b985a36e6f7d701efef5187cb992a41bafd23543b619424711",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qback-left-07.png": {
+   "bytes": 695,
+   "sha256": "33bb43765a85076e9431b17c948642319dd7a38048837902484051d73e5e3add",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-00.png": {
+   "bytes": 806,
+   "sha256": "7c3f741ff83e1f44ee713e9d1db315d79941ee2ae431a4ec0dc45affc26552d6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-01.png": {
+   "bytes": 831,
+   "sha256": "a5ca7b517d2c7ced59630cdc59b88f2a97f6dc1af556904723780eef0a400b9d",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-02.png": {
+   "bytes": 808,
+   "sha256": "2e10dc6c87bcf00c0b8507fc59132bf53533791db817c8d8f7539bca8be0e1d4",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-03.png": {
+   "bytes": 831,
+   "sha256": "a5ca7b517d2c7ced59630cdc59b88f2a97f6dc1af556904723780eef0a400b9d",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-04.png": {
+   "bytes": 806,
+   "sha256": "7c3f741ff83e1f44ee713e9d1db315d79941ee2ae431a4ec0dc45affc26552d6",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-05.png": {
+   "bytes": 814,
+   "sha256": "faacf715efc662824cfac45fbe8785a1ec66694adc269e82c3c507222b966e04",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-06.png": {
+   "bytes": 841,
+   "sha256": "5cf5c595a28e15fc90cc9f559557aa88a74e6ea9a8e1fbe65edd211e9001c940",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "greyson/walk-qfront-left-07.png": {
+   "bytes": 814,
+   "sha256": "faacf715efc662824cfac45fbe8785a1ec66694adc269e82c3c507222b966e04",
+   "size": [
+    48,
+    64
+   ]
+  },
+  "ui/ability-unlocked.png": {
+   "bytes": 162,
+   "sha256": "61f55558f58432bb2e70069ff1e0bc232f1187ca8d5f206c8ac58d4808fc9f37",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "ui/achievement.png": {
+   "bytes": 198,
+   "sha256": "90cc02e16acfb6fccc2209265f45452b754a1f06c6b88c329e2558b52f43752f",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "ui/artifact-recovered.png": {
+   "bytes": 173,
+   "sha256": "6fab2039ef2bc33904aa39de1281a25c691074ea6a9c7b54686115842439445b",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "ui/cold-open-mark.png": {
+   "bytes": 196,
+   "sha256": "ea5639a9da198cf1a3289e102b5a0023559a2feb0135b6482b43d638fc19b307",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "ui/icon-192.png": {
+   "bytes": 885,
+   "sha256": "29fde8054c051f37bdc623cc21fc8a43aa162ae7224813a3d020216c65531ffa",
+   "size": [
+    192,
+    192
+   ]
+  },
+  "ui/icon-512.png": {
+   "bytes": 2539,
+   "sha256": "c77878418576f0318a92cc0b602799aa61bc3fd4eca9d21e11d0888d29c20b4c",
+   "size": [
+    512,
+    512
+   ]
+  },
+  "ui/level-up.png": {
+   "bytes": 162,
+   "sha256": "ddcc5e8e9af4ec52bc25854e990af161038521ad12147d257623acdcf1541dfb",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "ui/quest-complete.png": {
+   "bytes": 204,
+   "sha256": "736be66fc7ddfc8ce2e3aa89641e19634427ae37c16e808b871cd5ea2305a0f9",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "ui/territory-charted.png": {
+   "bytes": 212,
+   "sha256": "571d7a5f9621be8e4d69f9187430388b547149e850db8316d6e26ef9baf9daf4",
+   "size": [
+    32,
+    32
+   ]
+  },
+  "vault/fragment-cognition.png": {
+   "bytes": 672,
+   "sha256": "a11dbb968fb33e836689d75334ea3b58a9019cda36fe3d7a6a266cf8b6a95e95",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-empty.png": {
+   "bytes": 372,
+   "sha256": "c4e050209476b0535f7175402084d0f7ad1fdac6d91a40b5963a8fc0090661ef",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-fears.png": {
+   "bytes": 685,
+   "sha256": "72eaa81138ef50d42a296b476ad5be88807fa160967049b0d492d7065df2fce7",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-future.png": {
+   "bytes": 600,
+   "sha256": "c77c5c9e8c918af0064e6ccb9866a7189c702e5dca127f010de3a021e9d4d00c",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-identity.png": {
+   "bytes": 621,
+   "sha256": "d4f2b3a32a0d25b163931b19fc1d1f5bf7ffa84ffde65fe5fe58408958deabcf",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-interests.png": {
+   "bytes": 685,
+   "sha256": "d367071abdf13755f064e2f00c5dc8a8604bf986df915bd4c9e6247d0d8cc193",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-politics.png": {
+   "bytes": 630,
+   "sha256": "dd589b25530ffc5b5c06c6343c5da4f077f99a0f9143be0b81f990854b3c4084",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-relationships.png": {
+   "bytes": 668,
+   "sha256": "c1a6bf0401d50cd025c15bc24a3add15a85735382440cab77916f44cbb0989ec",
+   "size": [
+    64,
+    64
+   ]
+  },
+  "vault/fragment-values.png": {
+   "bytes": 596,
+   "sha256": "edd2cbf76d6ac41e519b202925be44d2195dde31de7988f0ad16f6fc81687e80",
+   "size": [
+    64,
     64
    ]
   },
@@ -531,6 +1428,34 @@
   }
  },
  "schemaVersion": 1,
+ "ui": {
+  "glyphs": {
+   "ability-unlocked": "ui/ability-unlocked.png",
+   "achievement": "ui/achievement.png",
+   "artifact-recovered": "ui/artifact-recovered.png",
+   "level-up": "ui/level-up.png",
+   "quest-complete": "ui/quest-complete.png",
+   "territory-charted": "ui/territory-charted.png"
+  },
+  "icons": {
+   "192": "ui/icon-192.png",
+   "512": "ui/icon-512.png",
+   "cold_open": "ui/cold-open-mark.png"
+  }
+ },
+ "vault": {
+  "fragments": {
+   "cognition": "vault/fragment-cognition.png",
+   "empty": "vault/fragment-empty.png",
+   "fears": "vault/fragment-fears.png",
+   "future": "vault/fragment-future.png",
+   "identity": "vault/fragment-identity.png",
+   "interests": "vault/fragment-interests.png",
+   "politics": "vault/fragment-politics.png",
+   "relationships": "vault/fragment-relationships.png",
+   "values": "vault/fragment-values.png"
+  }
+ },
  "world": {
   "height": 640,
   "layers": {

@@ -7,12 +7,12 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 19,
-  "last_updated": "2026-09-08",
+  "state_revision": 24,
+  "last_updated": "2026-09-15",
   "current_baseline": {
-    "identity": "rev19",
+    "identity": "rev24",
     "state": "partially-verified",
-    "last_verified": "2026-09-08"
+    "last_verified": "2026-09-15"
   },
   "application_content_baseline": {
     "commit": "31b01b080b89fe2cd61168c280f65e24755bce3d",
@@ -391,6 +391,71 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **Repair class:** Rev 19 records accepted product direction implemented in `31b01b0` and held at a human visual-review gate: the cinematic cold open, the real microphone visualizer, and Talk as a continuous conversation. It is NOT merged and NOT deployed; deployed application content remains `93c29c1` / `assets/index-C-UCvyfo.js`. Open items deliberately left visible: KNOWN-003, KNOWN-006, PND-005, PND-009, PND-013 remainder, UNV-003, UNV-004, UNV-007, UNV-009, UNV-010, UNV-017, UNV-018, UNV-019, UNV-021, UNV-023, UNV-024 and UNK-002.
 
 ## 13. Compact Revision Log
+
+### Revision 24 — 2026-09-15
+
+- **Artifact/source identity:** Pass 5 of Recursive SNES Game-Quality Uplift Protocol (`docs/GAME_QUALITY_LOOP_LEDGER.md`).
+- **State deltas:**
+  1. **Automated Media Asset Verification Suite.** Created `tools/art/verify_assets.py` to audit all PNG files on disk for decode integrity, dimension adherence (48×64 character sprites, 96×96 portraits, 64×64 vault relics, 32×32 UI glyphs, 360×640 world), baseline foot contact bounds (y=60..63), palette compliance against `public/assets/greyson/palette.txt`, and zero Andrew asset contamination across `public/` and `src/`.
+  2. **Canonical Greyson Asset Expansion.** Ingested verified canonical assets from `atlas_of_one_artpack_v1.zip` into `public/assets/atlas/v3/`:
+     - 4 emotional 96×96 dialogue portraits (`neutral`, `serious`, `warm`, `wry`).
+     - Extended 48×64 animation families: `think-front` (6 frames), `sit-left` (4 frames), `look-up-back` (4 frames), `arrive-front/back/left` (4 frames each), `discover-front` (6 frames), `walk-qfront-left` (8 frames), `walk-qback-left` (8 frames).
+     - 9 territorial relic fragments (64×64) in `vault/`.
+     - 6 milestone glyphs (32×32) and PWA icons in `ui/`.
+     - Spatial particle effects in `effects/`.
+  3. **Dynamic Emotional Dialogue Portraits.** Integrated multi-expression portraits in `src/App.tsx`: `portrait-serious.png` during Serious / Quiet mode (`state.presentation === 'quiet'`) and Trial Monolith Boss encounters; `portrait-wry.png` during spicy sass (`state.sass === 'spicy'`); `portrait-warm.png` during celebratory milestone achievements; `portrait-neutral.png` as canonical default.
+  4. **16-Bit Vault Fragment Relics.** Upgraded Vault screen (`renderVault()`, `src/styles.css`) from abstract unicode symbols to genuine 64×64 pixel-art relic stone fragments (`fragment-${t.id}.png` for charted territories and `fragment-empty.png` for empty slots) with crisp pixelated rendering.
+  5. **16-Bit Milestone Banner Badges.** Integrated 32×32 pixel art milestone icons (`level-up.png`, `ability-unlocked.png`, `quest-complete.png`, `artifact-recovered.png`, `territory-charted.png`, `achievement.png`) into notification banners with pixelated image styling and text fallbacks.
+  6. **Interactive Contemplation Animation.** Wired `think-front` animation into `src/world/InteriorCanvas.tsx` when inspecting sanctuary props (`inspectingProp !== null`), so Greyson ponders and strokes his beard while examining an architectural relic.
+  7. **Comprehensive Asset Test Suite.** Expanded `tests/assets/greyson-assets.test.ts` to assert all 5 map sprites, 4 emotional portraits, extended animations, vault fragments, ui glyphs, manifest integrity, and zero Andrew asset contamination.
+- **New evidence:** `tools/art/verify_assets.py` verified 131 media files on disk with 0 errors; 39 test files passed, 300 unit tests passed; `tests/assets/greyson-assets.test.ts` (7/7 passed); real-browser tests in Chrome passed (8/8 overworld-verbs, 13/13 encounters, 18/18 game-feel, 22/22 journey, 2/2 pwa = 63/63 browser tests); `npx tsc --noEmit` clean; production build passing with 120 precached service worker assets (561.83 KiB).
+
+### Revision 23 — 2026-09-15
+
+- **Artifact/source identity:** Pass 4 of Recursive SNES Game-Quality Uplift Protocol (`docs/GAME_QUALITY_LOOP_LEDGER.md`).
+- **State deltas:**
+  1. **Walkable Landmark Architectural Sanctuaries.** Authored full physical specifications and boundary collision for all 8 territory sanctuaries (`src/world/interiors.ts`): Origin Grove Shrine, Tribunal of Values, Forum of Concord, Beacon of Kinship, Archive of Axioms, Atelier of Curios, Abyssal Chasm, and Spire of Horizons.
+  2. **16-Bit Interior Canvas 2D Renderer.** Implemented dedicated `src/world/InteriorCanvas.tsx` rendering stone tile grids, velvet ceremonial runner carpets, double-bordered sanctuary walls with vertical pilasters and stained glass sconces, raised Cartographer dais platforms with hovering celestial astrolabes, doorway threshold exit mats, and 48×64 Greyson character sprite animation.
+  3. **In-World Prop Inspection System.** Authored 2–3 philosophical relics per sanctuary with rich lore inscriptions; rendered with colored pedestals, glyph icons, and animated gold selection rings; integrated with 16-bit parchment inspection scroll modals (`.prop-inspection-overlay`, `.prop-inspection-card`).
+  4. **Seamless Overworld & Interior Traversal.** Integrated `WorldMap.tsx` with `Enter [Sanctuary]` contextual action on overworld, doorway threshold exit detection, dedicated on-screen exit buttons, and stone footstep sound effects.
+  5. **16-Bit JRPG Region Arrival Location Cards.** Implemented `.region-arrival-card` floating top-centered location banners announcing territory entries with motif glyphs, "NOW ENTERING" eyebrow, region name, and sanctuary subtitle.
+  6. **Contextual Action Verbs.** Expanded `TouchControls.tsx` with dynamic action verb switching: `Inspect` for nearby props, `Talk` / `Consult` for daises, `Exit` for doorways, `Read` for waystones, `Open` for doors, and `Challenge` for bosses.
+- **New evidence:** 39 test files passed, 295 unit tests passed; 8 browser checks passed in `tests/browser/overworld-verbs.test.ts` in real Chrome; 13 browser checks passed in `tests/browser/encounters.test.ts` in real Chrome; 18 checks passed in `tests/browser/game-feel.test.ts` in real Chrome; `npx tsc --noEmit` clean; production client and worker build passing with 69 precached assets.
+
+### Revision 22 — 2026-09-15
+
+- **Artifact/source identity:** Pass 3 of Recursive SNES Game-Quality Uplift Protocol (`docs/GAME_QUALITY_LOOP_LEDGER.md`).
+- **State deltas:**
+  1. **16-Bit JRPG Boss Arena Staging.** Transformed Boss Fights from flat cards into authentic SNES combat arenas (`.is-boss-arena`): dark obsidian stone background with glowing ember perimeter vignettes, Greyson's canonical pixel combat portrait staging frame facing the trial, retro 5-stage gem progress pips (ruby/gold/iron), and tactical battle action buttons (`[Hold this position]`, `[Pass]`, `[Step back for now]`).
+  2. **Ethereal Crossing Chambers.** Transformed Mystery Doors into luminous verdigris portal chambers (`.is-door-chamber`) with ethereal mist backdrops, animated crossing beams connecting territory medallions, and portal navigation actions.
+  3. **Landmark Architectural Sanctuaries.** Authored distinct architectural settings, motif glyphs, and atmospheric descriptors for all 8 territorial landmarks (`src/world/sanctuaries.ts`); integrated into dialogue frame headers (`.convo-sanctuary`) displaying sanctuary title and atmosphere (e.g. *🌿 Origin Grove Shrine · Ancient Arbor*).
+  4. **Luminous Trail Leylines & Stepping Stones.** `OverworldCanvas.tsx` now renders rhythmic luminous stepping stones along trails connecting charted regions, and animated flowing verdigris leylines along trails connecting active Mystery Door territories.
+  5. **16-Bit Screen Impact Feedback.** Subtle screen shake (`screen-shake-16bit`) on question submissions and boss stage completions (respects `reducedMotion`).
+  6. **Procedural Web Audio Expansion.** Expanded `src/world/audio.ts` with `boss_clear` fanfare stinger, tactile `playMenuSound` chimes on menu open/close, and audio stingers on encounter entries and completions.
+- **New evidence:** 38 test files passed, 285 unit tests passed; 6 browser checks passed in `tests/browser/overworld-verbs.test.ts` in real Chrome; 13 browser checks passed in `tests/browser/encounters.test.ts` in real Chrome; `npx tsc --noEmit` clean; production build passing with 69 precached assets.
+
+### Revision 21 — 2026-09-15
+
+- **Artifact/source identity:** Pass 2 of Recursive SNES Game-Quality Uplift Protocol (`docs/GAME_QUALITY_LOOP_LEDGER.md`).
+- **State deltas:**
+  1. **Environmental Storytelling & Waystones.** Authored 7 trail waystones with location-specific lore inscriptions (`src/world/props.ts`); integrated with player controller proximity target detection.
+  2. **16-Bit Waystone Dialogue Modal.** Added `.waystone-overlay` and `.waystone-card` dialogs with double gold pixel borders for inspecting in-world signs without navigating away.
+  3. **Reactive Landmark Progression.** `OverworldCanvas.tsx` visually upgrades territory landmarks: `charted` regions display steady bright beacon rings; `deeply-charted` regions project radiant rotating celestial rays.
+  4. **Biome Ambient Weather Particles.** Canvas 2D ambient particle engine simulates drifting pollen in meadows, embers on volcanic ridges, and sea spray along coasts (respects `reducedMotion`).
+  5. **Contextual Action Labeling.** Action button dynamically transforms between `Read`, `Talk`, `Open`, and `Challenge` based on proximity target type.
+- **New evidence:** 37 test files passed, 281 unit tests passed; 5 browser checks passed in `tests/browser/overworld-verbs.test.ts` in real Chrome; `npx tsc --noEmit` clean; production build passing.
+
+### Revision 20 — 2026-09-15
+
+- **Artifact/source identity:** Pass 1 of Recursive SNES Game-Quality Uplift Protocol (`docs/GAME_QUALITY_LOOP_LEDGER.md`). Starting commit `b778ef2`.
+- **State deltas:**
+  1. **Free 2D Real-Time Exploration.** Full player coordinates, 8-directional animated sprites, wall-sliding collision physics (`src/world/collision.ts`, `src/world/playerController.ts`), and 360×640 Overworld Canvas 2D rendering loop (`src/world/OverworldCanvas.tsx`).
+  2. **Physicalized Encounters.** Active Mystery Doors rendered as ethereal verdigris portals along trails; available Boss confrontations rendered as ember monolith arenas with spatial proximity detection.
+  3. **Touch & Keyboard Controls.** On-screen 4-way D-Pad cluster with pointer capture + pulsing Action `[A]` button (`src/world/TouchControls.tsx`) alongside WASD / Arrow keys.
+  4. **Procedural Web Audio Engine.** Zero-dependency audio (`src/world/audio.ts`) providing surface-sensitive footsteps, 8 territory ambient pentatonic melodies, and 16-bit musical stingers, with strict compliance for quiet (`SERIOUS`) presentation.
+  5. **16-Bit JRPG Dialogue Frame.** Bottom-third ornate gold frame with Greyson canonical 96×96 portrait box, Georgia typography, and smooth return to exploration.
+  6. **Evidence and Invariants Preserved.** All deterministic progression, XP/level calculations, agency controls, local IndexedDB persistence, and mock Cartographer boundaries 100% preserved.
+- **New evidence:** 36 test files passed, 278 unit tests passed (1 skipped offline); 4 browser tests passed in `tests/browser/overworld-verbs.test.ts`, 18 passed in `tests/browser/game-feel.test.ts`, 17 passed in `tests/browser/journey.test.ts`; `npx tsc --noEmit` clean; production client/worker build passing.
 
 ### Revision 19 — 2026-09-08
 
