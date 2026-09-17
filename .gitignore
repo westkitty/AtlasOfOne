@@ -19,3 +19,4 @@ artifacts/
 package-lock.json
 /*.png
 /*.zip
+.art-src/
