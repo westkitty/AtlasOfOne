@@ -223,8 +223,18 @@ html[data-reduced-motion="true"] .world-layer { transition: none; }
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 16px;
+  padding: 16px var(--pad) calc(16px + env(safe-area-inset-bottom)) var(--pad);
   box-sizing: border-box;
+}
+
+/* The D-pad (left) is a fixed 132px-wide cluster (three 44px buttons in a
+   plus shape); [A] (right) is a 66px circle. These widths are reserved as
+   "lanes" so the middle-lane verbs below can never be positioned over them,
+   regardless of screen width or label length. */
+:root {
+  --lane-dpad: 132px;
+  --lane-action: 66px;
+  --lane-gap: 8px;
 }
 
 .dpad-cluster {
@@ -629,16 +639,27 @@ html[data-reduced-motion="true"] .stage.is-impact {
   font-size: 1.1rem; backdrop-filter: blur(6px);
 }
 
+/* The primary pill lives in the middle lane of the bottom action row: its
+   left/right edges are pinned to the reserved D-pad/[A] lanes (not centered
+   on the viewport, whose midpoint sits closer to the narrower [A] lane), so
+   its box can never extend under either control no matter how wide the
+   screen or how long the label. */
 .world-enter {
-  position: absolute; z-index: 5;
-  left: 50%; transform: translateX(-50%);
-  bottom: calc(26px + env(safe-area-inset-bottom));
-  min-height: 50px; padding: 14px 30px;
-  border: 1px solid var(--gold-soft); border-radius: 999px;
+  position: absolute; z-index: 25;
+  left: calc(var(--pad) + var(--lane-dpad) + var(--lane-gap));
+  right: calc(var(--pad) + var(--lane-action) + var(--lane-gap));
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  min-height: 50px; padding: 10px 14px;
+  border: 1px solid var(--gold-soft); border-radius: 18px;
   background: var(--gold); color: #101823;
-  font-weight: 800; font-size: .92rem; letter-spacing: .02em;
+  font-weight: 800; font-size: clamp(.76rem, 4.2vw, .92rem); letter-spacing: .02em;
   box-shadow: 0 12px 34px #000a;
   animation: enter-breathe 3.6s ease-in-out infinite;
+}
+.world-enter > span {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 @keyframes enter-breathe {
   0%, 100% { box-shadow: 0 12px 34px #000a, 0 0 0 0 #d9c58f00; }
@@ -1514,38 +1535,51 @@ html[data-reduced-motion="true"] .world-enter { animation: none; }
   font-style: italic;
 }
 
-/* ---- 16-bit Overworld Enter Sanctuary Action Button ---- */
+/* ---- Bottom action row, middle lane: secondary verb chip ----
+   Enter <Sanctuary> and Exit to Island are mutually exclusive (the former
+   only outside an interior, the latter only inside one), so they share one
+   position: a small chip stacked directly above the primary pill, bounded to
+   the same middle lane so it can never sit over the D-pad or [A]. */
 
-.enter-sanctuary-btn {
+.enter-sanctuary-btn,
+.interior-exit-btn {
   position: absolute;
-  bottom: 84px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: calc(var(--pad) + var(--lane-dpad) + var(--lane-gap));
+  right: calc(var(--pad) + var(--lane-action) + var(--lane-gap));
+  bottom: calc(14px + 64px + 8px + env(safe-area-inset-bottom));
   z-index: 25;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 8px 18px;
+  justify-content: center;
+  text-align: center;
+  min-height: 44px;
+  padding: 8px 12px;
   background: #111a26;
   border: 1.5px solid var(--gold);
   outline: 1.5px solid #06090e;
-  border-radius: 6px;
+  border-radius: 10px;
   color: var(--gold);
-  font: 700 0.85rem/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font: 700 clamp(.68rem, 3.6vw, .85rem)/1.25 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.75), 0 0 10px rgba(244, 223, 162, 0.25);
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
+.enter-sanctuary-btn > span,
+.interior-exit-btn > span {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
-.enter-sanctuary-btn:hover {
+.enter-sanctuary-btn:hover,
+.interior-exit-btn:hover {
   background: #192738;
-  transform: translateX(-50%) translateY(-2px);
+  transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 14px rgba(244, 223, 162, 0.45);
 }
 
-.enter-sanctuary-btn:active {
-  transform: translateX(-50%) translateY(1px);
+.enter-sanctuary-btn:active,
+.interior-exit-btn:active {
+  transform: translateY(1px);
 }
 
 /* ---- 16-bit Landmark Interior Sanctuary Stage & Canvas ---- */
@@ -1568,29 +1602,6 @@ html[data-reduced-motion="true"] .world-enter { animation: none; }
   height: 100%;
   display: block;
   image-rendering: pixelated;
-}
-
-.interior-exit-btn {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 15;
-  min-height: 32px;
-  padding: 4px 12px;
-  background: rgba(15, 23, 34, 0.88);
-  border: 1.5px solid #88a6c7;
-  border-radius: 4px;
-  color: #e4edf8;
-  font: 700 0.76rem/1.2 -apple-system, BlinkMacSystemFont, monospace;
-  cursor: pointer;
-  backdrop-filter: blur(4px);
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.interior-exit-btn:hover {
-  background: rgba(26, 38, 56, 0.95);
-  border-color: var(--gold);
-  color: var(--gold);
 }
 
 /* ---- Sanctuary Prop Inspection Modal Overlay ---- */

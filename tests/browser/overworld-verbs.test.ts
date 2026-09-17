@@ -184,4 +184,85 @@ describe('SNES Overworld Verbs', () => {
       expect((await page.textContent('.region-arrival-sanctuary'))!.length).toBeGreaterThan(3);
     }
   });
+
+  it('bottom controls never overlap at phone width', async () => {
+    // The D-pad, [A], the primary pill, the Enter Sanctuary chip and the
+    // interior exit verb are laid out by independent components (TouchControls,
+    // WorldMap, App). Any of them can be absent depending on state, so ids
+    // with no matching element (or that are not currently visible) are
+    // skipped rather than failing the lookup.
+    const ids = [
+      'dpad-up',
+      'dpad-down',
+      'dpad-left',
+      'dpad-right',
+      'interact-action-btn',
+      'enter-sanctuary',
+      'enter-encounter',
+      'exit-interior'
+    ];
+
+    const assertNoOverlap = async (label: string) => {
+      const boxes = (
+        await Promise.all(
+          ids.map(async (id) => {
+            const locator = page.locator(`[data-testid="${id}"]`);
+            // count() resolves immediately with 0 for a non-matching selector;
+            // boundingBox() on a locator with no attached element instead waits
+            // out the full actionability timeout, so absence has to be checked
+            // first rather than relied on to short-circuit.
+            if ((await locator.count()) === 0) return [id, null] as const;
+            return [id, await locator.boundingBox()] as const;
+          })
+        )
+      ).filter(([, box]) => box);
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+          const [idA, a] = boxes[i];
+          const [idB, b] = boxes[j];
+          const overlap =
+            a!.x < b!.x + b!.width &&
+            b!.x < a!.x + a!.width &&
+            a!.y < b!.y + b!.height &&
+            b!.y < a!.y + a!.height;
+          expect(overlap, `[${label}] ${idA} overlaps ${idB}`).toBe(false);
+        }
+      }
+    };
+
+    // State: overworld, near the Origin Grove landmark (enter-sanctuary visible).
+    await page.locator('[data-testid="place-identity"]').click();
+    await page.waitForTimeout(400);
+    await page.waitForSelector('[data-testid="enter-sanctuary"]');
+    await assertNoOverlap('overworld near landmark');
+
+    // State: overworld, away from any landmark (enter-sanctuary absent).
+    // Regions sit close enough together that a long hold overshoots into the
+    // next region's own landmark radius, so this polls and releases the
+    // instant the chip disappears rather than holding for a fixed duration.
+    await page.locator('[data-testid="dpad-up"]').dispatchEvent('pointerdown');
+    let clearedLandmark = false;
+    for (let i = 0; i < 20 && !clearedLandmark; i++) {
+      await page.waitForTimeout(100);
+      clearedLandmark = (await page.locator('[data-testid="enter-sanctuary"]').count()) === 0;
+    }
+    await page.locator('[data-testid="dpad-up"]').dispatchEvent('pointerup');
+    expect(clearedLandmark, 'walked clear of every landmark radius within 2s').toBe(true);
+    await page.waitForTimeout(150);
+    expect(await page.locator('[data-testid="enter-sanctuary"]').count()).toBe(0);
+    await assertNoOverlap('overworld away from landmark');
+
+    // State: inside an interior (exit-interior visible).
+    await page.locator('[data-testid="place-identity"]').click();
+    await page.waitForTimeout(400);
+    await page.waitForSelector('[data-testid="enter-sanctuary"]');
+    await page.locator('[data-testid="enter-sanctuary"]').click();
+    await page.waitForSelector('[data-testid="interior-stage"]');
+    await page.waitForSelector('[data-testid="exit-interior"]');
+    await assertNoOverlap('interior');
+
+    // Leave the interior so any later suite starts from the overworld.
+    await page.locator('[data-testid="exit-interior"]').click();
+    await page.waitForSelector('[data-testid="overworld-canvas"]');
+  });
 });

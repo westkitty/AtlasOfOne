@@ -434,18 +434,6 @@ export function WorldMap({
             isAtDoor={isAtDoor}
             reducedMotion={reducedMotion}
           />
-          <button
-            type="button"
-            className="interior-exit-btn"
-            data-testid="exit-interior"
-            aria-label="Exit to Island"
-            onClick={() => {
-              playStinger('door', isQuiet);
-              onInteriorChange?.(null);
-            }}
-          >
-            ◀ Exit to Island
-          </button>
           {activeProp && (
             <div
               className="prop-inspection-overlay"
@@ -623,6 +611,23 @@ export function WorldMap({
         </div>
       )}
 
+      {/* Interior [B]-style verb: the way back out, in the middle lane of the
+          bottom action row rather than pinned over the room title. */}
+      {activeInterior && currentRoom && (
+        <button
+          type="button"
+          className="interior-exit-btn"
+          data-testid="exit-interior"
+          aria-label="Exit to Island"
+          onClick={() => {
+            playStinger('door', isQuiet);
+            onInteriorChange?.(null);
+          }}
+        >
+          <span>◀ Exit to Island</span>
+        </button>
+      )}
+
       {/* On-screen Enter Sanctuary action button when near a landmark */}
       {!activeInterior && (player.nearbyTarget?.type === 'landmark' || Math.hypot(player.x - here.centre.x, player.y - here.centre.y) < 65) && (
         <button
@@ -635,7 +640,7 @@ export function WorldMap({
             onInteriorChange?.(targetTerritory);
           }}
         >
-          Enter {sanctuaryFor(player.nearbyTarget?.type === 'landmark' ? player.nearbyTarget.id : (player.territoryId || state.activeTerritory)).name}
+          <span>Enter {sanctuaryFor(player.nearbyTarget?.type === 'landmark' ? player.nearbyTarget.id : (player.territoryId || state.activeTerritory)).name}</span>
         </button>
       )}
 

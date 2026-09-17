@@ -1116,10 +1116,10 @@ export default function App() {
     </div>
 
     {!talking && !encounter && <button className="world-enter" data-testid="enter-encounter" onClick={() => { setTalking(true); setReply(''); }}>
-      {activeInterior ? 'Consult Cartographer' : state.turns.length === 0 ? 'Begin' : 'Continue'}
+      <span>{activeInterior ? 'Consult Cartographer' : state.turns.length === 0 ? 'Begin' : 'Continue'}</span>
     </button>}
     {!talking && encounter && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
-      Resume {encounter.kind === 'door' ? encounter.title : encounter.heading}
+      <span>Resume {encounter.kind === 'door' ? encounter.title : encounter.heading}</span>
     </button>}
 
     {activeWaystone && (
