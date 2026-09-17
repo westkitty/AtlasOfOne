@@ -38,6 +38,26 @@ def save(img: Image.Image, rel: str, index: dict):
     return rel
 
 
+def save_raw(src_path: str, rel: str, index: dict):
+    """
+    Copy a source file's bytes verbatim, with no PIL re-encode.
+
+    save() always round-trips through Image.save(optimize=True), which can
+    change a PNG's compressed bytes even when every pixel is unchanged (a
+    different filter/compression choice). For inputs that are already final
+    -- the committed vault/ui/effects assets, or Greyson frames staged from
+    the committed canon -- that churn is pure noise, so this copies the file
+    directly and only opens it with PIL to read its pixel dimensions.
+    """
+    path = os.path.join(OUT, rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    shutil.copy2(src_path, path)
+    with Image.open(path) as img:
+        size = list(img.size)
+    index[rel] = {'sha256': sha256(path), 'bytes': os.path.getsize(path), 'size': size}
+    return rel
+
+
 # ---------------------------------------------------------------------------
 # World
 # ---------------------------------------------------------------------------
@@ -115,48 +135,117 @@ ANIMATIONS = {
 IDLE_FAMILIES = [k for k in ANIMATIONS if k.startswith('idle')]
 
 
+def _is_precleaned(frames: dict) -> bool:
+    """
+    True when every frame is already the final 48x64 canvas with a binary
+    {0,255} alpha channel -- i.e. it was cleaned/quantized upstream (staged
+    verbatim from the committed public/assets/atlas/v3/greyson/ canon) rather
+    than being a raw art export.
+    """
+    for arr in frames.values():
+        if arr.shape[:2] != (64, 48):     # numpy (H, W, C); PIL size is (48, 64)
+            return False
+        alpha = arr[..., 3]
+        if not np.all((alpha == 0) | (alpha == 255)):
+            return False
+    return True
+
+
 def build_character(index, workdir):
+    """
+    Two source modes, auto-detected from the staged frames:
+
+    - Pre-cleaned mode: the source is already the committed canon (every
+      frame already the final 48x64 canvas with binary alpha, including the
+      already-authored idle breathing phases). char_clean's k-means palette
+      is built fresh from whatever frame set is fed to it, so re-running
+      keep_main_figure/quantize/breathe against already-cleaned frames does
+      not reproduce them -- it just drifts the palette away from canon. So
+      pre-cleaned frames and portraits are copied byte-for-byte with
+      save_raw, skipping cleaning/quantize/breathe entirely; QA stats are
+      measured directly off the loaded arrays instead of the pipeline's own
+      counters.
+
+    - Raw mode (unchanged): the source is an unprocessed art export (e.g. the
+      v2 zip or the artpack's greyson-artpack/, kept for reference) and goes
+      through the full keep_main_figure -> despeckle -> quantize ->
+      polish_edges -> align -> breathe pipeline in char_clean.py.
+    """
     src = os.path.join(workdir, 'greyson')
     frames = sorted(p for p in glob.glob(f'{src}/*.png') if 'portrait' not in p)
     if not frames:
         raise SystemExit(f'no character frames found in {src}')
 
     raw = {os.path.basename(p): cc.load_rgba(p) for p in frames}
-    cleaned, removed, pockets = {}, 0, 0
-    for name, arr in raw.items():
-        a, r = cc.keep_main_figure(arr); removed += r
-        a, b = cc.remove_black_pockets(a); pockets += b
-        a, r2 = cc.keep_main_figure(cc.despeckle_edge(a)); removed += r2
-        cleaned[name] = a
 
-    palette = cc.build_palette(list(cleaned.values()))
-    final = {}
-    for name, arr in cleaned.items():
-        q = cc.polish_edges(cc.quantize(arr, palette))
-        q, _ = cc.keep_main_figure(q)
-        final[name] = cc.align(q, target_bottom=63)
+    if _is_precleaned(raw):
+        for name in raw:
+            save_raw(os.path.join(src, name), f'greyson/{name}', index)
 
-    # The source ships four identical frames per idle; author a real breath.
-    for family in IDLE_FAMILIES:
-        if f'{family}-00.png' in final:
-            base = final[f'{family}-00.png']
-            for phase in range(4):
-                final[f'{family}-{phase:02d}.png'] = cc.breathe(base, phase)
+        portraits = {}
+        for emo in ['neutral', 'serious', 'warm', 'wry']:
+            portrait_src = os.path.join(src, f'portrait-{emo}.png')
+            if os.path.exists(portrait_src):
+                save_raw(portrait_src, f'greyson/portrait-{emo}.png', index)
+                portraits[emo] = f'greyson/portrait-{emo}.png'
 
-    for name, arr in final.items():
-        save(Image.fromarray(arr), f'greyson/{name}', index)
+        baselines = {cc.anchor_stats(a)['bottom'] for a in raw.values()}
+        colours = [len(set(map(tuple, a[a[..., 3] > 128][:, :3].tolist()))) for a in raw.values()]
+        all_colours = set()
+        for a in raw.values():
+            all_colours.update(map(tuple, a[a[..., 3] > 128][:, :3].tolist()))
 
-    portraits = {}
-    for emo in ['neutral', 'serious', 'warm', 'wry']:
-        portrait_src = os.path.join(src, f'portrait-{emo}.png')
-        if os.path.exists(portrait_src):
-            p, _ = cc.keep_main_figure(cc.load_rgba(portrait_src))
-            save(Image.fromarray(cc.polish_edges(cc.quantize(cc.despeckle_edge(p), palette))),
-                 f'greyson/portrait-{emo}.png', index)
-            portraits[emo] = f'greyson/portrait-{emo}.png'
+        qa = {
+            'sourceFrames': len(raw), 'detachedPixelsRemoved': 0,
+            'blackPocketPixelsCleared': 0, 'paletteSize': len(all_colours),
+            'coloursPerFrame': [min(colours), max(colours)],
+            'footBaselines': sorted(baselines),
+            'idleAuthored': IDLE_FAMILIES,
+        }
+    else:
+        cleaned, removed, pockets = {}, 0, 0
+        for name, arr in raw.items():
+            a, r = cc.keep_main_figure(arr); removed += r
+            a, b = cc.remove_black_pockets(a); pockets += b
+            a, r2 = cc.keep_main_figure(cc.despeckle_edge(a)); removed += r2
+            cleaned[name] = a
 
-    baselines = {cc.anchor_stats(a)['bottom'] for a in final.values()}
-    colours = [len(set(map(tuple, a[a[..., 3] > 128][:, :3].tolist()))) for a in final.values()]
+        palette = cc.build_palette(list(cleaned.values()))
+        final = {}
+        for name, arr in cleaned.items():
+            q = cc.polish_edges(cc.quantize(arr, palette))
+            q, _ = cc.keep_main_figure(q)
+            final[name] = cc.align(q, target_bottom=63)
+
+        # The source ships four identical frames per idle; author a real breath.
+        for family in IDLE_FAMILIES:
+            if f'{family}-00.png' in final:
+                base = final[f'{family}-00.png']
+                for phase in range(4):
+                    final[f'{family}-{phase:02d}.png'] = cc.breathe(base, phase)
+
+        for name, arr in final.items():
+            save(Image.fromarray(arr), f'greyson/{name}', index)
+
+        portraits = {}
+        for emo in ['neutral', 'serious', 'warm', 'wry']:
+            portrait_src = os.path.join(src, f'portrait-{emo}.png')
+            if os.path.exists(portrait_src):
+                p, _ = cc.keep_main_figure(cc.load_rgba(portrait_src))
+                save(Image.fromarray(cc.polish_edges(cc.quantize(cc.despeckle_edge(p), palette))),
+                     f'greyson/portrait-{emo}.png', index)
+                portraits[emo] = f'greyson/portrait-{emo}.png'
+
+        baselines = {cc.anchor_stats(a)['bottom'] for a in final.values()}
+        colours = [len(set(map(tuple, a[a[..., 3] > 128][:, :3].tolist()))) for a in final.values()]
+
+        qa = {
+            'sourceFrames': len(raw), 'detachedPixelsRemoved': removed,
+            'blackPocketPixelsCleared': pockets, 'paletteSize': int(len(set(map(tuple, palette.tolist())))),
+            'coloursPerFrame': [min(colours), max(colours)],
+            'footBaselines': sorted(baselines),
+            'idleAuthored': IDLE_FAMILIES,
+        }
 
     return {
         'frame': [48, 64],
@@ -170,13 +259,7 @@ def build_character(index, workdir):
         'mirrors': {'right': 'left', 'qfront-right': 'qfront-left', 'qback-right': 'qback-left'},
         'portrait': 'greyson/portrait-neutral.png',
         'portraits': portraits,
-    }, {
-        'sourceFrames': len(raw), 'detachedPixelsRemoved': removed,
-        'blackPocketPixelsCleared': pockets, 'paletteSize': int(len(set(map(tuple, palette.tolist())))),
-        'coloursPerFrame': [min(colours), max(colours)],
-        'footBaselines': sorted(baselines),
-        'idleAuthored': IDLE_FAMILIES,
-    }
+    }, qa
 
 
 def build_extra_assets(index, workdir):
@@ -185,7 +268,7 @@ def build_extra_assets(index, workdir):
     if vault_src:
         for p in sorted(glob.glob(f'{vault_src}/*.png')):
             name = os.path.basename(p)
-            save(Image.open(p), f'vault/{name}', index)
+            save_raw(p, f'vault/{name}', index)
             frag_id = name.replace('fragment-', '').replace('.png', '')
             vault[frag_id] = f'vault/{name}'
 
@@ -194,7 +277,7 @@ def build_extra_assets(index, workdir):
     if ui_src:
         for p in sorted(glob.glob(f'{ui_src}/*.png')):
             name = os.path.basename(p)
-            save(Image.open(p), f'ui/{name}', index)
+            save_raw(p, f'ui/{name}', index)
             base = name.replace('.png', '')
             if 'icon-' in base:
                 ui['icons'][base.replace('icon-', '')] = f'ui/{name}'
@@ -203,7 +286,22 @@ def build_extra_assets(index, workdir):
             else:
                 ui['glyphs'][base] = f'ui/{name}'
 
-    return vault, ui
+    # Effects are a build stage, not orphans: mirror the vault loop, grouping
+    # frames by family (marker-here, landmark-glow, trail-light,
+    # coordinate-mark, fog-lift) so main() no longer has to rmtree() a
+    # directory nothing here reproduces.
+    effects = {}
+    effects_src = os.path.join(workdir, 'effects') if workdir and os.path.isdir(os.path.join(workdir, 'effects')) else None
+    if effects_src:
+        counts: dict[str, int] = {}
+        for p in sorted(glob.glob(f'{effects_src}/*.png')):
+            name = os.path.basename(p)
+            save_raw(p, f'effects/{name}', index)
+            family = name[:-len('.png')].rsplit('-', 1)[0]
+            counts[family] = counts.get(family, 0) + 1
+        effects = {family: {'frames': n, 'src': f'effects/{family}-{{n}}.png'} for family, n in sorted(counts.items())}
+
+    return vault, ui, effects
 
 
 def main():
@@ -217,7 +315,7 @@ def main():
     index = {}
     world = build_world(index)
     character, qa = build_character(index, workdir)
-    vault, ui = build_extra_assets(index, workdir)
+    vault, ui, effects = build_extra_assets(index, workdir)
 
     manifest = {
         'schemaVersion': 1,
@@ -227,6 +325,7 @@ def main():
         'character': character,
         'vault': {'fragments': vault} if vault else {},
         'ui': ui if ui['glyphs'] else {},
+        'effects': effects,
         'files': index,
     }
     with open(os.path.join(OUT, 'manifest.json'), 'w') as fh:

@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ATLAS_MANIFEST } from '../../src/world/manifest.generated';
 
 const ASSETS_ROOT = join(process.cwd(), 'public', 'assets');
 const GREYSON_ROOT = join(ASSETS_ROOT, 'greyson');
@@ -9,6 +10,7 @@ const ATLAS_V3 = join(ASSETS_ROOT, 'atlas', 'v3');
 const V3_GREYSON = join(ATLAS_V3, 'greyson');
 const V3_VAULT = join(ATLAS_V3, 'vault');
 const V3_UI = join(ATLAS_V3, 'ui');
+const V3_EFFECTS = join(ATLAS_V3, 'effects');
 
 const MAP_SPRITES = ['idle-front.png', 'idle-qfront.png', 'idle-left.png', 'idle-back.png', 'idle-qback.png'];
 const PORTRAITS = ['portrait-neutral.png', 'portrait-serious.png', 'portrait-warm.png', 'portrait-wry.png'];
@@ -21,6 +23,9 @@ const UI_GLYPHS = [
   'level-up.png', 'ability-unlocked.png', 'quest-complete.png',
   'artifact-recovered.png', 'territory-charted.png', 'achievement.png'
 ];
+const EFFECTS_FRAME_COUNTS: Record<string, number> = {
+  'coordinate-mark': 6, 'fog-lift': 8, 'landmark-glow': 4, 'marker-here': 4, 'trail-light': 6
+};
 
 function pngDimensions(path: string) {
   const bytes = readFileSync(path);
@@ -81,6 +86,22 @@ describe('canonical Greyson/Aerron runtime assets', () => {
       expect(existsSync(p), `Missing UI glyph ${glyph}`).toBe(true);
       expect(pngDimensions(p)).toEqual({ width: 32, height: 32 });
     }
+  });
+
+  it('ships the 28 effects frames as a build stage, listed in the manifest', () => {
+    expect(Object.keys(ATLAS_MANIFEST.effects)).toEqual(
+      ['coordinate-mark', 'fog-lift', 'landmark-glow', 'marker-here', 'trail-light']
+    );
+    let total = 0;
+    for (const [family, count] of Object.entries(EFFECTS_FRAME_COUNTS)) {
+      expect(ATLAS_MANIFEST.effects[family as keyof typeof ATLAS_MANIFEST.effects].frames).toBe(count);
+      for (let n = 0; n < count; n += 1) {
+        const p = join(V3_EFFECTS, `${family}-${String(n).padStart(2, '0')}.png`);
+        expect(existsSync(p), `Missing effects frame ${family}-${n}`).toBe(true);
+      }
+      total += count;
+    }
+    expect(readdirSync(V3_EFFECTS).filter((f) => f.endsWith('.png'))).toHaveLength(total);
   });
 
   it('does not import Andrew-side assets into the asset tree or src tree', () => {

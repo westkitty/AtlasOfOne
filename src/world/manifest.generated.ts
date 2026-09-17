@@ -146,53 +146,23 @@ export const ATLAS_MANIFEST = {
   },
   "effects": {
     "coordinate-mark": {
-      "fps": 10,
       "frames": 6,
-      "loop": false,
-      "size": [
-        32,
-        32
-      ],
       "src": "effects/coordinate-mark-{n}.png"
     },
     "fog-lift": {
-      "fps": 12,
       "frames": 8,
-      "loop": false,
-      "size": [
-        96,
-        96
-      ],
       "src": "effects/fog-lift-{n}.png"
     },
     "landmark-glow": {
-      "fps": 6,
       "frames": 4,
-      "loop": true,
-      "size": [
-        48,
-        48
-      ],
       "src": "effects/landmark-glow-{n}.png"
     },
     "marker-here": {
-      "fps": 4,
       "frames": 4,
-      "loop": true,
-      "size": [
-        32,
-        32
-      ],
       "src": "effects/marker-here-{n}.png"
     },
     "trail-light": {
-      "fps": 10,
       "frames": 6,
-      "loop": false,
-      "size": [
-        64,
-        64
-      ],
       "src": "effects/trail-light-{n}.png"
     }
   },
