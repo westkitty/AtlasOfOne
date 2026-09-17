@@ -7,10 +7,10 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 25,
+  "state_revision": 26,
   "last_updated": "2026-09-17",
   "current_baseline": {
-    "identity": "rev25 / feat/gaeysun-shared-capsule-boundary",
+    "identity": "rev26 / feat/gaeysun-shared-capsule-boundary",
     "state": "partially-verified",
     "last_verified": "2026-09-15"
   },
@@ -219,7 +219,7 @@ The current artifact contains the requested source-of-truth documents, React/Typ
   - **Evidence:** `tests/browser/voice-conversation.test.ts` (11 checks) drives the real App with deterministic `getUserMedia`, `MediaRecorder`, `AudioContext` and `speechSynthesis`, amplitude flowing through the real analyser path; the central check completes two spoken turns with no microphone interaction between them. Cold-open behaviour is proven in `onboarding.test.ts`, `hydration-race.test.ts` and `onboarding-continuity.test.ts`.
 - **VER-064:** **Current validation totals.** On application content `31b01b0`: `npx tsc --noEmit` clean; `npm test` 30 files, **237 passed, 1 skipped**; `npm run test:browser` 12 files, **105 passed**; production build passing; `git diff --check` clean.
 
-## 6. Known Not Working
+- **VER-065:** Gaeysun Shared Capsule candidate boundary verified on draft PR #9 / branch \`feat/gaeysun-shared-capsule-boundary\`. The branch contains only \`src/integrations/gaeysunCapsule.ts\`, \`tests/gaeysunCapsule.test.ts\`, \`docs/GAEYSUN_SHARED_CAPSULE.md\`, and this Operational State update. GitHub Actions \`Atlas validation\` run \`35288234699\` completed successfully. The adapter strictly validates shared-only capsule shape, verifies SHA-256 integrity, converts entries to inert candidate records, and exposes no progression/writeback authority. No real relationship capsule is committed or tested. This verifies branch code/test integrity only; it does not mean the feature is merged or deployed.\n\n## 6. Known Not Working
 
 Phase 5 identified five defects (BUG-001 double-submit race, BUG-002 stale closure overwrite, BUG-003 cross-campaign import race, BUG-004 voice capture state desync, BUG-005 chunked body bypass). **All five now have repairs in source AND genuine mutation-proven regression protection against real production paths** — BUG-005 through VER-047, the rest through VER-054. BUG-001 additionally turned out to be a live defect and was repaired in `cbab040`. A sixth concurrency defect was found later, at the encounter submission boundary, and is recorded in VER-056 rather than as a BUG-00n, because it was discovered by proof rather than by the Phase 5 sweep. The following remain open and are confirmed by direct code inspection.
 
