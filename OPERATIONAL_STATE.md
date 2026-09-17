@@ -7,10 +7,10 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 24,
-  "last_updated": "2026-09-15",
+  "state_revision": 26,
+  "last_updated": "2026-09-17",
   "current_baseline": {
-    "identity": "rev24",
+    "identity": "rev26 / feat/gaeysun-shared-capsule-boundary",
     "state": "partially-verified",
     "last_verified": "2026-09-15"
   },
@@ -113,7 +113,7 @@ The current artifact contains the requested source-of-truth documents, React/Typ
 - **INV-019:** Malformed model structure earns at most one repair attempt. A semantic violation is refused outright and never repaired. No retry loop exists.
 - **INV-020:** No Cloudflare credential, model registry or provider configuration reaches browser code. A model outside the free-plan eligible registry is refused by the Worker before a request exists, so a misconfiguration cannot create cost. Quota exhaustion is non-retryable and degrades to the local script.
 
-## 5. Verified Working Behavior
+- **INV-021:** Gaeysun Shared Capsules are external candidate context only. Parsing or converting a capsule must never grant XP, change level, unlock content, award achievements, complete quests, chart territory, mutate campaign progression, or write back into Gaeysun. The adapter must reject any capsule that widens the declared candidate-only/private-excluded boundary.\n\n## 5. Verified Working Behavior
 
 - **VER-001:** GitHub Actions installed dependencies successfully on Node 22.
 - **VER-002:** 55 synthetic unit tests across assets, game, sustained campaign, Boss Fight, Mystery Door, model contract, persistence transfer, encounter persistence, and IndexedDB passed on code baseline `c0dc714` (18 of these are the prior baseline suite, still passing unchanged).
@@ -219,7 +219,7 @@ The current artifact contains the requested source-of-truth documents, React/Typ
   - **Evidence:** `tests/browser/voice-conversation.test.ts` (11 checks) drives the real App with deterministic `getUserMedia`, `MediaRecorder`, `AudioContext` and `speechSynthesis`, amplitude flowing through the real analyser path; the central check completes two spoken turns with no microphone interaction between them. Cold-open behaviour is proven in `onboarding.test.ts`, `hydration-race.test.ts` and `onboarding-continuity.test.ts`.
 - **VER-064:** **Current validation totals.** On application content `31b01b0`: `npx tsc --noEmit` clean; `npm test` 30 files, **237 passed, 1 skipped**; `npm run test:browser` 12 files, **105 passed**; production build passing; `git diff --check` clean.
 
-## 6. Known Not Working
+- **VER-065:** Gaeysun Shared Capsule candidate boundary verified on draft PR #9 / branch \`feat/gaeysun-shared-capsule-boundary\`. The branch contains only \`src/integrations/gaeysunCapsule.ts\`, \`tests/gaeysunCapsule.test.ts\`, \`docs/GAEYSUN_SHARED_CAPSULE.md\`, and this Operational State update. GitHub Actions \`Atlas validation\` run \`35288234699\` completed successfully. The adapter strictly validates shared-only capsule shape, verifies SHA-256 integrity, converts entries to inert candidate records, and exposes no progression/writeback authority. No real relationship capsule is committed or tested. This verifies branch code/test integrity only; it does not mean the feature is merged or deployed.\n\n## 6. Known Not Working
 
 Phase 5 identified five defects (BUG-001 double-submit race, BUG-002 stale closure overwrite, BUG-003 cross-campaign import race, BUG-004 voice capture state desync, BUG-005 chunked body bypass). **All five now have repairs in source AND genuine mutation-proven regression protection against real production paths** — BUG-005 through VER-047, the rest through VER-054. BUG-001 additionally turned out to be a live defect and was repaired in `cbab040`. A sixth concurrency defect was found later, at the encounter submission boundary, and is recorded in VER-056 rather than as a BUG-00n, because it was discovered by proof rather than by the Phase 5 sweep. The following remain open and are confirmed by direct code inspection.
 
@@ -249,7 +249,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **UNV-023:** **An existing Atlas file cannot be imported before first-run onboarding.** Fresh onboarding hides the main navigation, so a brand-new browser or device cannot reach the Me-screen Import control until onboarding is completed. Observed while proving KNOWN-005 and deliberately NOT repaired: no acceptance criterion and no build-plan item requires importing before first run, so building an onboarding import path here would have been inventing a requirement. It is recorded because it plausibly bites during the actual handoff — a new phone, or cleared site data, means completing onboarding before restoring a campaign. Resolve it as a Phase 6 friction observation with a real person, not by speculation. **Evidence updated at revision 18:** the PND-004 journey deleted and re-imported inside one session WITHOUT hitting this, because `localStorage.atlas_onboarding_completed` survives a campaign delete, so navigation and the Me-screen import stayed reachable throughout. UNV-023 therefore concerns a genuinely fresh profile — a new device, a new browser, or cleared site data — and not the delete-then-restore path. It remains open and unrepaired.
 - **UNV-021:** The actual Greyson session. Phase 6 is "Give it to Greyson"; the onboarding implementation is not the phase. No handoff has occurred and no product friction has been observed.
 
-## 8. Unknown or Evidence-Stale State
+- **UNV-025:** Gaeysun Shared Capsule adapter on branch \`feat/gaeysun-shared-capsule-boundary\` is implemented with strict Zod validation, SHA-256 integrity verification, inert candidate conversion, synthetic fixtures, and explicit authority documentation. It is **not merged or deployed**. GitHub CI evidence for the branch/PR remains required before promotion. No real Gaeysun relationship capsule has entered the repository or tests.\n\n## 8. Unknown or Evidence-Stale State
 
 - **UNK-003:** **CLOSED.** `docs/ACCEPTANCE.md` no longer carries the disproven KNOWN-005 CONTRADICTED claim. Revision 18 also propagated the other stale acceptance statements whose replacement truth is already proven: the obsolete production/local-candidate scope note, stale test totals, the Phase 4 transcription wording (KNOWN-004 closed, UNV-017 preserved), the Phase 5 async-hammer box, the Final Assessment trust-boundary block header, and the long-session checkbox. Nine criteria remain legitimately open there.
 - **UNK-002:** The available source requires all territories/levels but does not enumerate canonical names/details for each; political dimensions and a Level 8 reveal are explicit. Bootstrap labels/thresholds are reversible and documented as non-canonical defaults.
@@ -271,7 +271,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **PND-013:** **Partially closed.** KNOWN-004 and KNOWN-005 are resolved in `a787285` (VER-058, VER-059). What remains is KNOWN-003, the `CAMPAIGN_COMPLETED` dispatcher gap, which is a product decision about how a campaign ends rather than a mechanical repair and is deliberately not being taken without direction.
 - **PND-005:** Intentionally deferred. Detailed canonical turnaround source `sheets/aerron_turnaround_hires.png` is not committed/available in repo and trigger/role remains an unresolved design decision (Level 8 vs all territories charted vs final assessment). Leave pending until source asset and decision are supplied.
 
-## 10. Active Decisions, Defaults, and Prohibitions
+- **PND-015:** Review and merge the Gaeysun Shared Capsule boundary only after the feature-branch CI proves the synthetic adapter tests/build clean. Integration UI that lets a player select a capsule remains a separate future product decision; this pass intentionally stops at a safe parser/candidate boundary.\n\n## 10. Active Decisions, Defaults, and Prohibitions
 
 - **DEC-001:** React + TypeScript + Vite + Cloudflare Vite plugin + Worker + Dexie + Zod + PWA + Vitest.
 - **DEC-002:** Local `MockCartographer` is the only Cartographer implementation in Phase 1/2.
@@ -306,7 +306,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **DEC-029:** Mutual exclusion for asynchronous user actions uses a ref claimed synchronously before the first `await`, not React state. React state is read from the render closure and does not update until the next render, so two events in the same browser task both observe the stale value — proven against the real submit button in VER-054. `isSubmitting` remains, for presentation only. The encounter submission boundary needs the same exclusion but a different release point — see DEC-030.
 - **DEC-027:** A Final Assessment gets its own semantic validation stage rather than being forced through the `CartographerTurn` validator, whose shape is unrelated. `validateFinalAssessment` reuses the shared primitives (`PROGRESSION_CLAIMS`, `findAuthorityFields`) and restates the rules for this contract. As on the per-turn path, a semantic failure is refused and never repaired; the caller falls back to the deterministic local synthesis, so a refusal never costs the player their assessment. Introduced in `e940788`.
 
-## 11. Validation and Evidence Matrix
+- **DEC-033:** Gaeysun remains a separate memory authority. Atlas consumes Shared Capsule v1 as local, candidate-only context. The branch must not commit real capsules, send raw capsule bytes to providers, create progression events from import alone, or add direct Gaeysun writeback.\n\n## 11. Validation and Evidence Matrix
 
 | ID | Claim or behavior | State | Evidence | Validation method | Artifact/revision | Last checked | Recheck trigger |
 |---|---|---|---|---|---|---|---|
