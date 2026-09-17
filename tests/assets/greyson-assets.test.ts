@@ -26,6 +26,13 @@ const UI_GLYPHS = [
 const EFFECTS_FRAME_COUNTS: Record<string, number> = {
   'coordinate-mark': 6, 'fog-lift': 8, 'landmark-glow': 4, 'marker-here': 4, 'trail-light': 6
 };
+const EFFECTS_META: Record<string, { fps: number; loop: boolean; size: [number, number] }> = {
+  'coordinate-mark': { fps: 10, loop: false, size: [32, 32] },
+  'fog-lift': { fps: 12, loop: false, size: [96, 96] },
+  'landmark-glow': { fps: 6, loop: true, size: [48, 48] },
+  'marker-here': { fps: 4, loop: true, size: [32, 32] },
+  'trail-light': { fps: 10, loop: false, size: [64, 64] },
+};
 
 function pngDimensions(path: string) {
   const bytes = readFileSync(path);
@@ -94,7 +101,11 @@ describe('canonical Greyson/Aerron runtime assets', () => {
     );
     let total = 0;
     for (const [family, count] of Object.entries(EFFECTS_FRAME_COUNTS)) {
-      expect(ATLAS_MANIFEST.effects[family as keyof typeof ATLAS_MANIFEST.effects].frames).toBe(count);
+      const entry = ATLAS_MANIFEST.effects[family as keyof typeof ATLAS_MANIFEST.effects];
+      expect(entry.frames).toBe(count);
+      expect(Object.keys(entry).sort(), `${family} is missing a key`).toEqual(
+        ['frames', 'fps', 'loop', 'size', 'src'].sort()
+      );
       for (let n = 0; n < count; n += 1) {
         const p = join(V3_EFFECTS, `${family}-${String(n).padStart(2, '0')}.png`);
         expect(existsSync(p), `Missing effects frame ${family}-${n}`).toBe(true);
@@ -102,6 +113,12 @@ describe('canonical Greyson/Aerron runtime assets', () => {
       total += count;
     }
     expect(readdirSync(V3_EFFECTS).filter((f) => f.endsWith('.png'))).toHaveLength(total);
+
+    // fps/loop/size are the playback metadata the pre-existing (previously
+    // orphaned) manifest stub carried; assert a couple explicitly so a future
+    // regression that silently drops them again fails loudly.
+    expect(ATLAS_MANIFEST.effects['coordinate-mark']).toMatchObject(EFFECTS_META['coordinate-mark']);
+    expect(ATLAS_MANIFEST.effects['landmark-glow']).toMatchObject(EFFECTS_META['landmark-glow']);
   });
 
   it('does not import Andrew-side assets into the asset tree or src tree', () => {

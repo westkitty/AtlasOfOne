@@ -134,6 +134,16 @@ ANIMATIONS = {
 }
 IDLE_FAMILIES = [k for k in ANIMATIONS if k.startswith('idle')]
 
+# (fps, loop) per effects family -- the playback rate/looping the runtime
+# uses; frame count and pixel size are derived from the staged PNGs.
+EFFECTS = {
+    'coordinate-mark': (10, False),
+    'fog-lift': (12, False),
+    'landmark-glow': (6, True),
+    'marker-here': (4, True),
+    'trail-light': (10, False),
+}
+
 
 def _is_precleaned(frames: dict) -> bool:
     """
@@ -294,12 +304,18 @@ def build_extra_assets(index, workdir):
     effects_src = os.path.join(workdir, 'effects') if workdir and os.path.isdir(os.path.join(workdir, 'effects')) else None
     if effects_src:
         counts: dict[str, int] = {}
+        first_frame: dict[str, str] = {}
         for p in sorted(glob.glob(f'{effects_src}/*.png')):
             name = os.path.basename(p)
             save_raw(p, f'effects/{name}', index)
             family = name[:-len('.png')].rsplit('-', 1)[0]
             counts[family] = counts.get(family, 0) + 1
-        effects = {family: {'frames': n, 'src': f'effects/{family}-{{n}}.png'} for family, n in sorted(counts.items())}
+            first_frame.setdefault(family, p)
+        for family, n in sorted(counts.items()):
+            fps, loop = EFFECTS[family]
+            with Image.open(first_frame[family]) as img:
+                size = list(img.size)
+            effects[family] = {'fps': fps, 'frames': n, 'loop': loop, 'size': size, 'src': f'effects/{family}-{{n}}.png'}
 
     return vault, ui, effects
 
@@ -308,9 +324,17 @@ def main():
     workdir = os.environ.get('ART_WORK')
     if not workdir:
         raise SystemExit('set ART_WORK to the directory holding cleaned/ source greyson frames')
+    # README.md is hand-written documentation living in OUT, not a build
+    # product, so it has to survive the rmtree below rather than being
+    # silently deleted on every run.
+    readme = os.path.join(OUT, 'README.md')
+    readme_bytes = open(readme, 'rb').read() if os.path.isfile(readme) else None
     if os.path.isdir(OUT):
         shutil.rmtree(OUT)
     os.makedirs(OUT, exist_ok=True)
+    if readme_bytes is not None:
+        with open(readme, 'wb') as fh:
+            fh.write(readme_bytes)
 
     index = {}
     world = build_world(index)
