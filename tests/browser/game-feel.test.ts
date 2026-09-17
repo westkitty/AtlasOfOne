@@ -425,3 +425,75 @@ describe('the world holds together at every supported width', () => {
     await page.setViewportSize(VIEWPORT);
   }, 60_000);
 });
+
+describe('a region only reveals through its own mask', () => {
+  /**
+   * Regression for the bug where the render loop drew the whole island
+   * glimpsed/revealed layer at a region's alpha, so discovering one
+   * territory visibly lit the entire island. Runs on its own fresh profile
+   * (a new page gets its own isolated storage) so exactly one answer has
+   * landed — a fresh campaign always starts on Identity — and no other
+   * region has any reveal yet to muddy the comparison.
+   *
+   * This compares each sample point against ITS OWN pre-answer baseline
+   * rather than comparing Identity's brightness to Politics' in absolute
+   * terms: the two regions' base island art is not equally bright (Politics
+   * renders as a warmer, lighter city palette than Identity's stones), so an
+   * absolute here-vs-far comparison is confounded by terrain art and can
+   * flip either way regardless of the masking bug. A before/after delta at
+   * each point isolates exactly what the fix controls: whether Identity's
+   * own point brightens when only Identity is revealed, and whether
+   * Politics' point is left alone. The sample points are also offset from
+   * both regions' landmark centres (where a pulsing marker is drawn
+   * regardless of mask state) and clear of Greyson's spawn sprite in
+   * Identity, so neither confounds the reveal-layer signal being tested.
+   */
+  it('reveals only the answered region on the canvas', async () => {
+    const maskPage = await browser.newPage({ viewport: VIEWPORT });
+    try {
+      await maskPage.goto(host.url);
+      await completeOnboardingIfPresent(maskPage);
+      await maskPage.waitForSelector('[data-testid="world"]');
+      await maskPage.waitForTimeout(200);
+
+      const sample = () => maskPage.evaluate(() => {
+        const c = document.querySelector('[data-testid="overworld-canvas"]') as HTMLCanvasElement;
+        const g = c.getContext('2d')!;
+        const lum = (x: number, y: number) => { const d = g.getImageData(x, y, 1, 1).data; return d[0] + d[1] + d[2]; };
+        // Identity interior point, clear of its landmark centre (178,330) and
+        // Greyson's spawn sprite; Politics interior point, clear of its
+        // landmark centre (188,104). The canvas may become camera-transformed
+        // later, so sample through the exposed helper rather than assuming
+        // world units equal canvas pixels.
+        const w = (window as any).__atlasWorldToCanvas as (x: number, y: number) => [number, number];
+        const [ix, iy] = w(178, 250);
+        const [px, py] = w(188, 140);
+        return { here: lum(ix, iy), far: lum(px, py) };
+      });
+
+      const before = await sample();
+
+      await navigateTo(maskPage, 'Talk');
+      await maskPage.waitForSelector('[data-testid="answer-input"]');
+      await maskPage.fill('[data-testid="answer-input"]', 'SYNTHETIC: a first coordinate about self-description.');
+      await maskPage.click('button:text("Map this answer")');
+      await maskPage.waitForSelector('[data-testid="world-mark"]', { timeout: 20_000 });
+
+      await navigateTo(maskPage, 'Map');
+      await maskPage.waitForTimeout(150);
+
+      const after = await sample();
+      const hereDelta = after.here - before.here;
+      const farDelta = after.far - before.far;
+
+      // Identity visibly brightened from being answered into...
+      expect(hereDelta, 'the answered region visibly brightened').toBeGreaterThan(10);
+      // ...while Politics — never answered — did not, which is exactly what
+      // the pre-fix whole-island paint got wrong.
+      expect(farDelta, 'an unrelated, unanswered region did not brighten').toBeLessThan(5);
+      expect(hereDelta, 'the answered region brightened more than the untouched one').toBeGreaterThan(farDelta + 15);
+    } finally {
+      await maskPage.close();
+    }
+  }, 60_000);
+});

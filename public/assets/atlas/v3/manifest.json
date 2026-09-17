@@ -1355,64 +1355,64 @@
    ]
   },
   "world/masks/cognition.png": {
-   "bytes": 2049,
-   "sha256": "97c8699246626d9b9e2448503255ceb30367238c4232451d62dd1db589f2be15",
+   "bytes": 3553,
+   "sha256": "0a22290b579fed3dcc2b8505c25fbb9ca84aa0011ba207aece1d73d8db9f4553",
    "size": [
     360,
     640
    ]
   },
   "world/masks/fears.png": {
-   "bytes": 2072,
-   "sha256": "e382922c69a82da8fd7d619cbc1e07c84cbfa046601f1d8fa4ce04de57f34f22",
+   "bytes": 3536,
+   "sha256": "c91e23a0cc949294756428d4639e575ceaf59305f1db1f932ba0e1fc0c35e595",
    "size": [
     360,
     640
    ]
   },
   "world/masks/future.png": {
-   "bytes": 481,
-   "sha256": "2df906fd832f8cf3e27bd27a568de81174c065727bec2a965372b9bdbb3ad104",
+   "bytes": 1925,
+   "sha256": "bc0584b1bfcf3b2948329535f4992b6b0784314aef7987b2de6b83236f946727",
    "size": [
     360,
     640
    ]
   },
   "world/masks/identity.png": {
-   "bytes": 3406,
-   "sha256": "42091be7c54447ec988cba16639be02b93209b239bb5f47134a206bd7a51abaa",
+   "bytes": 5149,
+   "sha256": "c53bb0470abefe2a4b9678011d23079d7f4ab6e6bc3d863f068c366e3d7a9520",
    "size": [
     360,
     640
    ]
   },
   "world/masks/interests.png": {
-   "bytes": 2470,
-   "sha256": "fdf879a0d9f7ee84476024695b0976a5a2a3785a5b8854bd77eb03126c3cedb4",
+   "bytes": 4012,
+   "sha256": "da97eb631368c9b4535ca25be7d73448ceaddfca73e29b9dd769eb964c80f8e6",
    "size": [
     360,
     640
    ]
   },
   "world/masks/politics.png": {
-   "bytes": 2026,
-   "sha256": "7f3b30e50137ac6d678398a15bd9a4308cc9be3fd013f3f258a466caaeae43c8",
+   "bytes": 3506,
+   "sha256": "81db0ce96f4170f98ec76db1edc8d082a82e998252ed7b7d5b201d44ac7e1d7b",
    "size": [
     360,
     640
    ]
   },
   "world/masks/relationships.png": {
-   "bytes": 2762,
-   "sha256": "d1649f58d2eb509c051d7c06f9121cba5626353c03f7b7952f53555b584e83a4",
+   "bytes": 4330,
+   "sha256": "ae3e999378b5b38fe2b40bc43b1ece424cab9a4f090ae1aa6e1e5cb45c946d96",
    "size": [
     360,
     640
    ]
   },
   "world/masks/values.png": {
-   "bytes": 2286,
-   "sha256": "4610e7aafa67f2016cbd7edf552665fe652c899f1177bb185d1137e54b39f748",
+   "bytes": 3813,
+   "sha256": "2ef962628c6ed09dcf8ce082ad3cc47344959c9d38a06cee7af8a54347cb46c7",
    "size": [
     360,
     640

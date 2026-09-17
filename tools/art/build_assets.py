@@ -101,8 +101,9 @@ def build_world(index):
         own = np.hypot(xx - cx, yy - cy)
         others = np.min([np.hypot(xx - ox, yy - oy) for oid, (ox, oy) in centres if oid != rid], axis=0)
         m = np.clip((others - own) / 26.0 + 0.5, 0, 1) * mask
-        img = Image.fromarray((m * 255).astype(np.uint8), mode='L')
-        masks[rid] = save(img, f'world/masks/{rid}.png', index)
+        m8 = (m * 255).astype(np.uint8)
+        rgba = np.dstack([np.full_like(m8, 255), np.full_like(m8, 255), np.full_like(m8, 255), m8])
+        masks[rid] = save(Image.fromarray(rgba, mode='RGBA'), f'world/masks/{rid}.png', index)
 
     regions = [{
         'id': r.id, 'label': r.label, 'centre': list(r.centre), 'stand': list(r.stand),

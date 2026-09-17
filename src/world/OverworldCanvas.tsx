@@ -38,6 +38,40 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+type RevealLayers = Map<string, { glimpsed: HTMLCanvasElement; revealed: HTMLCanvasElement }>;
+
+/** Composite one island layer through one region's mask, once, off-screen. */
+function maskedLayer(layer: HTMLImageElement, mask: HTMLImageElement, w: number, h: number) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d')!;
+  g.drawImage(layer, 0, 0, w, h);
+  g.globalCompositeOperation = 'destination-in';
+  g.drawImage(mask, 0, 0, w, h);
+  return c;
+}
+
+/**
+ * Pre-mask the glimpsed/revealed island layers per region so the render loop
+ * never draws a whole-island layer at a region's alpha — each region reveals
+ * only the pixels its own (now-RGBA) mask carries weight for.
+ */
+function buildRevealLayers(images: Map<string, HTMLImageElement>): RevealLayers {
+  const out: RevealLayers = new Map();
+  const glimpsed = images.get(asset(LAYERS.glimpsed));
+  const revealed = images.get(asset(LAYERS.revealed));
+  for (const region of REGIONS) {
+    const mask = images.get(asset(region.mask));
+    if (!glimpsed || !revealed || !mask || mask.naturalWidth === 0) continue;
+    out.set(region.id, {
+      glimpsed: maskedLayer(glimpsed, mask, WORLD.width, WORLD.height),
+      revealed: maskedLayer(revealed, mask, WORLD.width, WORLD.height)
+    });
+  }
+  return out;
+}
+
 export function OverworldCanvas({
   state,
   player,
@@ -47,6 +81,7 @@ export function OverworldCanvas({
 }: OverworldCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const revealRef = useRef<RevealLayers>(new Map());
   const [loaded, setLoaded] = useState(false);
 
   // Animation frame timing
@@ -91,6 +126,7 @@ export function OverworldCanvas({
 
       if (!cancelled) {
         imagesRef.current = map;
+        revealRef.current = buildRevealLayers(map);
         setLoaded(true);
       }
     }
@@ -98,6 +134,21 @@ export function OverworldCanvas({
     void loadAssets();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  // Expose a read-only world->canvas coordinate helper for the browser test
+  // suite, which drives the production bundle and has no other way to locate
+  // a region's mask centre in canvas pixel space. Task 2.2 updates this for
+  // the camera; today the canvas is drawn 1:1 with WORLD units.
+  useEffect(() => {
+    (window as any).__atlasWorldToCanvas = (x: number, y: number): [number, number] => {
+      const canvas = canvasRef.current;
+      const ratio = canvas && WORLD.width > 0 ? canvas.width / WORLD.width : 1;
+      return [x * ratio, y * ratio];
+    };
+    return () => {
+      delete (window as any).__atlasWorldToCanvas;
     };
   }, []);
 
@@ -132,36 +183,15 @@ export function OverworldCanvas({
         ctx.drawImage(hiddenImg, 0, 0, WORLD.width, WORLD.height);
       }
 
-      // 2. Draw revealed and glimpsed regions using masks
+      // 2. Reveal each region through its own mask — never the whole island.
       for (const region of REGIONS) {
-        const territory = state.territories.find((t) => t.id === region.id);
-        const status = territory?.status ?? 'fogged';
-        const reveal = revealFor(status);
-        const { glimpsed, revealed } = layerOpacity(reveal);
-
-        if (glimpsed === 0 && revealed === 0) continue;
-        const maskImg = images.get(asset(region.mask));
-
-        if (maskImg && maskImg.complete && maskImg.naturalWidth > 0) {
-          ctx.save();
-
-          // Create temporary offscreen layer for masked rendering
-          if (revealed > 0) {
-            const revImg = images.get(asset(LAYERS.revealed));
-            if (revImg) {
-              ctx.globalAlpha = revealed;
-              ctx.drawImage(revImg, 0, 0, WORLD.width, WORLD.height);
-            }
-          } else if (glimpsed > 0) {
-            const glimpImg = images.get(asset(LAYERS.glimpsed));
-            if (glimpImg) {
-              ctx.globalAlpha = glimpsed;
-              ctx.drawImage(glimpImg, 0, 0, WORLD.width, WORLD.height);
-            }
-          }
-
-          ctx.restore();
-        }
+        const status = state.territories.find((t) => t.id === region.id)?.status ?? 'fogged';
+        const { glimpsed, revealed } = layerOpacity(revealFor(status));
+        const layers = revealRef.current.get(region.id);
+        if (!layers) continue;
+        if (glimpsed > 0) { ctx.globalAlpha = glimpsed; ctx.drawImage(layers.glimpsed, 0, 0); }
+        if (revealed > 0) { ctx.globalAlpha = revealed; ctx.drawImage(layers.revealed, 0, 0); }
+        ctx.globalAlpha = 1;
       }
 
       // 3. Draw drifting ambient fog overlay
