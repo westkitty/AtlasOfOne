@@ -183,6 +183,9 @@ html[data-reduced-motion="true"] .world-layer { transition: none; }
   width: 34px; height: 46px; object-fit: contain;
   image-rendering: pixelated;
   filter: drop-shadow(0 3px 3px #000c);
+  /* The canvas draws Greyson; this DOM avatar exists for accessibility and
+     test bounding boxes only, so it must not render its own visible sprite. */
+  opacity: 0; pointer-events: none;
 }
 .world-greyson.face-right img { transform: scaleX(-1); }
 
