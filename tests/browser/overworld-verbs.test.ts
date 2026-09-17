@@ -265,4 +265,61 @@ describe('SNES Overworld Verbs', () => {
     await page.locator('[data-testid="exit-interior"]').click();
     await page.waitForSelector('[data-testid="overworld-canvas"]');
   });
+
+  it('bottom-lane labels render in full at 320px (no clipping, no ellipsis)', async () => {
+    // The middle lane between the D-pad and [A] is narrowest at 320px. A
+    // fixed line-clamp there previously combined with overflow:hidden to
+    // silently cut "Continue" down to "Contin" (scrollWidth 64 vs
+    // clientWidth 44) instead of wrapping it. This checks the DOM-level
+    // signal for that failure mode directly: a clipped or ellipsized label
+    // always has scrollWidth/scrollHeight exceeding the visible box, even
+    // though boundingBox()-based overlap checks alone can't see it.
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.waitForTimeout(150);
+
+    const assertFullyRendered = async (testId: string, expectedText: string) => {
+      const span = page.locator(`[data-testid="${testId}"] span`);
+      await span.waitFor({ state: 'visible' });
+      const metrics = await span.evaluate((el) => ({
+        scrollWidth: el.scrollWidth,
+        clientWidth: el.clientWidth,
+        scrollHeight: el.scrollHeight,
+        clientHeight: el.clientHeight,
+        text: el.textContent ?? ''
+      }));
+      expect(metrics.scrollWidth, `${testId} label not clipped horizontally`).toBeLessThanOrEqual(
+        metrics.clientWidth + 1
+      );
+      expect(metrics.scrollHeight, `${testId} label not clipped vertically`).toBeLessThanOrEqual(
+        metrics.clientHeight + 1
+      );
+      expect(metrics.text.trim(), `${testId} text is intact, not truncated`).toBe(expectedText);
+    };
+
+    // Primary pill: whichever of Begin/Continue is currently active (this
+    // suite has already answered several turns by this point, so it reads
+    // "Continue" here — the exact word the bug report reproduced) shares its
+    // CSS with "Begin", so exercising either exercises both. The Enter
+    // Sanctuary chip must show the complete sanctuary name alongside it.
+    await page.locator('[data-testid="place-identity"]').click();
+    await page.waitForTimeout(400);
+    await page.waitForSelector('[data-testid="enter-sanctuary"]');
+    const primaryLabel = (await page.locator('[data-testid="enter-encounter"] span').textContent())?.trim();
+    expect(['Begin', 'Continue']).toContain(primaryLabel);
+    await assertFullyRendered('enter-encounter', primaryLabel!);
+    await assertFullyRendered('enter-sanctuary', 'Enter Origin Grove Shrine');
+
+    // Interior: "Consult Cartographer" (primary pill) and "◀ Exit to Island"
+    // (the [B]-style verb) both have to render completely too.
+    await page.locator('[data-testid="enter-sanctuary"]').click();
+    await page.waitForSelector('[data-testid="interior-stage"]');
+    await page.waitForSelector('[data-testid="exit-interior"]');
+    await assertFullyRendered('enter-encounter', 'Consult Cartographer');
+    await assertFullyRendered('exit-interior', '◀ Exit to Island');
+
+    // Leave the interior and restore the shared viewport for any later suite.
+    await page.locator('[data-testid="exit-interior"]').click();
+    await page.waitForSelector('[data-testid="overworld-canvas"]');
+    await page.setViewportSize(VIEWPORT);
+  });
 });
