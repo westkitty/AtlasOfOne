@@ -22,6 +22,7 @@ import { transitionVoiceState, voiceStateLabel } from './voice/state';
 import { cancelSpeech, speakText } from './voice/synthesis';
 import { availableVoices, forgetResolvedVoice, getVoicePreference, primeVoices, setVoicePreference } from './voice/voices';
 import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
+import { familiarForPrivacy, familiarForVoiceState } from './familiar';
 
 type Screen = 'world'|'vault'|'me';
 /** The character record shows the restored 96x96 portrait from the art pack. */
@@ -205,6 +206,7 @@ export default function App() {
   // Voice state machine & access code state
   const [voiceMode, setVoiceMode] = useState<VoiceMode>('type');
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
+  const voiceFamiliar = useMemo(() => familiarForVoiceState(voiceState), [voiceState]);
   const [activeCapture, setActiveCapture] = useState<ActiveAudioCapture | null>(null);
   const [accessSecretInput, setAccessSecretInput] = useState(() => getAccessSecret() ?? '');
 
@@ -1245,7 +1247,7 @@ export default function App() {
         </div>
       </div>
     ) : (
-      <div className="voice-card" data-testid="voice-card">
+      <div className="voice-card" data-testid="voice-card" data-familiar-attention={voiceFamiliar.attention} data-familiar-reaction={voiceFamiliar.reaction} data-familiar-trigger={voiceFamiliar.trigger} data-familiar-intensity={voiceFamiliar.intensity.toFixed(2)}>
         <span className={`voice-badge ${voiceState}`} data-testid="voice-status">{voiceStateLabel(voiceState)}</span>
         {voiceState === 'idle' && (
           <button className="mic-btn" data-testid="mic-button" aria-label="Start the conversation" onClick={startConversation} disabled={state.sessionStatus==='paused'}>
@@ -1332,7 +1334,8 @@ export default function App() {
    */
   const recordedAnswers = state.turns.filter((turn) => turn.substantive).slice().reverse();
 
-  const renderVault = () => <section className="screen">
+  const vaultFamiliar = familiarForPrivacy(state.privateTopics.length);
+  const renderVault = () => <section className="screen" data-familiar-attention={vaultFamiliar.attention} data-familiar-reaction={vaultFamiliar.reaction} data-familiar-trigger={vaultFamiliar.trigger}>
     <div className="eyebrow">LOCAL EVIDENCE VAULT</div>
     <h1>Vault</h1>
     <p>Evidence, fragments, contradictions, and things the map is not allowed to pretend it knows.</p>
