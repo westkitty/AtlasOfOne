@@ -68,11 +68,26 @@ describe('Phase 6 minimal canonical onboarding browser proof', () => {
   });
 
   it('3b. waking reveals the identity, then hands over to Atlas', async () => {
+    // Arm observation before the click. The reveal is intentionally brief and can
+    // be inserted and removed entirely between Playwright polling intervals.
+    await page.evaluate(() => {
+      (window as any).__atlasRevealSeen = null;
+      const record = () => {
+        const title = document.querySelector('.cold-open-title')?.textContent;
+        const sub = document.querySelector('.cold-open-sub')?.textContent;
+        if (title === 'Atlas of One' && sub === 'The Greyson Map') {
+          (window as any).__atlasRevealSeen = { title, sub };
+          return true;
+        }
+        return false;
+      };
+      if (record()) return;
+      const observer = new MutationObserver(() => { if (record()) observer.disconnect(); });
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
     await page.click('[data-testid="cold-open"]');
-    // Identity is discovered by waking it, not presented beforehand.
-    await page.waitForSelector('.cold-open-title', { timeout: 5_000 });
-    expect(await page.textContent('.cold-open-title')).toBe('Atlas of One');
-    expect(await page.textContent('.cold-open-sub')).toBe('The Greyson Map');
+    await page.waitForFunction(() => (window as any).__atlasRevealSeen !== null, undefined, { timeout: 5_000 });
+    expect(await page.evaluate(() => (window as any).__atlasRevealSeen)).toEqual({ title: 'Atlas of One', sub: 'The Greyson Map' });
     await page.waitForSelector('[data-testid="onboarding-step-2"]', { timeout: 10_000 });
   });
 

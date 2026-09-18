@@ -140,14 +140,21 @@ describe('SNES Overworld Verbs', () => {
     // Verify HUD reflects the sanctuary name
     expect(await page.textContent('[data-testid="hud-territory"]')).toContain('Origin Grove Shrine');
 
-    // Walk North toward the Altar of Origins prop using D-Pad Up
-    await page.locator('[data-testid="dpad-up"]').dispatchEvent('pointerdown');
-    await page.waitForTimeout(1600);
-    await page.locator('[data-testid="dpad-up"]').dispatchEvent('pointerup');
+    // Walk North toward the Altar of Origins prop. Headless Chrome can run
+    // requestAnimationFrame slower under a full-suite load, so advance in bounded
+    // player-sized bursts until the real contextual verb reports arrival instead
+    // of assuming wall-clock time equals simulation time.
+    const action = page.locator('[data-testid="interact-action-btn"]');
+    for (let step = 0; step < 8; step += 1) {
+      if ((await action.innerText()).toUpperCase().includes('INSPECT')) break;
+      await page.locator('[data-testid="dpad-up"]').dispatchEvent('pointerdown');
+      await page.waitForTimeout(400);
+      await page.locator('[data-testid="dpad-up"]').dispatchEvent('pointerup');
+      await page.waitForTimeout(60);
+    }
 
     // Contextual Action button updates to 'Inspect'
-    const actionLabel = await page.locator('[data-testid="interact-action-btn"]').innerText();
-    expect(actionLabel.toUpperCase()).toContain('INSPECT');
+    await expect.poll(async () => (await action.innerText()).toUpperCase()).toContain('INSPECT');
 
     // Inspect the prop
     await page.locator('[data-testid="interact-action-btn"]').click();
@@ -186,6 +193,7 @@ describe('SNES Overworld Verbs', () => {
   });
 
   it('bottom controls never overlap at phone width', async () => {
+    if (await page.locator('[data-testid="exit-interior"]').count()) await page.locator('[data-testid="exit-interior"]').click();
     // The D-pad, [A], the primary pill, the Enter Sanctuary chip and the
     // interior exit verb are laid out by independent components (TouchControls,
     // WorldMap, App). Any of them can be absent depending on state, so ids
@@ -267,6 +275,7 @@ describe('SNES Overworld Verbs', () => {
   });
 
   it('bottom-lane labels render in full at 320px (no clipping, no ellipsis)', async () => {
+    if (await page.locator('[data-testid="exit-interior"]').count()) await page.locator('[data-testid="exit-interior"]').click();
     // The middle lane between the D-pad and [A] is narrowest at 320px. A
     // fixed line-clamp there previously combined with overflow:hidden to
     // silently cut "Continue" down to "Contin" (scrollWidth 64 vs

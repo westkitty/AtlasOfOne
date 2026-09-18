@@ -454,6 +454,11 @@ describe('a region only reveals through its own mask', () => {
       await maskPage.goto(host.url);
       await completeOnboardingIfPresent(maskPage);
       await maskPage.waitForSelector('[data-testid="world"]');
+      // This gate measures reveal-mask pixels, not fog or particle animation. Use
+      // Atlas's real reduced-motion setting so before/after samples are stable.
+      await navigateTo(maskPage, 'Me');
+      await maskPage.locator('label:has-text("Reduced motion") input[type=checkbox]').check();
+      await navigateTo(maskPage, 'Map');
       await maskPage.waitForTimeout(200);
 
       const sample = () => maskPage.evaluate(() => {

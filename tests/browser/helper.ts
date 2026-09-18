@@ -64,7 +64,11 @@ export async function wakeAtlas(page: Page, timeout = READINESS_TIMEOUT) {
   const surface = page.locator('[data-testid="cold-open"]');
   if ((await surface.count()) === 0) return;
   await surface.waitFor({ state: 'visible', timeout });
-  await surface.click();
+  // This is a setup helper, not the pointer-actionability proof. Dispatch the
+  // real DOM click event directly so deliberate CPU throttling cannot strand
+  // Playwright inside its actionability machinery after the control is already
+  // visible, enabled and stable. Dedicated onboarding tests exercise .click().
+  await surface.dispatchEvent('click');
   await surface.waitFor({ state: 'detached', timeout });
 }
 

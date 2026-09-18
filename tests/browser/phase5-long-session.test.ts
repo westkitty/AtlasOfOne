@@ -183,7 +183,6 @@ beforeAll(async () => {
 
   await page.goto(host.url, { waitUntil: 'load' });
   await page.waitForSelector('.shell');
-  await wakeAtlas(page);
   await completeOnboardingIfPresent(page);
 
   // SETUP ONLY: place the prepared campaign on disk before the visible session.
@@ -205,7 +204,14 @@ beforeAll(async () => {
   );
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('.shell');
-  await wakeAtlas(page);
+  // Cold-open actionability is covered by the onboarding/hydration suites. This
+  // long-session gate is about persisted campaign lifecycle, so dispatch the real
+  // click event directly and wait for the surface to disappear deterministically.
+  const coldOpen = page.locator('[data-testid="cold-open"]');
+  if (await coldOpen.count()) {
+    await coldOpen.dispatchEvent('click');
+    await coldOpen.waitFor({ state: 'detached', timeout: 30_000 });
+  }
   await page.waitForTimeout(700);
 }, 180_000);
 
