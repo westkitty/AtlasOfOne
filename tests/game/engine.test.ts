@@ -35,3 +35,32 @@ describe('evidence retraction',()=>{
   it('retracts derived evidence and recomputes coverage',()=>{const s=createInitialCampaign();const p=getMockPrompt(s);const t=createMockTurn(s,p,syntheticShortAnswer);const r=recordsFromMockTurn(p,syntheticShortAnswer,t);const withE=applyGameEvents(s,[{type:'ANSWER_ACCEPTED',turn:r.turnRecord},...r.evidence.map((evidence)=>({type:'EVIDENCE_ADDED',evidence}) as GameEvent)]);expect(withE.territories.find(x=>x.id===p.territoryId)?.coveredDimensions).toContain(p.dimension);const n=applyGameEvent(withE,{type:'ANSWER_RETRACTED',turnId:r.turnRecord.id});expect(n.evidence.every(e=>e.status==='retracted')).toBe(true);expect(n.territories.find(x=>x.id===p.territoryId)?.coveredDimensions).not.toContain(p.dimension);});
   it('does not award duplicate evidence XP',()=>{const s=createInitialCampaign();const evidence:EvidenceRecord={id:'ev1',dimension:'self-description',claim:'Synthetic claim',sourceTurnIds:['turn1'],basis:'explicit',strength:1,territories:['identity'],counterEvidenceIds:[],status:'active',origin:'player-stated'};const one=applyGameEvent(s,{type:'EVIDENCE_ADDED',evidence});const two=applyGameEvent(one,{type:'EVIDENCE_ADDED',evidence:{...evidence,id:'ev2'}});expect(one.xp).toBe(2);expect(two.xp).toBe(2);});
 });
+
+
+describe('journey memory', () => {
+  it('records exploration without awarding progression or polluting campaign history', () => {
+    const start = createInitialCampaign();
+    const before = { xp: start.xp, level: start.level, fragments: start.mapFragments.length, history: start.campaignHistory.length };
+    const moved = applyGameEvent(start, { type: 'WORLD_POSITION_SET', x: 123, y: 234, territoryId: 'identity' });
+    expect(moved.worldJourney.lastPosition).toEqual({ x: 123, y: 234, territoryId: 'identity' });
+    expect(moved.xp).toBe(before.xp);
+    expect(moved.level).toBe(before.level);
+    expect(moved.mapFragments).toHaveLength(before.fragments);
+    expect(moved.campaignHistory).toHaveLength(before.history);
+  });
+
+  it('deduplicates landmarks, routes and encounter locations', () => {
+    const start = createInitialCampaign();
+    const next = applyGameEvents(start, [
+      { type: 'LANDMARK_DISCOVERED', landmarkId: 'identity', territoryId: 'identity' },
+      { type: 'LANDMARK_DISCOVERED', landmarkId: 'identity', territoryId: 'identity' },
+      { type: 'ROUTE_TRAVERSED', from: 'identity', to: 'values' },
+      { type: 'ROUTE_TRAVERSED', from: 'values', to: 'identity' },
+      { type: 'ENCOUNTER_LOCATED', kind: 'boss', id: 'synthetic-boss', territoryId: 'identity' },
+      { type: 'ENCOUNTER_LOCATED', kind: 'boss', id: 'synthetic-boss', territoryId: 'identity' }
+    ]);
+    expect(next.worldJourney.discoveredLandmarkIds).toEqual(['identity']);
+    expect(next.worldJourney.traversedRoutes).toEqual(['identity__values']);
+    expect(next.worldJourney.encounterLocations).toHaveLength(1);
+  });
+});

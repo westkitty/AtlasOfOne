@@ -34,6 +34,15 @@ export interface MapFragment { id: string; territoryId: string; label: string; u
 export interface PresentationNotice { id: string; kind: 'level' | 'unlock' | 'achievement' | 'quest' | 'territory' | 'fragment'; title: string; detail: string; createdAt: string; }
 export interface GameHistoryEntry { id: string; type: GameEvent['type']; at: string; detail?: string; }
 
+export interface WorldJourneyState {
+  visitedTerritoryIds: string[];
+  discoveredLandmarkIds: string[];
+  lastPosition: { x: number; y: number; territoryId: string } | null;
+  recentArrivals: Array<{ territoryId: string; at: string }>;
+  traversedRoutes: string[];
+  encounterLocations: Array<{ kind: 'boss' | 'door'; id: string; territoryId: string; at: string }>;
+}
+
 export interface BossDefinition { id: string; territoryId: string; label: string; description: string; levelRequired: number; minCoveredDimensions: number; xpReward: number; }
 
 export type EncounterStageKind = 'priority' | 'tradeoff' | 'contradiction';
@@ -74,6 +83,7 @@ export interface CampaignState {
   campaignCompleted: boolean;
   presentationQueue: PresentationNotice[];
   campaignHistory: GameHistoryEntry[];
+  worldJourney: WorldJourneyState;
   finalAssessment?: FinalAssessment | null;
   onboardingCompleted?: boolean;
   updatedAt: string;
@@ -105,6 +115,10 @@ export type GameEvent =
   | { type: 'SESSION_SET'; status: SessionStatus }
   | { type: 'SASS_SET'; sass: SassLevel }
   | { type: 'ACTIVE_TERRITORY_SET'; territoryId: string }
+  | { type: 'WORLD_POSITION_SET'; x: number; y: number; territoryId: string }
+  | { type: 'LANDMARK_DISCOVERED'; landmarkId: string; territoryId: string }
+  | { type: 'ROUTE_TRAVERSED'; from: string; to: string }
+  | { type: 'ENCOUNTER_LOCATED'; kind: 'boss' | 'door'; id: string; territoryId: string }
   | { type: 'PRESENTATION_NOTICE_ACKNOWLEDGED'; noticeId: string }
   | { type: 'PRESENTATION_QUEUE_CLEARED' }
   | { type: 'FINAL_ASSESSMENT_SET'; assessment: FinalAssessment }

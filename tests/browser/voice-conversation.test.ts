@@ -225,6 +225,15 @@ const waitForCount = async (get: () => number, target: number, page: Page, timeo
   }
 };
 
+/** Wait for speech synthesis itself, not merely for the request that precedes it. */
+const waitForSpoken = async (session: VoiceSession, fragment: string, timeout = 25_000) => {
+  const deadline = Date.now() + timeout;
+  while (!(await session.spoken()).some((line) => line.includes(fragment))) {
+    if (Date.now() > deadline) throw new Error(`expected spoken output containing: ${fragment}`);
+    await session.page.waitForTimeout(100);
+  }
+};
+
 beforeAll(async () => {
   expect(existsSync(DIST), 'run `npm run build` before the voice conversation suite').toBe(true);
   host = await serveDist(DIST);
@@ -321,9 +330,9 @@ describe('Talk mode is a continuous conversation', () => {
       await speakThenFallSilent(session);
       await waitForCount(session.transcribeCount, 1, page);
       await waitForCount(session.turnCount, 1, page);
-      // Atlas answers AND establishes what it is asking next.
-      const afterFirst = await session.spoken();
-      expect(afterFirst.some((line) => line.includes('Synthetic reply 1.')), 'the reply is spoken').toBe(true);
+      // Request arrival is not response completion. Prove the browser actually
+      // handed the Cartographer reply to speech synthesis before continuing.
+      await waitForSpoken(session, 'Synthetic reply 1.');
 
       // The microphone comes back by itself. This is the whole product claim.
       await waitForState(page, 'listening');
@@ -478,7 +487,26 @@ describe('Talk mode is a continuous conversation', () => {
     }
   }, 120_000);
 
-  it('11. turn-taking still works when audio analysis is unavailable', async () => {
+  it('11. backgrounding the browser cancels capture and stale voice continuation', async () => {
+    const session = await newVoiceSession();
+    try {
+      const { page } = session;
+      await waitForState(page, 'listening');
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await page.waitForTimeout(1200);
+      expect(await voiceState(page)).toContain('idle');
+      expect(await page.locator('[data-testid="mic-visualizer"]').count()).toBe(0);
+      expect(session.transcribeCount()).toBe(0);
+      expect(session.turnCount()).toBe(0);
+    } finally {
+      await session.close();
+    }
+  }, 120_000);
+
+  it('12. turn-taking still works when audio analysis is unavailable', async () => {
     const session = await newVoiceSession({ analyser: false });
     try {
       const { page } = session;

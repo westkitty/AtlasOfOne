@@ -92,6 +92,28 @@ describe('Atlas browser journey', () => {
     expect(await sprite.evaluate((node) => getComputedStyle(node).imageRendering)).toBe('pixelated');
   });
 
+  it('2b. remembers a settled physical map position across reload', async () => {
+    const avatar = page.locator('[data-testid="world-greyson"]');
+    await page.click('[data-testid="place-identity"]');
+    await page.waitForTimeout(250);
+    const before = await avatar.getAttribute('style');
+    const stored = await page.evaluate(async () => {
+      const open = indexedDB.open('atlas-of-one');
+      return new Promise<any>((resolve) => {
+        open.onsuccess = () => {
+          const request = open.result.transaction('campaigns', 'readonly').objectStore('campaigns').get('active');
+          request.onsuccess = () => resolve(request.result?.state?.worldJourney?.lastPosition ?? null);
+        };
+      });
+    });
+    expect(stored?.territoryId).toBe('identity');
+    expect(stored?.x).toBeTypeOf('number');
+    await page.reload({ waitUntil: 'load' });
+    await wakeAtlas(page);
+    await page.waitForSelector('[data-testid="world"]');
+    await expect.poll(() => avatar.getAttribute('style')).toBe(before);
+  });
+
   it('3. navigates Map to Talk to Vault to Me and back to Map', async () => {
     await goto('Talk');
     await expect.poll(() => page.textContent('.convo-speaker')).toContain('The Cartographer');

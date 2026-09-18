@@ -51,6 +51,7 @@ export interface WorldMapProps {
   controlsDisabled?: boolean;
   activeInterior?: string | null;
   onInteriorChange?: (interiorId: string | null) => void;
+  onPositionSettled?: (position: { x: number; y: number; territoryId: string }) => void;
 }
 
 const STATUS_WORD: Record<TerritoryStatus, string> = {
@@ -98,7 +99,8 @@ export function WorldMap({
   onInteract,
   controlsDisabled = false,
   activeInterior = null,
-  onInteriorChange
+  onInteriorChange,
+  onPositionSettled
 }: WorldMapProps) {
   usePreloadedFrames();
 
@@ -107,14 +109,12 @@ export function WorldMap({
   const isQuiet = state.presentation === 'quiet';
 
   // Player state
-  const [player, setPlayer] = useState<PlayerState>(() => ({
-    x: here.stand.x,
-    y: here.stand.y,
-    facing,
-    isMoving: false,
-    territoryId: state.activeTerritory,
-    nearbyTarget: null
-  }));
+  const [player, setPlayer] = useState<PlayerState>(() => {
+    const saved = state.worldJourney.lastPosition;
+    const restored = saved && saved.territoryId === state.activeTerritory ? saved : here.stand;
+    return { x: restored.x, y: restored.y, facing, isMoving: false, territoryId: state.activeTerritory, nearbyTarget: null };
+  });
+  const lastReportedPosition = useRef<string | null>(null);
 
   const inputVectorRef = useRef({ x: 0, y: 0 });
 
@@ -357,6 +357,15 @@ export function WorldMap({
       });
     }
   }, [state.activeTerritory, route, progress]);
+
+  // Persist only settled overworld positions. Movement frames remain presentation-only.
+  useEffect(() => {
+    if (activeInterior || player.isMoving || progress < 1 || !onPositionSettled) return;
+    const key = String(player.territoryId) + ':' + Math.round(player.x) + ':' + Math.round(player.y);
+    if (lastReportedPosition.current === key) return;
+    lastReportedPosition.current = key;
+    onPositionSettled({ x: player.x, y: player.y, territoryId: player.territoryId });
+  }, [activeInterior, player.x, player.y, player.territoryId, player.isMoving, progress, onPositionSettled]);
 
   // Play XP stinger when mark changes
   useEffect(() => {

@@ -10,7 +10,7 @@ import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefi
 import { applyGameEvents, campaignReachedEndState, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
 import type { CampaignState, GameEvent, PresentationNotice, SassLevel, TerritoryStatus } from './game/types';
 import { WorldMap } from './world/WorldMap';
-import { neighboursOf, regionFor } from './world/geography';
+import { neighboursOf, regionFor, routeBetween } from './world/geography';
 import { sanctuaryFor } from './world/sanctuaries';
 import { playMenuSound, playStinger } from './world/audio';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
@@ -771,6 +771,14 @@ export default function App() {
     setVoiceState('idle');
   };
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible' && conversationActive.current) cancelVoice();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [activeCapture]);
+
   const executeVoiceCommand = (cmd: VoiceCommandType) => {
     switch (cmd) {
       case 'pass':
@@ -1071,24 +1079,27 @@ export default function App() {
       mark={pulse}
       reachable={reachableRegions}
       reducedMotion={state.settings.reducedMotion}
-      onSelectRegion={(territoryId) => { if (territoryId !== state.activeTerritory) dispatch({ type: 'ACTIVE_TERRITORY_SET', territoryId }); }}
+      onSelectRegion={(territoryId) => {
+        if (territoryId === state.activeTerritory) return;
+        const from = state.activeTerritory;
+        dispatch(...(routeBetween(from, territoryId) ? [{ type: 'ROUTE_TRAVERSED', from, to: territoryId } as GameEvent] : []), { type: 'ACTIVE_TERRITORY_SET', territoryId });
+      }}
+      onPositionSettled={(position) => dispatch({ type: 'WORLD_POSITION_SET', ...position })}
       onInteract={(target) => {
         if (!target || target.type === 'landmark') {
           const regionId = target?.id ?? state.activeTerritory;
-          if (regionId !== state.activeTerritory) {
-            dispatch({ type: 'ACTIVE_TERRITORY_SET', territoryId: regionId });
-          }
+          dispatch(...(regionId !== state.activeTerritory ? [{ type: 'ACTIVE_TERRITORY_SET', territoryId: regionId } as GameEvent] : []), { type: 'LANDMARK_DISCOVERED', landmarkId: regionId, territoryId: regionId });
           playStinger('dialogue', quiet);
           setTalking(true);
           setReply('');
         } else if (target.type === 'door') {
           playStinger('door', quiet);
-          dispatch({ type: 'DOOR_OPENED', doorId: target.id });
+          dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'door', id: target.id, territoryId: state.activeTerritory }, { type: 'DOOR_OPENED', doorId: target.id });
           setReply('');
           setTalking(true);
         } else if (target.type === 'boss') {
           playStinger('boss', quiet);
-          dispatch({ type: 'BOSS_STARTED', bossId: target.id });
+          dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'boss', id: target.id, territoryId: state.activeTerritory }, { type: 'BOSS_STARTED', bossId: target.id });
           setReply('');
           setTalking(true);
         } else if (target.type === 'waystone') {
@@ -1616,7 +1627,7 @@ export default function App() {
       <h2>Danger zone</h2>
       <p className="settings-note">Deleting wipes this device's Atlas for good. Export first if you want to keep it.</p>
       {confirmDelete
-        ? <div className="row"><button className="danger" onClick={()=>void deleteCampaign().then(()=>{setState(createInitialCampaign());setConfirmDelete(false);setOnboardingStep(1);})}>Delete everything</button><button onClick={()=>setConfirmDelete(false)}>Keep it</button></div>
+        ? <div className="row"><button className="danger" onClick={()=>{ currentRequestId.current++; pendingCaptureCancelled.current = true; cancelVoice(); submitInFlight.current = false; setIsSubmitting(false); void deleteCampaign().then(()=>{setState(createInitialCampaign());setConfirmDelete(false);setOnboardingStep(1);setTalking(false);setActiveInterior(null);}); }}>Delete everything</button><button onClick={()=>setConfirmDelete(false)}>Keep it</button></div>
         : <button className="danger" onClick={()=>setConfirmDelete(true)}>Delete local Atlas</button>}
     </article>
     <article className="empty reveal"><span className="eyebrow">LEVEL 8 REVEAL</span><h2>Detailed character turnaround</h2><p>{atMaxLevel ? 'You have reached the level that unlocks it. The full canonical turnaround lands in a later pass.' : 'The canonical Greyson turnaround is reserved for the Level 8 reveal.'}</p></article>

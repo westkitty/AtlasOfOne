@@ -24,6 +24,21 @@ export const campaignStateSchemaV1 = z.object({
   privateTopics: z.array(z.string()), presentation: z.enum(['normal','quiet']), sessionStatus: z.enum(['active','paused']), campaignCompleted: z.boolean(),
   presentationQueue: z.array(z.object({ id: z.string(), kind: z.enum(['level','unlock','achievement','quest','territory','fragment']), title: z.string(), detail: z.string(), createdAt: timestamp })),
   campaignHistory: z.array(z.object({ id: z.string(), type: z.string(), at: timestamp, detail: z.string().optional() })),
+  worldJourney: z.object({
+    visitedTerritoryIds: z.array(z.string()),
+    discoveredLandmarkIds: z.array(z.string()),
+    lastPosition: z.object({ x: z.number(), y: z.number(), territoryId: z.string() }).nullable(),
+    recentArrivals: z.array(z.object({ territoryId: z.string(), at: timestamp })),
+    traversedRoutes: z.array(z.string()),
+    encounterLocations: z.array(z.object({ kind: z.enum(['boss','door']), id: z.string(), territoryId: z.string(), at: timestamp }))
+  }).default({
+    visitedTerritoryIds: [],
+    discoveredLandmarkIds: [],
+    lastPosition: null,
+    recentArrivals: [],
+    traversedRoutes: [],
+    encounterLocations: []
+  }),
   finalAssessment: finalAssessmentSchema.nullable().optional().default(null),
   onboardingCompleted: z.boolean().optional().default(false),
   updatedAt: timestamp

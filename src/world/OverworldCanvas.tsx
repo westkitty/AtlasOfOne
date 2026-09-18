@@ -303,7 +303,24 @@ export function OverworldCanvas({
         ctx.restore();
       }
 
-      // 4c. Draw luminous stepping stones along trails between charted territories
+      // 4c. Journey memory: once Greyson has physically traversed a trail, the
+      // island keeps a quiet cartographic trace. This is exploration memory only,
+      // never progression and never a score.
+      for (const trail of TRAILS) {
+        const key = [trail.from, trail.to].sort().join('__');
+        if (!state.worldJourney.traversedRoutes.includes(key) || trail.waypoints.length < 2) continue;
+        ctx.save();
+        ctx.strokeStyle = '#d8c58d';
+        ctx.lineWidth = 1.1;
+        ctx.globalAlpha = 0.34;
+        ctx.beginPath();
+        ctx.moveTo(trail.waypoints[0].x, trail.waypoints[0].y);
+        for (let i = 1; i < trail.waypoints.length; i++) ctx.lineTo(trail.waypoints[i].x, trail.waypoints[i].y);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 4d. Draw luminous stepping stones along trails between charted territories
       for (const trail of TRAILS) {
         if (trail.sea) continue;
         const fromStatus = state.territories.find((t) => t.id === trail.from)?.status ?? 'fogged';

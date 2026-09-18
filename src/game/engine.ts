@@ -12,6 +12,7 @@ const STATUS_RANK: Record<TerritoryStatus, number> = { fogged: 0, discovered: 1,
 const CHARTED_RANK = STATUS_RANK.charted;
 const uid = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 const unique = <T,>(items: T[]) => [...new Set(items)];
+const JOURNEY_EVENTS: GameEvent['type'][] = ['WORLD_POSITION_SET', 'LANDMARK_DISCOVERED', 'ROUTE_TRAVERSED', 'ENCOUNTER_LOCATED'];
 
 export function createInitialCampaign(): CampaignState {
   return {
@@ -29,7 +30,16 @@ export function createInitialCampaign(): CampaignState {
     activeQuest: 'first-coordinates',
     turns: [], evidence: [], insights: [], contradictions: [], mapFragments: [],
     bossRuns: [], activeBoss: null, doorRuns: [], activeDoor: null, privateTopics: [],
-    presentation: 'normal', sessionStatus: 'active', campaignCompleted: false, presentationQueue: [], campaignHistory: [], finalAssessment: null, onboardingCompleted: false, updatedAt: now()
+    presentation: 'normal', sessionStatus: 'active', campaignCompleted: false, presentationQueue: [], campaignHistory: [],
+    worldJourney: {
+      visitedTerritoryIds: ['identity'],
+      discoveredLandmarkIds: [],
+      lastPosition: null,
+      recentArrivals: [{ territoryId: 'identity', at: now() }],
+      traversedRoutes: [],
+      encounterLocations: []
+    },
+    finalAssessment: null, onboardingCompleted: false, updatedAt: now()
   };
 }
 
@@ -339,6 +349,27 @@ export function applyGameEvent(state: CampaignState, event: GameEvent): Campaign
     case 'SESSION_SET': next = { ...state, sessionStatus: event.status }; break;
     case 'SASS_SET': next = { ...state, settings: { ...state.settings, sass: event.sass } }; break;
     case 'ACTIVE_TERRITORY_SET': if (state.territories.some((item) => item.id === event.territoryId)) next = { ...state, activeTerritory: event.territoryId }; break;
+    case 'WORLD_POSITION_SET': {
+      if (!state.territories.some((item) => item.id === event.territoryId)) break;
+      const visited = unique([...state.worldJourney.visitedTerritoryIds, event.territoryId]);
+      const previous = state.worldJourney.recentArrivals[0]?.territoryId;
+      const recentArrivals = previous === event.territoryId ? state.worldJourney.recentArrivals : [{ territoryId: event.territoryId, at: now() }, ...state.worldJourney.recentArrivals].slice(0, 12);
+      next = { ...state, worldJourney: { ...state.worldJourney, visitedTerritoryIds: visited, recentArrivals, lastPosition: { x: event.x, y: event.y, territoryId: event.territoryId } } };
+      break;
+    }
+    case 'LANDMARK_DISCOVERED':
+      next = { ...state, worldJourney: { ...state.worldJourney, visitedTerritoryIds: unique([...state.worldJourney.visitedTerritoryIds, event.territoryId]), discoveredLandmarkIds: unique([...state.worldJourney.discoveredLandmarkIds, event.landmarkId]) } };
+      break;
+    case 'ROUTE_TRAVERSED': {
+      const key = [event.from, event.to].sort().join('__');
+      next = { ...state, worldJourney: { ...state.worldJourney, traversedRoutes: unique([...state.worldJourney.traversedRoutes, key]) } };
+      break;
+    }
+    case 'ENCOUNTER_LOCATED': {
+      const exists = state.worldJourney.encounterLocations.some((item) => item.kind === event.kind && item.id === event.id);
+      next = exists ? state : { ...state, worldJourney: { ...state.worldJourney, encounterLocations: [{ kind: event.kind, id: event.id, territoryId: event.territoryId, at: now() }, ...state.worldJourney.encounterLocations].slice(0, 24) } };
+      break;
+    }
     case 'PRESENTATION_NOTICE_ACKNOWLEDGED':
       // Removes exactly one notice. Acknowledging a headline must never take its
       // siblings with it, which is what the old whole-queue clear did: turn 2 of
@@ -370,7 +401,7 @@ export function applyGameEvent(state: CampaignState, event: GameEvent): Campaign
   // ACTIVE_TERRITORY_SET is a player decision and is left exactly as chosen.
   if (RELOCATING_EVENTS.includes(event.type)) next = reconcileActiveTerritory(next);
   next = reconcileProgression(next, previous);
-  return history(next, event);
+  return JOURNEY_EVENTS.includes(event.type) ? { ...next, updatedAt: now() } : history(next, event);
 }
 
 /**
