@@ -392,6 +392,28 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 
 ## 13. Compact Revision Log
 
+### Revision 25 — 2026-09-18
+
+- **Artifact/source identity:** feature branch `feat/worldwalker-unification`; implementation commit `b5a3a2f`; browser-proof hardening commit `e63599e`. **NOT MERGED TO `main`; NOT DEPLOYED.**
+- **State deltas:**
+  1. Added additive persisted `worldJourney` campaign state for visited territories, discovered landmarks, settled player position, recent arrivals, traversed routes, and discovered Boss/Mystery encounter locations.
+  2. Restored the physical overworld position after reload when the saved position belongs to the active territory; movement-frame churn remains presentation-only and only settled positions persist.
+  3. Journey events are explicitly non-authoritative for progression: movement, landmark discovery, route traversal, and encounter-location memory award zero XP, zero levels, zero fragments, and do not append campaign-history progression events.
+  4. Traversed routes now leave a subtle cartographic trace on the island; authored sanctuary interiors, free movement, world interaction, Boss/Mystery spatial representation, canonical Greyson assets, fog/masks, and eight-region geography remain intact.
+  5. Hardened continuous-voice lifecycle: browser backgrounding cancels capture/stale continuation; campaign deletion invalidates active request/capture generations before state reset; the two-turn no-microphone-retap regression now waits for actual speech synthesis rather than request arrival.
+  6. Hardened browser proof determinism without weakening product assertions: CPU-throttled setup dispatches the cold-open click event directly while dedicated onboarding tests still prove real click actionability; short-lived identity reveal is captured by a DOM observer; movement/interior tests wait on contextual state rather than wall-clock assumptions; reveal-mask proof disables incidental animation with the product's real reduced-motion setting.
+  7. Restored zero-neuron unit-test isolation by excluding `tests/cartographer/worker-live.test.ts` from ordinary `npm test`; browser tests now reuse one Vitest worker (`isolate: false`, `maxWorkers: 1`) to avoid repeated worker churn on the 8 GB MacBook while preserving per-test browser context/server cleanup.
+- **Verification evidence:**
+  - `npm test`: **304/304 passed** across 38 files.
+  - `npm run test:browser`: **143/143 passed** across all 15 browser files against the production/PWA build.
+  - Continuous voice: **12/12 passed**, including two turns without a microphone retap, STOP, PRIVATE, interruption, mode switch, cancel, visualizer, background privacy cancellation, and analysis-unavailable fallback.
+  - Journey/browser persistence includes settled physical-position reload proof, export/delete/import parity, offline continuity, 320px mobile-layout checks, sanctuary interaction, Boss/Mystery lifecycle, onboarding continuity, hydration race, and provider/concurrency guards.
+  - `npx tsc --noEmit`: clean.
+  - `git diff --check`: clean before commit.
+  - Production build/PWA generation: clean; existing chunk-size warning remains non-fatal.
+- **Branch / deployment state:** `feat/worldwalker-unification` only. No merge to `main`, no production deployment, no production config mutation.
+- **Known limitations / not verified:** no physical mobile-device installation/touch session in this pass; no non-Chrome browser runtime; WebGPU/WebXR were not exercised because this phase introduced neither dependency nor runtime-path change. Pre-existing untracked `.claude/` and `docs/superpowers/` remain intentionally untouched.
+
 ### Revision 24 — 2026-09-15
 
 - **Artifact/source identity:** Pass 5 of Recursive SNES Game-Quality Uplift Protocol (`docs/GAME_QUALITY_LOOP_LEDGER.md`).
