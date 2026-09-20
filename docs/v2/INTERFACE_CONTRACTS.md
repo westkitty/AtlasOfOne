@@ -1,7 +1,7 @@
 # Atlas v2 Interface Contracts
 
 **Status:** frozen at Wave 1. The compileable public surface is
-[`src/contracts/`](/Users/andrew/Atlas_Of_One/src/contracts/index.ts). These are
+[`src/contracts/`](../../src/contracts/index.ts). These are
 semantic contracts, not schema-v2 persistence or runtime implementations.
 
 ## Public domain contracts

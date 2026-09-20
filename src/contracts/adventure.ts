@@ -79,19 +79,20 @@ export interface AdventureMemory {
 export interface AdventureTemplateBeat {
   id: string;
   role: AdventureBeatRole;
-  encounterKind: AdventureEncounterKind;
-  prompt: string;
+  required: boolean;
+  allowedEncounterKinds: AdventureEncounterKind[];
+  exits: string[];
 }
 
 export interface AdventureTemplate {
   id: string;
   kind: AdventureKind;
-  validTerritoryIds: string[];
+  validTerritories: string[];
   learningTarget: AdventureLearningTarget;
   requiredInputs: string[];
   beats: AdventureTemplateBeat[];
   withdrawalAllowed: boolean;
-  memoryOutputTypes: AdventureMemoryType[];
-  reflectionForm?: { question: string; sourceKind: 'adventure-observation' };
+  memoryOutputs: string[];
+  reflectionFormId?: string;
   cooldownClass: string;
 }

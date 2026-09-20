@@ -6,7 +6,21 @@ import type { AdventureKind } from './adventure';
  */
 export type ProviderMode = 'ordinary-conversation' | 'journal-response' | 'adventure-scene' | 'reflection' | 'combat-narration' | 'snapshot-synthesis';
 
-export interface ProviderProposalBase { mode: ProviderMode; narration: string; }
+export interface ProviderForbiddenAuthorityFields {
+  xp?: never;
+  level?: never;
+  achievement?: never;
+  quest?: never;
+  territory?: never;
+  unlock?: never;
+  combatState?: never;
+  hp?: never;
+  reward?: never;
+  outcome?: never;
+  snapshotEligible?: never;
+}
+
+export interface ProviderProposalBase extends ProviderForbiddenAuthorityFields { mode: ProviderMode; narration: string; }
 export interface OrdinaryConversationProposal extends ProviderProposalBase { mode: 'ordinary-conversation'; suggestedQuestion?: string; }
 export interface JournalResponseProposal extends ProviderProposalBase { mode: 'journal-response'; optionalFollowUp?: string; }
 export interface AdventureSceneProposal extends ProviderProposalBase { mode: 'adventure-scene'; adventureKind: AdventureKind; sceneOptions?: string[]; }
