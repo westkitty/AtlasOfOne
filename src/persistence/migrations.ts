@@ -14,6 +14,16 @@ export const CURRENT_SCHEMA_VERSION = 2;
 function historicalSnapshotFrom(legacy: CampaignStateV1): PersistedAtlasSnapshot | null {
   const assessment = legacy.finalAssessment;
   if (!assessment) return null;
+  const historicalDomainSummaries: Record<string, string> = {
+    identity: assessment.temperament.summary,
+    values: assessment.valuesAndMorals.summary,
+    politics: assessment.politicalAndIdeology.summary,
+    relationships: assessment.relationshipsAndSocial.summary,
+    cognition: assessment.cognitiveStyle.summary,
+    interests: assessment.interestsAndPreferences.summary,
+    fears: assessment.fearsAndHopes.summary,
+    future: assessment.idealFutureAndAmbition.summary
+  };
   return {
     id: `historical-snapshot__${assessment.id}`,
     createdAt: assessment.generatedAt,
@@ -22,7 +32,10 @@ function historicalSnapshotFrom(legacy: CampaignStateV1): PersistedAtlasSnapshot
     contradictionIds: legacy.contradictions.map((contradiction) => contradiction.id),
     synthesis: {
       summary: assessment.whoIsGreyson,
-      territorySummaries: legacy.territories.map((territory) => ({ territoryId: territory.id, summary: territory.label }))
+      territorySummaries: legacy.territories.map((territory) => ({
+        territoryId: territory.id,
+        summary: historicalDomainSummaries[territory.id] ?? territory.label
+      }))
     },
     provenance: { kind: 'legacy-final-assessment', sourceFinalAssessmentId: assessment.id },
     eligibility: 'historical-ineligible',

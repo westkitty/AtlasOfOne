@@ -53,6 +53,9 @@ describe('M00-M06 schema-v2 migration foundation', () => {
       provenance: { kind: 'legacy-final-assessment', sourceFinalAssessmentId: source.finalAssessment!.id },
       eligibility: 'historical-ineligible', legacyFinalAssessment: source.finalAssessment
     });
+    expect(migrated.atlasSnapshots[0].synthesis.summary).toBe(source.finalAssessment!.whoIsGreyson);
+    expect(migrated.atlasSnapshots[0].synthesis.territorySummaries.find((item) => item.territoryId === 'values')?.summary)
+      .toBe(source.finalAssessment!.valuesAndMorals.summary);
   });
 
   it('accepts v2 directly, rejects malformed inputs, and rejects future versions', () => {
@@ -106,6 +109,39 @@ describe('M00-M06 schema-v2 migration foundation', () => {
       knowledgeGaps: [{ ...state.knowledgeGaps[0], sourceEvidenceIds: [], sourceJournalEntryIds: ['journal_v2', 'journal_eligible'] }]
     });
     expect(mixed.knowledgeGaps[0].status).toBe('open');
+  });
+
+  it('keeps v2 provider eligibility aligned with conservative evidence provenance', () => {
+    const state = syntheticV2Campaign();
+    const privateEvidence = {
+      ...state.evidence[0],
+      id: 'evidence_private_v2',
+      dimension: 'synthetic-private-dimension',
+      claim: 'synthetic-private-canary-7d93'
+    };
+    const mixed = {
+      ...state,
+      privateTopics: ['synthetic-private-dimension'],
+      evidence: [state.evidence[0], privateEvidence],
+      insights: [{ ...state.insights[0], evidenceIds: ['evidence_v2', 'evidence_private_v2'] }],
+      contradictions: [{ ...state.contradictions[0], evidenceIds: ['evidence_v2', 'evidence_private_v2'] }]
+    };
+    const eligible = providerEligibleV2State(mixed);
+    expect(eligible.insightIds).not.toContain('insight_v2');
+    expect(eligible.contradictionIds).not.toContain('contradiction_v2');
+    expect(JSON.stringify(eligible)).not.toContain('synthetic-private-canary-7d93');
+  });
+
+  it('retires a memory when its reflection source becomes private', () => {
+    const state = syntheticV2Campaign();
+    const privateReflectionState = {
+      ...state,
+      journalEntries: [{ ...state.journalEntries[0], privacy: 'private' as const }],
+      adventureMemories: [{ ...state.adventureMemories[0], sourceIds: ['reflection_v2'] }]
+    };
+    const retired = retireIneligibleV2State(privateReflectionState);
+    expect(retired.adventureMemories[0].status).toBe('retired');
+    expect(providerEligibleV2State(retired).adventureMemories).toEqual([]);
   });
 
   it('keeps fictional observations structurally separate from evidence', () => {
