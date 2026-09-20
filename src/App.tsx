@@ -8,11 +8,15 @@ import { type AIProvider, disabledProvider, playerMessageForFailure } from './ca
 import type { CartographerTurn } from './cartographer/schema';
 import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefinition, currentBossStage } from './game/encounters';
 import { applyGameEvents, campaignReachedEndState, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
-import type { CampaignState, GameEvent, PresentationNotice, SassLevel, TerritoryStatus } from './game/types';
-import { WorldMap } from './world/WorldMap';
+import type { CampaignState, GameEvent, SassLevel } from './game/types';
 import { neighboursOf, regionFor, routeBetween } from './world/geography';
 import { sanctuaryFor } from './world/sanctuaries';
 import { playMenuSound, playStinger } from './world/audio';
+import { EncounterPanel } from './combat/EncounterPanel';
+import { JournalPanel } from './journal/JournalPanel';
+import { AppSheet, MilestoneBanners, ProgressPresentation } from './presentation/AppPresentation';
+import { WorldwalkerPanel } from './world/WorldwalkerPanel';
+import type { InteractableTarget } from './world/playerController';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
 import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
 import { clearAccessSecret, getAccessHeaders, getAccessSecret, setAccessSecret } from './voice/access';
@@ -35,31 +39,6 @@ const GREYSON_PORTRAITS = {
 const MAX_BANNERS = 2;
 const BANNER_MS = 3200;
 
-/** Eyebrow wording per milestone class, so a level-up cannot read like an error. */
-const MILESTONE_EYEBROW: Record<PresentationNotice['kind'], string> = {
-  level: 'LEVEL UP', unlock: 'NEW ABILITY', quest: 'QUEST COMPLETE',
-  fragment: 'ARTIFACT RECOVERED', territory: 'TERRITORY CHARTED', achievement: 'ACHIEVEMENT'
-};
-const MILESTONE_GLYPH: Record<PresentationNotice['kind'], string> = {
-  level: '▲', unlock: '✦', quest: '◆', fragment: '◈', territory: '★', achievement: '✧'
-};
-const MILESTONE_ICON: Record<PresentationNotice['kind'], string> = {
-  level: '/assets/atlas/v3/ui/level-up.png',
-  unlock: '/assets/atlas/v3/ui/ability-unlocked.png',
-  quest: '/assets/atlas/v3/ui/quest-complete.png',
-  fragment: '/assets/atlas/v3/ui/artifact-recovered.png',
-  territory: '/assets/atlas/v3/ui/territory-charted.png',
-  achievement: '/assets/atlas/v3/ui/achievement.png'
-};
-
-/** Short player-facing words for each fog-of-war state. */
-const STATUS_WORD: Record<TerritoryStatus, string> = {
-  fogged: 'Fogged', discovered: 'Discovered', exploring: 'Exploring', charted: 'Charted', 'deeply-charted': 'Deeply charted'
-};
-/** A glyph per state so the map reads without relying on colour alone. */
-const STATUS_MARK: Record<TerritoryStatus, string> = {
-  fogged: '▓', discovered: '○', exploring: '◔', charted: '◆', 'deeply-charted': '★'
-};
 
 /**
  * Whether a campaign is already past first-run onboarding.
@@ -854,14 +833,7 @@ export default function App() {
   const quiet = state.presentation === 'quiet';
 
   // Level and XP shown as one unit so progress is legible on Map and Me.
-  const renderProgress = () => <div className="xp">
-    <div className="xp-head">
-      <span>XP {state.xp}</span>
-      <b className="level">L{state.level}</b>
-      <span className="xp-into">{atMaxLevel ? 'Highest level reached' : `${xp.current} / ${xp.required} to L${state.level + 1}`}</span>
-    </div>
-    <div className="xp-track"><i style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></div>
-  </div>;
+  const renderProgress = () => <ProgressPresentation xp={state.xp} level={state.level} current={xp.current} required={xp.required} atMaxLevel={atMaxLevel} percent={xpPercent} />;
 
   // The six permanent controls. They are rendered identically for ordinary
   // encounters, Boss Fights and Mystery Doors, and never depend on progression.
@@ -876,84 +848,22 @@ export default function App() {
     <button className="agency-util" data-testid="agency-sass" onClick={()=>dispatch({type:'SASS_SET',sass:state.settings.sass==='low'?'medium':state.settings.sass==='medium'?'risks-understood':'low'})}>SASS</button>
   </div>;
 
-  const renderEncounter = () => {
-    if (!encounter) return null;
-    const isBoss = encounter.kind === 'boss';
-    return (
-      <section
-        className={`screen encounter-screen ${isBoss ? 'is-boss-arena' : 'is-door-chamber'}`}
-        data-testid={`encounter-${encounter.kind}`}
-      >
-        <div className="eyebrow">{isBoss ? 'BOSS FIGHT' : 'MYSTERY DOOR'}</div>
-        <header>
-          <div>
-            <h1 className="screen-title">{encounter.kind==='door' ? encounter.title : encounter.heading}</h1>
-            <p>{encounter.step}{encounter.kind==='boss' ? ' · your own mapped positions, put under load' : ' · optional to open, safe to close'}</p>
-          </div>
-          {quiet && <span className="chip">{state.presentation}</span>}
-          {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
-        </header>
-
-        {/* 16-Bit JRPG Combat / Threshold Arena Staging Frame */}
-        <div className="encounter-stage-frame" aria-hidden="true">
-          <div className="encounter-portrait">
-            <img
-              src={quiet || isBoss ? GREYSON_PORTRAITS.serious : (state.settings.sass === 'risks-understood' ? GREYSON_PORTRAITS.wry : GREYSON_PORTRAITS.neutral)}
-              alt="Greyson"
-              draggable={false}
-            />
-          </div>
-          <div className="encounter-stage-meta">
-            <span className="encounter-sigil-badge">
-              <i className="encounter-sigil-glyph">{isBoss ? '🔥' : '◈'}</i>
-              <strong>{isBoss ? 'Trial Monolith' : 'Threshold Portal'}</strong>
-            </span>
-            <span className="encounter-dimension-badge">{encounter.dimension}</span>
-          </div>
-        </div>
-
-        {encounter.kind==='boss' && bossRun && (
-          <ol className="stage-track" aria-label={`Boss Fight progress: ${encounter.step}`}>
-            {bossRun.stages.map((stage, index) => {
-              const current = bossRun.stages.indexOf(bossStage!) === index;
-              const cleared = stage.outcome !== 'pending';
-              return (
-                <li key={stage.id} className={cleared?'done':current?'now':'next'} aria-current={current?'step':undefined}>
-                  <span aria-hidden="true">{cleared?'✓':index+1}</span>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-        {encounter.kind==='door' && doorRun && (
-          <div className="crossing" aria-hidden="true">
-            <span>{territoryLabels[doorRun.territoryIds[0]] ?? doorRun.territoryIds[0]}</span>
-            <i>⟷</i>
-            <span>{territoryLabels[doorRun.territoryIds[1]] ?? doorRun.territoryIds[1]}</span>
-          </div>
-        )}
-        <article className={`card encounter ${encounter.kind}`}>
-          {reply && <p className="reply" role="status">{reply}</p>}
-          <h2>{encounter.question}</h2>
-          {encounter.evidenceClaims.length>0 && (
-            <>
-              <p className="evidence-caption">From evidence you already mapped</p>
-              <ul className="evidence-list">
-                {encounter.evidenceClaims.map((claim,index)=><li key={index}>{claim}</li>)}
-              </ul>
-            </>
-          )}
-          <small>Dimension: {encounter.dimension}</small>
-        </article>
-        {state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}
-        <label className="answer">Your position<textarea rows={4} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="encounter-input" /></label>
-        <button className="primary full" data-testid="encounter-submit" onClick={submitEncounter} disabled={!answer.trim()||state.sessionStatus==='paused'}>{encounter.kind==='boss'?'Hold this position':'Walk through'}</button>
-        <button className="full leave" data-testid="encounter-leave" onClick={leaveEncounter}>{encounter.kind==='boss'?'Step back for now':'Close the door for now'}</button>
-        <p className="safe-note">PASS clears {encounter.kind==='boss'?'a stage':'this crossing'} at no cost. Stepping back keeps every point you have earned.</p>
-        {renderAgency(()=>{dispatch(encounter.kind==='boss'?{type:'BOSS_STAGE_PASSED'}:{type:'DOOR_CLOSED'});setReply('Passed. No penalty, no cost.');setAnswer('');}, encounter.dimension)}
-      </section>
-    );
-  };
+  const renderEncounter = () => encounter && <EncounterPanel
+    encounter={encounter}
+    state={state}
+    bossRun={bossRun}
+    bossStage={bossStage}
+    doorRun={doorRun}
+    territoryLabels={territoryLabels}
+    reply={reply}
+    answer={answer}
+    quiet={quiet}
+    isOffline={isOffline}
+    onAnswerChange={setAnswer}
+    onSubmit={submitEncounter}
+    onLeave={leaveEncounter}
+    agencyControls={renderAgency(() => { dispatch(encounter.kind === 'boss' ? { type: 'BOSS_STAGE_PASSED' } : { type: 'DOOR_CLOSED' }); setReply('Passed. No penalty, no cost.'); setAnswer(''); }, encounter.dimension)}
+  />;
 
   /**
    * The Atlas as a place.
@@ -973,98 +883,53 @@ export default function App() {
    * screen, and the only persistent chrome is where Greyson is, how far along he
    * is, one way in, and one way to everything else.
    */
-  const renderWorld = () => <section className={`stage${isImpact ? ' is-impact' : ''}`} data-testid="world-stage">
-    {arrivalNotice && (
-      <div className="region-arrival-card" data-testid="region-arrival-card" role="status" aria-live="polite">
-        <span className="region-arrival-glyph" aria-hidden="true">{arrivalNotice.glyph}</span>
-        <div className="region-arrival-text">
-          <span className="region-arrival-eyebrow">Now Entering</span>
-          <h3 className="region-arrival-title">{arrivalNotice.label}</h3>
-          <p className="region-arrival-sanctuary">{arrivalNotice.sanctuary}</p>
-        </div>
-      </div>
-    )}
-
-    <WorldMap
-      state={state}
-      facing={facing}
-      travelling={travelling}
-      travelFrom={travelFrom}
-      mark={pulse}
-      reachable={reachableRegions}
-      reducedMotion={state.settings.reducedMotion}
-      onSelectRegion={(territoryId) => {
-        if (territoryId === state.activeTerritory) return;
-        const from = state.activeTerritory;
-        dispatch(...(routeBetween(from, territoryId) ? [{ type: 'ROUTE_TRAVERSED', from, to: territoryId } as GameEvent] : []), { type: 'ACTIVE_TERRITORY_SET', territoryId });
-      }}
-      onPositionSettled={(position) => dispatch({ type: 'WORLD_POSITION_SET', ...position })}
-      onInteract={(target) => {
-        if (!target || target.type === 'landmark') {
-          const regionId = target?.id ?? state.activeTerritory;
-          dispatch(...(regionId !== state.activeTerritory ? [{ type: 'ACTIVE_TERRITORY_SET', territoryId: regionId } as GameEvent] : []), { type: 'LANDMARK_DISCOVERED', landmarkId: regionId, territoryId: regionId });
-          playStinger('dialogue', quiet);
-          setTalking(true);
-          setReply('');
-        } else if (target.type === 'door') {
-          playStinger('door', quiet);
-          dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'door', id: target.id, territoryId: state.activeTerritory }, { type: 'DOOR_OPENED', doorId: target.id });
-          setReply('');
-          setTalking(true);
-        } else if (target.type === 'boss') {
-          playStinger('boss', quiet);
-          dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'boss', id: target.id, territoryId: state.activeTerritory }, { type: 'BOSS_STARTED', bossId: target.id });
-          setReply('');
-          setTalking(true);
-        } else if (target.type === 'waystone') {
-          playStinger('discover', quiet);
-          setActiveWaystone({ id: target.id, label: target.label, inscription: target.inscription });
-        }
-      }}
-      controlsDisabled={talking || Boolean(encounter) || menuOpen || screen !== 'world' || Boolean(activeWaystone)}
-      activeInterior={activeInterior}
-      onInteriorChange={setActiveInterior}
-    />
-
-    <div className="hud" data-testid="hud">
-      <div className="hud-place">
-        <strong data-testid="hud-territory">{activeInterior ? sanctuaryFor(activeInterior).name : activeTerritory.label}</strong>
-        <span className="hud-progress" data-testid="hud-progress" data-xp={state.xp} data-level={state.level} aria-label={`Level ${state.level}, ${xp.current} of ${xp.required} to the next level`}>
-          <i data-testid="hud-level">L{state.level}</i>
-          <span className="hud-track"><b style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></span>
-        </span>
-      </div>
-      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => { playMenuSound('open'); setMenuOpen(true); }}>
-        <span aria-hidden="true">☰</span>
-      </button>
-      {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
-    </div>
-
-    {!talking && !encounter && <button className="world-enter" data-testid="enter-encounter" onClick={() => { setTalking(true); setReply(''); }}>
-      <span>{activeInterior ? 'Consult Cartographer' : state.turns.length === 0 ? 'Begin' : 'Continue'}</span>
-    </button>}
-    {!talking && encounter && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
-      <span>Resume {encounter.kind === 'door' ? encounter.title : encounter.heading}</span>
-    </button>}
-
-    {activeWaystone && (
-      <div className="waystone-overlay" data-testid="waystone-overlay" role="dialog" aria-label={activeWaystone.label}>
-        <div className="waystone-card">
-          <p className="waystone-eyebrow">Trail Marker</p>
-          <h3 className="waystone-title">{activeWaystone.label}</h3>
-          <p className="waystone-text">{activeWaystone.inscription}</p>
-          <button
-            type="button"
-            className="primary waystone-dismiss"
-            data-testid="waystone-dismiss"
-            onClick={() => setActiveWaystone(null)}
-          >
-            Continue Journey
-          </button>
-        </div>
-      </div>
-    )}
-  </section>;
+  const renderWorld = () => <WorldwalkerPanel
+    state={state}
+    facing={facing}
+    travelling={travelling}
+    travelFrom={travelFrom}
+    mark={pulse}
+    reachable={reachableRegions}
+    isImpact={isImpact}
+    arrivalNotice={arrivalNotice}
+    activeInterior={activeInterior}
+    activeWaystone={activeWaystone}
+    talking={talking}
+    hasEncounter={Boolean(encounter)}
+    encounterLabel={encounter ? (encounter.kind === 'door' ? encounter.title ?? encounter.heading : encounter.heading) : ''}
+    menuOpen={menuOpen}
+    screenIsWorld={screen === 'world'}
+    isOffline={isOffline}
+    xpCurrent={xp.current}
+    xpRequired={xp.required}
+    atMaxLevel={atMaxLevel}
+    xpPercent={xpPercent}
+    activeTerritoryLabel={activeTerritory.label}
+    onSelectRegion={(territoryId) => {
+      if (territoryId === state.activeTerritory) return;
+      const from = state.activeTerritory;
+      dispatch(...(routeBetween(from, territoryId) ? [{ type: 'ROUTE_TRAVERSED', from, to: territoryId } as GameEvent] : []), { type: 'ACTIVE_TERRITORY_SET', territoryId });
+    }}
+    onPositionSettled={(position) => dispatch({ type: 'WORLD_POSITION_SET', ...position })}
+    onInteract={(target: InteractableTarget | null) => {
+      if (!target || target.type === 'landmark') {
+        const regionId = target?.id ?? state.activeTerritory;
+        dispatch(...(regionId !== state.activeTerritory ? [{ type: 'ACTIVE_TERRITORY_SET', territoryId: regionId } as GameEvent] : []), { type: 'LANDMARK_DISCOVERED', landmarkId: regionId, territoryId: regionId });
+        playStinger('dialogue', quiet); setTalking(true); setReply('');
+      } else if (target.type === 'door') {
+        playStinger('door', quiet); dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'door', id: target.id, territoryId: state.activeTerritory }, { type: 'DOOR_OPENED', doorId: target.id }); setReply(''); setTalking(true);
+      } else if (target.type === 'boss') {
+        playStinger('boss', quiet); dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'boss', id: target.id, territoryId: state.activeTerritory }, { type: 'BOSS_STARTED', bossId: target.id }); setReply(''); setTalking(true);
+      } else if (target.type === 'waystone') {
+        playStinger('discover', quiet); setActiveWaystone({ id: target.id, label: target.label, inscription: target.inscription });
+      }
+    }}
+    onInteriorChange={setActiveInterior}
+    onOpenMenu={() => { playMenuSound('open'); setMenuOpen(true); }}
+    onEnter={() => { setTalking(true); setReply(''); }}
+    onResumeEncounter={() => setTalking(true)}
+    onDismissWaystone={() => setActiveWaystone(null)}
+  />;
 
   /**
    * Permanent agency, one interaction from the primary row.
@@ -1129,107 +994,30 @@ export default function App() {
    * The island stays on screen above this panel, so an answer visibly changes
    * somewhere the player can still see rather than a page they left behind.
    */
-  const renderConversation = () => {
-    const activeSanctuary = sanctuaryFor(activeTerritory.id);
-    return <div className="convo" data-testid="convo">
-    <button className="convo-close" data-testid="leave-encounter" aria-label="Back to the map" onClick={()=>{ if(voiceMode==='talk') cancelVoice(); setTalking(false); setMoreOpen(false); }}>
-      <span aria-hidden="true">▾</span>
-    </button>
-
-    <div className="convo-header">
-      <div className="convo-portrait" aria-hidden="true">
-        <img
-          src={quiet ? GREYSON_PORTRAITS.serious : (state.settings.sass === 'risks-understood' ? GREYSON_PORTRAITS.wry : (banners.length > 0 ? GREYSON_PORTRAITS.warm : GREYSON_PORTRAITS.neutral))}
-          alt="Greyson"
-          draggable={false}
-        />
-      </div>
-      <div className="convo-meta">
-        <div className="convo-sanctuary" data-testid="convo-sanctuary">
-          <span className="convo-sanctuary-glyph" aria-hidden="true">{activeSanctuary.glyph}</span>
-          <strong className="convo-sanctuary-name">{activeSanctuary.name}</strong>
-          <span className="convo-sanctuary-atmosphere">· {activeSanctuary.atmosphere}</span>
-        </div>
-        <p className="convo-speaker">The Cartographer{quiet && <span className="chip">{state.presentation}</span>}</p>
-        <small className="convo-dimension" data-testid="prompt-dimension">Evidence dimension: {prompt.dimension}{promptOverride ? ` · ${promptOverride.kind === 'deeper' ? 'going deeper' : 'reframed'}` : ''}</small>
-      </div>
-    </div>
-
-    {reply && <p className="convo-reply" role="status">{reply}</p>}
-    <h2 className="convo-question" data-testid="prompt-question">{prompt.question}</h2>
-    {state.sessionStatus==='paused' && <p className="convo-paused">Session paused. Your Atlas is safe.</p>}
-
-    {voiceMode==='type' ? (
-      <div className="composer">
-        <label className="answer">Your answer
-          <textarea rows={2} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="answer-input" placeholder="Say it however it comes out." />
-        </label>
-        <div className="composer-send">
-          <button className="link-btn" data-testid="mode-talk" onClick={()=>toggleVoiceMode('talk')}>Speak instead</button>
-          <button className="primary" data-testid="submit-answer" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'||isSubmitting}>{isSubmitting ? 'Mapping coordinate...' : 'Map this answer'}</button>
-        </div>
-      </div>
-    ) : (
-      <div className="voice-card" data-testid="voice-card">
-        <span className={`voice-badge ${voiceState}`} data-testid="voice-status">{voiceState === 'idle' && isSubmitting ? 'The Cartographer is thinking...' : voiceStateLabel(voiceState)}</span>
-        {voiceState === 'idle' && !isSubmitting && (
-          <button className="mic-btn" data-testid="mic-button" aria-label="Start listening" onClick={() => void startRecording()} disabled={state.sessionStatus==='paused'}>
-            🎙
-          </button>
-        )}
-        {voiceState === 'listening' && (
-          <>
-            {/* Live recording feedback. Present whenever capture is live, so
-                silence still reads as "the microphone is on"; the bars grow with
-                measured amplitude when there is something to hear. */}
-            <div
-              className={`mic-visualizer${micMeterLive ? '' : ' is-static'}`}
-              data-testid="mic-visualizer"
-              data-level={Math.round(micLevel * 100)}
-              data-metering={micMeterLive ? 'live' : 'unavailable'}
-              role="img"
-              aria-label={micMeterLive ? 'Microphone is live and listening' : 'Microphone is recording'}
-            >
-              {[0.55, 0.8, 1, 0.8, 0.55].map((weight, index) => (
-                <span
-                  key={index}
-                  className="mic-bar"
-                  style={{ transform: `scaleY(${(0.18 + micLevel * weight * 0.82).toFixed(3)})` }}
-                />
-              ))}
-            </div>
-            <button className="mic-btn is-listening" data-testid="mic-stop" aria-label="Done speaking" onClick={() => void stopRecordingAndProcess()}>
-              ◼
-            </button>
-            <div className="voice-actions">
-              <button className="primary" data-testid="voice-submit-done" onClick={() => void stopRecordingAndProcess()}>Done speaking</button>
-              <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
-            </div>
-          </>
-        )}
-        {voiceState === 'requesting-permission' && (
-          <div className="voice-actions">
-            <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
-          </div>
-        )}
-        {voiceState === 'transcribing' && (
-          <div className="voice-actions">
-            <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
-          </div>
-        )}
-        {voiceState === 'error' && (
-          <div className="voice-actions">
-            <button className="primary" data-testid="voice-retry" onClick={() => void startRecording()}>Try again</button>
-            <button data-testid="voice-fallback-type" onClick={()=>toggleVoiceMode('type')}>Switch to typing</button>
-          </div>
-        )}
-        <button className="link-btn" data-testid="mode-type" onClick={()=>toggleVoiceMode('type')}>Type instead</button>
-      </div>
-    )}
-
-    {renderActionBar(()=>setReply('Passed. No penalty.'), prompt.dimension)}
-  </div>;
-};
+  const renderConversation = () => <JournalPanel
+    activeTerritory={activeTerritory}
+    prompt={prompt}
+    promptOverride={promptOverride}
+    reply={reply}
+    answer={answer}
+    sessionPaused={state.sessionStatus === 'paused'}
+    quiet={quiet}
+    sass={state.settings.sass}
+    bannersLength={banners.length}
+    voiceMode={voiceMode}
+    voiceState={voiceState}
+    isSubmitting={isSubmitting}
+    micLevel={micLevel}
+    micMeterLive={micMeterLive}
+    onAnswerChange={setAnswer}
+    onClose={() => { if (voiceMode === 'talk') cancelVoice(); setTalking(false); setMoreOpen(false); }}
+    onModeChange={toggleVoiceMode}
+    onSubmit={submit}
+    onStartRecording={() => void startRecording()}
+    onStopRecording={() => void stopRecordingAndProcess()}
+    onCancelVoice={cancelVoice}
+    actionBar={renderActionBar(() => setReply('Passed. No penalty.'), prompt.dimension)}
+  />;
 
   const fragmentCount = state.territories.filter((t)=>state.mapFragments.some((f)=>f.territoryId===t.id)).length;
   const unlockedAchievements = state.achievements.filter((a)=>a.unlockedAt);
@@ -1761,13 +1549,7 @@ export default function App() {
   </div>;
 
   /** Vault and the character record are visited, then left behind. */
-  const renderSheet = (title: string, body: ReactNode) => <div className="sheet" data-testid="sheet">
-    <div className="sheet-bar">
-      <button className="sheet-back" data-testid="close-sheet" aria-label="Back to the map" onClick={()=>setScreen('world')}><span aria-hidden="true">←</span> Map</button>
-      <span className="sheet-title">{title}</span>
-    </div>
-    <div className="sheet-body">{body}</div>
-  </div>;
+  const renderSheet = (title: string, body: ReactNode) => <AppSheet title={title} onBack={() => setScreen('world')}>{body}</AppSheet>;
 
   // Territory notices are carried by the island itself, so they never queue a banner.
   const banners = notices.filter((notice) => notice.kind !== 'territory').slice(0, MAX_BANNERS);
@@ -1782,24 +1564,7 @@ export default function App() {
         {talking && (encounter ? renderEncounter() : renderConversation())}
 
         {/* Milestones land on the world, briefly, without blocking anything. */}
-        {banners.length>0&&<div className={`banners${quiet?' is-quiet':''}`} data-testid="milestone" role="status" aria-live="polite">
-          {banners.map((notice, index)=><article key={notice.id} className={`banner kind-${notice.kind}`} data-testid={`milestone-item-${notice.kind}`} style={{animationDelay:`${index*90}ms`}}>
-            <b aria-hidden="true" className="banner-glyph">
-              <img
-                src={MILESTONE_ICON[notice.kind]}
-                alt=""
-                className="banner-icon-img"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-              <span className="banner-icon-fallback">{MILESTONE_GLYPH[notice.kind]}</span>
-            </b>
-            <div>
-              <span className="banner-eyebrow">{MILESTONE_EYEBROW[notice.kind]}</span>
-              <strong {...(index===0?{'data-testid':'milestone-title'}:{})}>{notice.title}</strong>
-              {notice.kind==='level'&&<small>{notice.detail}</small>}
-            </div>
-          </article>)}
-        </div>}
+        <MilestoneBanners notices={banners} quiet={quiet} />
 
         {renderMenu()}
         {screen==='vault'&&renderSheet('Vault', renderVault())}
