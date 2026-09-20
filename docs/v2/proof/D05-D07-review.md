@@ -3,7 +3,7 @@
 - **Implementation commit:** `c38c83119496baf9725de86a9df0f068ff33b938`
 - **Bounded review repair:** `430cec734d31c272879ffb93bca3071d7ca2dd50`
 - **Reviewer:** GPT-5.6 Sol
-- **Verdict:** `MERGE_READY` for the integration branch; not authorized for `main`.
+- **Review verdict:** `MERGE_READY`; subsequently fast-forward integrated into `integration/atlas-v2-journal-adventure-combat`. Not authorized for `main`.
 
 ## Findings and repairs
 
