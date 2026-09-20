@@ -60,7 +60,7 @@ describe('encounter state persistence', () => {
     delete legacy.activeDoor;
 
     const migrated = migrateCampaign(legacy);
-    expect(migrated.schemaVersion).toBe(1);
+    expect(migrated.schemaVersion).toBe(2);
     expect(migrated.bossRuns).toEqual([]);
     expect(migrated.doorRuns).toEqual([]);
     expect(migrated.activeBoss).toBeNull();

@@ -1,7 +1,8 @@
-import type { CampaignState } from '../game/types';
-import { campaignStateSchemaV1 } from './schema';
+import type { CampaignState, CampaignStateV1, PersistedAtlasSnapshot } from '../game/types';
+import { campaignStateSchemaV1, campaignStateSchemaV2 } from './schema';
+import { retireIneligibleV2State } from './retirement';
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 /**
  * Fields added to schema v1 after its first release are additive and carry a Zod
@@ -10,9 +11,42 @@ export const CURRENT_SCHEMA_VERSION = 1;
  * v1 fields must instead raise CURRENT_SCHEMA_VERSION and add a branch below.
  */
 
+function historicalSnapshotFrom(legacy: CampaignStateV1): PersistedAtlasSnapshot | null {
+  const assessment = legacy.finalAssessment;
+  if (!assessment) return null;
+  return {
+    id: `historical-snapshot__${assessment.id}`,
+    createdAt: assessment.generatedAt,
+    evidenceIds: legacy.evidence.map((evidence) => evidence.id),
+    insightIds: legacy.insights.map((insight) => insight.id),
+    contradictionIds: legacy.contradictions.map((contradiction) => contradiction.id),
+    synthesis: {
+      summary: assessment.whoIsGreyson,
+      territorySummaries: legacy.territories.map((territory) => ({ territoryId: territory.id, summary: territory.label }))
+    },
+    provenance: { kind: 'legacy-final-assessment', sourceFinalAssessmentId: assessment.id },
+    eligibility: 'historical-ineligible',
+    legacyFinalAssessment: assessment
+  };
+}
+
+/** Deterministic, side-effect-free conversion from a parsed v1 aggregate. */
+export function migrateV1ToV2(legacy: CampaignStateV1): CampaignState {
+  const historicalSnapshot = historicalSnapshotFrom(legacy);
+  const migrated: CampaignState = {
+    ...legacy,
+    schemaVersion: 2,
+    journalEntries: [], knowledgeGaps: [], reflections: [], adventureSeeds: [], adventureRuns: [],
+    adventureActions: [], adventureObservations: [], adventureMemories: [],
+    atlasSnapshots: historicalSnapshot ? [historicalSnapshot] : [], combatDefinitions: [], activeCombat: null
+  };
+  return campaignStateSchemaV2.parse(retireIneligibleV2State(migrated)) as CampaignState;
+}
+
 export function migrateCampaign(input: unknown): CampaignState {
   if (!input || typeof input !== 'object') throw new Error('Campaign data is not an object.');
   const version = (input as { schemaVersion?: unknown }).schemaVersion;
-  if (version === 1) return campaignStateSchemaV1.parse(input) as CampaignState;
+  if (version === 1) return migrateV1ToV2(campaignStateSchemaV1.parse(input) as CampaignStateV1);
+  if (version === 2) return campaignStateSchemaV2.parse(retireIneligibleV2State(campaignStateSchemaV2.parse(input) as CampaignState)) as CampaignState;
   throw new Error(`Unsupported Atlas schemaVersion: ${String(version)}`);
 }

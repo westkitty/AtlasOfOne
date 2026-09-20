@@ -301,7 +301,7 @@ describe('PND-004 — one continuous retraction → export → delete → import
     exportedFile = readFileSync(path!);
     const exported = JSON.parse(exportedFile.toString('utf8'));
 
-    expect(exported.schemaVersion).toBe(1);
+    expect(exported.schemaVersion).toBe(2);
     expect(anchorsOf(exported), 'the export is the post-retraction state').toEqual(afterRetraction);
     expect(exported.finalAssessment ?? null, 'still no assessment').toBeNull();
 

@@ -16,7 +16,7 @@ const JOURNEY_EVENTS: GameEvent['type'][] = ['WORLD_POSITION_SET', 'LANDMARK_DIS
 
 export function createInitialCampaign(): CampaignState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     campaignId: uid('campaign'),
     player: { id: 'greyson', displayName: 'Greyson', pronouns: 'he/they' },
     settings: { sass: 'medium', reducedMotion: false, voiceMode: 'text' },
@@ -39,7 +39,11 @@ export function createInitialCampaign(): CampaignState {
       traversedRoutes: [],
       encounterLocations: []
     },
-    finalAssessment: null, onboardingCompleted: false, updatedAt: now()
+    finalAssessment: null, onboardingCompleted: false,
+    journalEntries: [], knowledgeGaps: [], reflections: [], adventureSeeds: [], adventureRuns: [],
+    adventureActions: [], adventureObservations: [], adventureMemories: [], atlasSnapshots: [],
+    combatDefinitions: [], activeCombat: null,
+    updatedAt: now()
   };
 }
 

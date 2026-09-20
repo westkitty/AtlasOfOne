@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyGameEvents, createInitialCampaign } from '../../src/game/engine';
-import { campaignStateSchemaV1 } from '../../src/persistence/schema';
+import { campaignStateSchemaV1, campaignStateSchemaV2 } from '../../src/persistence/schema';
+import { cloneV1Fixture } from '../fixtures/persistence-v1';
 
 describe('Phase 6 minimal onboarding engine invariants', () => {
   it('creates an initial campaign with onboardingCompleted set to false', () => {
@@ -44,19 +45,19 @@ describe('Phase 6 minimal onboarding engine invariants', () => {
     expect(updated.presentation).toBe('normal');
   });
 
-  it('round-trips through schema v1 with backwards-compatible default', () => {
+  it('round-trips new campaigns through schema v2 while v1 input keeps its onboarding default', () => {
     const initial = createInitialCampaign();
-    const parsedInitial = campaignStateSchemaV1.parse(initial);
+    const parsedInitial = campaignStateSchemaV2.parse(initial);
     expect(parsedInitial.onboardingCompleted).toBe(false);
 
     const completed = applyGameEvents(initial, [
       { type: 'ONBOARDING_COMPLETED', sass: 'medium', voiceMode: 'talk' }
     ]);
-    const parsedCompleted = campaignStateSchemaV1.parse(completed);
+    const parsedCompleted = campaignStateSchemaV2.parse(completed);
     expect(parsedCompleted.onboardingCompleted).toBe(true);
 
-    // Backwards-compatible default when onboardingCompleted is omitted
-    const { onboardingCompleted: _, ...withoutOnboarding } = completed;
+    // Backwards-compatible default when a genuine v1 export omits the field.
+    const withoutOnboarding = cloneV1Fixture('olderMinimal');
     const parsedOmitted = campaignStateSchemaV1.parse(withoutOnboarding);
     expect(parsedOmitted.onboardingCompleted).toBe(false);
   });

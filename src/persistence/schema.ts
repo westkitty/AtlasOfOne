@@ -43,3 +43,79 @@ export const campaignStateSchemaV1 = z.object({
   onboardingCompleted: z.boolean().optional().default(false),
   updatedAt: timestamp
 });
+
+const journalEntrySchema = z.object({
+  id: z.string(), createdAt: timestamp, text: z.string(), inputMode: z.enum(['typed', 'speech-to-text']),
+  privacy: z.enum(['normal', 'private']), status: z.enum(['active', 'retracted']), sourcePrompt: z.string().optional(),
+  reflectionIds: z.array(z.string()), adventureIds: z.array(z.string())
+});
+
+const knowledgeGapSchema = z.object({
+  id: z.string(), kind: z.enum(['unknown', 'contradiction', 'change', 'underexplored', 'curiosity']),
+  territoryIds: z.array(z.string()), dimensionIds: z.array(z.string()), sourceEvidenceIds: z.array(z.string()),
+  sourceJournalEntryIds: z.array(z.string()), summary: z.string(), status: z.enum(['open', 'seeded', 'resolved', 'retired']), priority: z.number()
+});
+
+const reflectionRecordSchema = z.object({
+  id: z.string(), sourceKind: z.enum(['journal', 'adventure-observation', 'contradiction', 'insight', 'snapshot']),
+  sourceIds: z.array(z.string()), question: z.string(), response: z.string(), interpretation: z.string().optional(),
+  createdAt: timestamp, outcome: z.enum(['CONFIRM', 'PARTIAL', 'REJECT', 'UNCERTAIN', 'REVISE', 'PRIVATE']),
+  evidenceProvenance: z.object({ responseSourceId: z.string(), sourceIds: z.array(z.string()) }).optional(),
+  rejectedInterpretation: z.string().optional(), revisionTargetId: z.string().optional(), privacyRetiredSourceIds: z.array(z.string()).optional()
+});
+
+const adventureSeedSchema = z.object({
+  id: z.string(), sourceGapIds: z.array(z.string()),
+  kind: z.enum(['social-dilemma', 'investigation', 'rescue-support', 'exploration-expedition', 'negotiation', 'absurd-comedy-problem', 'ethical-conflict', 'creative-building-challenge', 'memory-echo', 'relationship-companion-scene', 'mystery-puzzle', 'survival-escape', 'combat-forward-story', 'pure-fun-wildcard']),
+  territoryId: z.string(), locationId: z.string(), premise: z.string(), learningTarget: z.enum(['none', 'reflection-eligible']), status: z.enum(['available', 'started', 'retired'])
+});
+
+const adventureRunSchema = z.object({
+  id: z.string(), seedId: z.string(), territoryId: z.string(), locationId: z.string(), status: z.enum(['active', 'complete', 'withdrawn']),
+  currentBeatId: z.string(), recurringCharacterIds: z.array(z.string()), memoryIds: z.array(z.string()), startedAt: timestamp, completedAt: timestamp.optional()
+});
+
+const adventureActionSchema = z.object({
+  id: z.string(), runId: z.string(), createdAt: timestamp, kind: z.enum(['say', 'do', 'inspect', 'travel', 'combat', 'leave']), text: z.string()
+});
+
+const adventureObservationSchema = z.object({
+  id: z.string(), runId: z.string(), sourceActionIds: z.array(z.string()), observation: z.string(), status: z.enum(['unreflected', 'reflected', 'discarded'])
+});
+
+const adventureMemorySchema = z.object({
+  id: z.string(), type: z.enum(['character', 'place', 'event', 'relationship', 'promise', 'object']), summary: z.string(),
+  triggerTerms: z.array(z.string()), sourceIds: z.array(z.string()), privacy: z.enum(['normal', 'private']), status: z.enum(['active', 'retired']), lastUsedAt: timestamp.optional()
+});
+
+const atlasSnapshotSchema = z.object({
+  id: z.string(), createdAt: timestamp, evidenceIds: z.array(z.string()), insightIds: z.array(z.string()), contradictionIds: z.array(z.string()),
+  synthesis: z.object({ summary: z.string(), territorySummaries: z.array(z.object({ territoryId: z.string(), summary: z.string() })) }),
+  previousSnapshotId: z.string().optional(),
+  provenance: z.object({ kind: z.enum(['snapshot', 'legacy-final-assessment']), sourceFinalAssessmentId: z.string().optional() }),
+  eligibility: z.enum(['eligible', 'retired', 'historical-ineligible']), legacyFinalAssessment: finalAssessmentSchema.optional()
+});
+
+const combatDefinitionSchema = z.object({
+  id: z.string(), encounterId: z.string(),
+  objective: z.enum(['defeat', 'survive-turns', 'escape', 'protect-target', 'interrupt-charged-action', 'pacify', 'break-object', 'hold-position', 'escort', 'discover-act']),
+  gimmicks: z.array(z.enum(['shielded', 'charging', 'counterattacking', 'enraged', 'healing', 'swarm', 'linked-pair', 'stance-changing', 'mimic-disguise', 'unstable-terrain', 'morale-fear', 'timed-vulnerability', 'environmental-hazard', 'ally-in-danger', 'nonlethal'])),
+  combatants: z.array(z.object({ id: z.string(), templateId: z.string(), team: z.enum(['player', 'enemy', 'ally']), maxHp: z.number() })),
+  turnLimit: z.number().int().positive().optional(), rewards: z.array(z.object({ id: z.string(), kind: z.enum(['story', 'map', 'route', 'memory', 'artifact', 'xp', 'technique']), amount: z.number().optional() })),
+  fleeRule: z.enum(['always', 'after-turn', 'story-gated'])
+});
+
+const combatStateSchema = z.object({
+  definitionId: z.string(), round: z.number().int().nonnegative(), phase: z.enum(['player', 'enemy', 'resolved']),
+  combatants: z.array(z.object({ id: z.string(), currentHp: z.number(), statuses: z.array(z.string()) })),
+  statuses: z.array(z.string()), objectiveProgress: z.number(), outcome: z.enum(['victory', 'pacified', 'escaped', 'defeat', 'story']).optional()
+});
+
+/** Full durable v2 aggregate. Empty collections are valid until their lanes land. */
+export const campaignStateSchemaV2 = campaignStateSchemaV1.extend({
+  schemaVersion: z.literal(2),
+  journalEntries: z.array(journalEntrySchema), knowledgeGaps: z.array(knowledgeGapSchema), reflections: z.array(reflectionRecordSchema),
+  adventureSeeds: z.array(adventureSeedSchema), adventureRuns: z.array(adventureRunSchema), adventureActions: z.array(adventureActionSchema),
+  adventureObservations: z.array(adventureObservationSchema), adventureMemories: z.array(adventureMemorySchema),
+  atlasSnapshots: z.array(atlasSnapshotSchema), combatDefinitions: z.array(combatDefinitionSchema), activeCombat: combatStateSchema.nullable()
+});

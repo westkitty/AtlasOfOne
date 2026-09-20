@@ -64,6 +64,6 @@ describe('Wave-1 v2 domain interface freeze', () => {
   it('preserves the existing Cartographer authority crossing and schema version', () => {
     expect(PROVIDER_EVENT_TYPES).toEqual(['ANSWER_ACCEPTED', 'EVIDENCE_ADDED', 'INSIGHT_ADDED']);
     expect(FORBIDDEN_LANE_MUTATIONS).toContain('XP_AWARDED');
-    expect(CURRENT_SCHEMA_VERSION).toBe(1);
+    expect(CURRENT_SCHEMA_VERSION).toBe(2);
   });
 });

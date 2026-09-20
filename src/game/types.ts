@@ -1,4 +1,17 @@
 import type { FinalAssessment } from '../cartographer/finalize';
+import type {
+  AdventureAction,
+  AdventureMemory,
+  AdventureObservation,
+  AdventureRun,
+  AdventureSeed,
+  AtlasSnapshot,
+  CombatDefinition,
+  CombatState,
+  JournalEntry,
+  KnowledgeGap,
+  ReflectionRecord
+} from '../contracts';
 
 export type TerritoryStatus =
   | 'fogged'
@@ -55,7 +68,8 @@ export interface BossStage { id: string; kind: EncounterStageKind; dimensions: s
 export interface BossRunState { id: string; bossId: string; territoryId: string; stages: BossStage[]; status: BossRunStatus; startedAt: string; completedAt?: string; }
 export interface DoorRunState { id: string; doorId: string; territoryIds: string[]; evidenceIds: string[]; dimensions: string[]; status: DoorRunStatus; openedAt: string; completedAt?: string; }
 
-export interface CampaignState {
+/** The complete persisted v1 shape, retained solely as a migration input. */
+export interface CampaignStateV1 {
   schemaVersion: 1;
   campaignId: string;
   player: PlayerState;
@@ -87,6 +101,36 @@ export interface CampaignState {
   finalAssessment?: FinalAssessment | null;
   onboardingCompleted?: boolean;
   updatedAt: string;
+}
+
+/** Persisted metadata added to an AtlasSnapshot without changing its public synthesis contract. */
+export interface PersistedAtlasSnapshot extends AtlasSnapshot {
+  provenance: {
+    kind: 'snapshot' | 'legacy-final-assessment';
+    sourceFinalAssessmentId?: string;
+  };
+  eligibility: 'eligible' | 'retired' | 'historical-ineligible';
+  /** Preserves the legacy artifact verbatim while it is still needed for compatibility. */
+  legacyFinalAssessment?: FinalAssessment;
+}
+
+/**
+ * The first durable v2 aggregate. Domain behavior is intentionally absent;
+ * these collections only make the frozen records safely persistable.
+ */
+export interface CampaignState extends Omit<CampaignStateV1, 'schemaVersion'> {
+  schemaVersion: 2;
+  journalEntries: JournalEntry[];
+  knowledgeGaps: KnowledgeGap[];
+  reflections: ReflectionRecord[];
+  adventureSeeds: AdventureSeed[];
+  adventureRuns: AdventureRun[];
+  adventureActions: AdventureAction[];
+  adventureObservations: AdventureObservation[];
+  adventureMemories: AdventureMemory[];
+  atlasSnapshots: PersistedAtlasSnapshot[];
+  combatDefinitions: CombatDefinition[];
+  activeCombat: CombatState | null;
 }
 
 export type GameEvent =
