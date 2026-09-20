@@ -6,19 +6,19 @@ import { completeOnboardingIfPresent, openAgency, navigateTo } from './helper';
 import { serveDist } from './server';
 
 /**
- * Talk mode is a continuous turn-taking conversation, not voice form entry.
+ * Talk mode is one listening turn per tap, not a hands-free spoken
+ * conversation. Text-to-speech has been removed: Atlas never speaks, there is
+ * no "speaking" state, and the microphone never reopens on its own after a
+ * reply. The central regression this suite guards against is the opposite of
+ * what it used to guard against — if the microphone EVER reopens without an
+ * explicit tap, Atlas has regressed to the removed always-on voice loop.
  *
- * The canonical loop is LISTENING -> TRANSCRIBING -> THINKING -> SPEAKING ->
- * LISTENING. The central regression here is that a second spoken turn happens
- * with NO microphone interaction between turns: if that ever needs a tap again,
- * Atlas has regressed to dictation.
- *
- * Everything drives the real production bundle and the real App path. The only
- * fakes are the browser primitives Atlas cannot get in headless Chrome —
- * `getUserMedia`, `MediaRecorder`, `AudioContext`/`AnalyserNode` and
- * `speechSynthesis` — plus the same-origin `/api/*` boundary. Amplitude is
- * driven from the test through the real analyser code path, so end-of-turn
- * detection is exercised rather than simulated.
+ * Everything drives the real production bundle and the real App path. The
+ * only fakes are the browser primitives Atlas cannot get in headless Chrome —
+ * `getUserMedia`, `MediaRecorder`, `AudioContext`/`AnalyserNode` — plus the
+ * same-origin `/api/*` boundary. Amplitude is driven from the test through
+ * the real analyser code path, so end-of-turn detection is exercised rather
+ * than simulated.
  *
  * No credentials, no Workers AI, no neurons. Synthetic data only.
  */
@@ -46,7 +46,6 @@ interface VoiceSession {
   page: Page;
   transcribeCount: () => number;
   turnCount: () => number;
-  spoken: () => Promise<string[]>;
   /** Drive the analyser the real capture code reads from. */
   setAmplitude: (value: number) => Promise<void>;
   close: () => Promise<void>;
@@ -59,9 +58,8 @@ interface VoiceSession {
  * still calls `getByteTimeDomainData`, and still computes RMS. The test only
  * chooses what the microphone "hears".
  */
-async function newVoiceSession(options: { analyser?: boolean; transcripts?: string[]; speechMs?: number } = {}): Promise<VoiceSession> {
+async function newVoiceSession(options: { analyser?: boolean; transcripts?: string[] } = {}): Promise<VoiceSession> {
   const withAnalyser = options.analyser ?? true;
-  const speechMs = options.speechMs ?? 120;
   const transcripts = options.transcripts ?? ['I slow down and ask what an option costs.', 'I usually revisit it the next morning.'];
   const context = await browser.newContext({ viewport: PHONE });
   const page = await context.newPage();
@@ -70,8 +68,7 @@ async function newVoiceSession(options: { analyser?: boolean; transcripts?: stri
   let turnCount = 0;
 
   await page.addInitScript(
-    ({ analyserEnabled, speechDurationMs }) => {
-      (window as any).__spoken = [];
+    ({ analyserEnabled }) => {
       (window as any).__amplitude = 0;
       // Transitions can be shorter than a poll interval, so record them all.
       // Installed defensively: this runs at document-start, before <html> may
@@ -137,29 +134,8 @@ async function newVoiceSession(options: { analyser?: boolean; transcripts?: stri
         delete (window as any).AudioContext;
         delete (window as any).webkitAudioContext;
       }
-
-      // Speech synthesis that records what was said and completes promptly.
-      Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, writable: true, value: class {
-        text: string;
-        lang = 'en-US';
-        rate = 1; volume = 1; pitch = 1;
-        onend: (() => void) | null = null;
-        onerror: (() => void) | null = null;
-        constructor(text: string) { this.text = text; }
-      } });
-      Object.defineProperty(window, 'speechSynthesis', {
-        configurable: true,
-        value: {
-          cancel() {},
-          speak(u: any) {
-            (window as any).__spoken.push(u.text);
-            // Asynchronous, so SPEAKING is a state Atlas genuinely rests in.
-            setTimeout(() => u.onend?.(), speechDurationMs);
-          }
-        }
-      });
     },
-    { analyserEnabled: withAnalyser, speechDurationMs: speechMs }
+    { analyserEnabled: withAnalyser }
   );
 
   await page.route('**/api/health', (route: Route) =>
@@ -185,7 +161,7 @@ async function newVoiceSession(options: { analyser?: boolean; transcripts?: stri
   await page.waitForTimeout(400);
   await navigateTo(page, 'Talk');
   await page.waitForSelector('[data-testid="mode-talk"]');
-  // The single deliberate activation that starts the spoken conversation.
+  // The single deliberate activation that starts listening for one turn.
   await page.click('[data-testid="mode-talk"]');
 
   return {
@@ -193,7 +169,6 @@ async function newVoiceSession(options: { analyser?: boolean; transcripts?: stri
     page,
     transcribeCount: () => transcribeCount,
     turnCount: () => turnCount,
-    spoken: () => page.evaluate(() => (window as any).__spoken as string[]),
     setAmplitude: (value: number) => page.evaluate((v) => { (window as any).__amplitude = v; }, value),
     close: () => context.close()
   };
@@ -208,7 +183,7 @@ const waitForVisited = (page: Page, name: string, timeout = 20_000) =>
   page.waitForFunction((n) => ((window as any).__voiceStates as string[]).includes(n), name, { timeout });
 const visited = (page: Page) => page.evaluate(() => (window as any).__voiceStates as string[]);
 
-/** Speak, then fall silent long enough for end-of-turn detection to fire. */
+/** Speak into the mic, then fall silent long enough for end-of-turn detection to fire. */
 async function speakThenFallSilent(session: VoiceSession) {
   await session.setAmplitude(0.7);
   await session.page.waitForTimeout(400);
@@ -225,17 +200,8 @@ const waitForCount = async (get: () => number, target: number, page: Page, timeo
   }
 };
 
-/** Wait for speech synthesis itself, not merely for the request that precedes it. */
-const waitForSpoken = async (session: VoiceSession, fragment: string, timeout = 25_000) => {
-  const deadline = Date.now() + timeout;
-  while (!(await session.spoken()).some((line) => line.includes(fragment))) {
-    if (Date.now() > deadline) throw new Error(`expected spoken output containing: ${fragment}`);
-    await session.page.waitForTimeout(100);
-  }
-};
-
 beforeAll(async () => {
-  expect(existsSync(DIST), 'run `npm run build` before the voice conversation suite').toBe(true);
+  expect(existsSync(DIST), 'run `npm run build` before the voice turn suite').toBe(true);
   host = await serveDist(DIST);
   browser = await chromium.launch({ channel: 'chrome', headless: true });
 }, 120_000);
@@ -245,19 +211,15 @@ afterAll(async () => {
   await host?.close();
 });
 
-describe('Talk mode is a continuous conversation', () => {
-  it('1. one Talk activation speaks the current prompt and then listens on its own', async () => {
+describe('Talk mode is one listening turn per tap', () => {
+  it('1. one Talk activation starts listening immediately, with no spoken output', async () => {
     const session = await newVoiceSession();
     try {
       const { page } = session;
-      await waitForVisited(page, 'speaking');
-      const spoken = await session.spoken();
-      expect(spoken.length, 'Atlas states the question aloud').toBeGreaterThan(0);
-
-      // No microphone tap: listening arrives by itself once speech completes.
       await waitForState(page, 'listening');
       expect(await voiceState(page)).toContain('listening');
       expect(session.transcribeCount(), 'nothing submitted yet').toBe(0);
+      expect(await visited(page), 'never passes through a speaking state').not.toContain('speaking');
     } finally {
       await session.close();
     }
@@ -320,33 +282,29 @@ describe('Talk mode is a continuous conversation', () => {
     }
   }, 120_000);
 
-  it('4. THE CENTRAL REGRESSION: two spoken turns with no microphone tap between them', async () => {
+  it('4. THE CENTRAL INVARIANT: the microphone never reopens on its own after a reply', async () => {
     const session = await newVoiceSession();
     try {
       const { page } = session;
       await waitForState(page, 'listening');
 
-      // --- turn one ---
       await speakThenFallSilent(session);
       await waitForCount(session.transcribeCount, 1, page);
       await waitForCount(session.turnCount, 1, page);
-      // Request arrival is not response completion. Prove the browser actually
-      // handed the Cartographer reply to speech synthesis before continuing.
-      await waitForSpoken(session, 'Synthetic reply 1.');
 
-      // The microphone comes back by itself. This is the whole product claim.
+      // The reply has arrived, but nothing reopens the microphone by itself.
+      await page.waitForTimeout(2000);
+      expect(await voiceState(page), 'idle after a reply, not listening').toContain('idle');
+      expect(await page.locator('[data-testid="mic-visualizer"]').count(), 'no live meter without a tap').toBe(0);
+      expect(session.transcribeCount(), 'still exactly one transcription').toBe(1);
+      expect(session.turnCount(), 'still exactly one Cartographer turn').toBe(1);
+
+      // A second turn requires a new, explicit tap.
+      await page.click('[data-testid="mic-button"]');
       await waitForState(page, 'listening');
-      expect(await page.locator('[data-testid="mic-visualizer"]').count(), 'visualizer live again').toBe(1);
-
-      // --- turn two, with no tap in between ---
       await speakThenFallSilent(session);
       await waitForCount(session.transcribeCount, 2, page);
       await waitForCount(session.turnCount, 2, page);
-      await waitForState(page, 'listening');
-      await page.waitForTimeout(600);
-
-      expect(session.transcribeCount(), 'exactly two transcriptions').toBe(2);
-      expect(session.turnCount(), 'exactly two Cartographer turns').toBe(2);
 
       const persisted = await page.evaluate(
         () => new Promise<string>((resolve) => {
@@ -368,7 +326,7 @@ describe('Talk mode is a continuous conversation', () => {
     }
   }, 180_000);
 
-  it('5. manual Done remains available and keeps the conversation going', async () => {
+  it('5. manual Done works, and completing a turn still does not reopen the microphone', async () => {
     const session = await newVoiceSession();
     try {
       const { page } = session;
@@ -378,14 +336,15 @@ describe('Talk mode is a continuous conversation', () => {
       await page.click('[data-testid="voice-submit-done"]');
       await waitForVisited(page, 'transcribing');
       expect(session.transcribeCount()).toBe(1);
-      // And the loop continues without a tap.
-      await waitForState(page, 'listening');
+      await waitForCount(session.turnCount, 1, page);
+      await page.waitForTimeout(1000);
+      expect(await voiceState(page), 'back to idle, not re-listening').toContain('idle');
     } finally {
       await session.close();
     }
   }, 120_000);
 
-  it('6. STOP ends the conversation and never reopens the microphone', async () => {
+  it('6. STOP ends the turn and never opens the microphone', async () => {
     const session = await newVoiceSession();
     try {
       const { page } = session;
@@ -400,7 +359,7 @@ describe('Talk mode is a continuous conversation', () => {
     }
   }, 120_000);
 
-  it('7. switching to Type ends the loop and no stale callback can restart it', async () => {
+  it('7. switching to Type ends the turn and no stale callback can restart it', async () => {
     const session = await newVoiceSession();
     try {
       const { page } = session;
@@ -419,7 +378,7 @@ describe('Talk mode is a continuous conversation', () => {
     }
   }, 120_000);
 
-  it('8. Cancel stops the conversation without an automatic restart', async () => {
+  it('8. Cancel stops the turn without an automatic restart', async () => {
     const session = await newVoiceSession();
     try {
       const { page } = session;
@@ -433,38 +392,14 @@ describe('Talk mode is a continuous conversation', () => {
     }
   }, 120_000);
 
-  it('9. the player can interrupt the Cartographer and take the turn immediately', async () => {
-    // A long opening utterance gives a real window to barge into.
-    const session = await newVoiceSession({ speechMs: 6_000 });
-    try {
-      const { page } = session;
-      // Atlas is mid-sentence, stating the question.
-      await waitForState(page, 'speaking');
-      const interrupt = page.locator('[data-testid="voice-interrupt"]');
-      await interrupt.waitFor({ state: 'visible', timeout: 10_000 });
-      await interrupt.click();
-
-      // Speech stops, the microphone opens at once, and the conversation lives.
-      await waitForState(page, 'listening');
-      expect(await page.locator('[data-testid="mic-visualizer"]').count(), 'listening again at once').toBe(1);
-
-      // And it is still a conversation: a spoken turn completes normally.
-      await speakThenFallSilent(session);
-      await waitForCount(session.transcribeCount, 1, page);
-      await waitForCount(session.turnCount, 1, page);
-    } finally {
-      await session.close();
-    }
-  }, 120_000);
-
-  it('10. a spoken PRIVATE command stays local and the conversation continues', async () => {
+  it('9. a spoken PRIVATE command stays local and never reopens the microphone by itself', async () => {
     const session = await newVoiceSession({ transcripts: ['private'] });
     try {
       const { page } = session;
       await waitForState(page, 'listening');
       await speakThenFallSilent(session);
       await waitForCount(session.transcribeCount, 1, page);
-      await page.waitForTimeout(700);
+      await page.waitForTimeout(1200);
 
       expect(session.turnCount(), 'the command never reached the Cartographer').toBe(0);
       const persisted = await page.evaluate(
@@ -480,14 +415,14 @@ describe('Talk mode is a continuous conversation', () => {
       expect(state.privateTopics.length, 'the dimension was closed').toBeGreaterThan(0);
       expect(state.xp, 'a command awards nothing').toBe(0);
 
-      // And the conversation carries on to a safe next prompt.
-      await waitForState(page, 'listening');
+      // No automatic re-listen: idle until the player taps the microphone again.
+      expect(await voiceState(page)).toContain('idle');
     } finally {
       await session.close();
     }
   }, 120_000);
 
-  it('11. backgrounding the browser cancels capture and stale voice continuation', async () => {
+  it('10. backgrounding the browser cancels capture and stale voice continuation', async () => {
     const session = await newVoiceSession();
     try {
       const { page } = session;
@@ -506,7 +441,7 @@ describe('Talk mode is a continuous conversation', () => {
     }
   }, 120_000);
 
-  it('12. turn-taking still works when audio analysis is unavailable', async () => {
+  it('11. a turn still completes when audio analysis is unavailable, via manual Done', async () => {
     const session = await newVoiceSession({ analyser: false });
     try {
       const { page } = session;
@@ -516,11 +451,13 @@ describe('Talk mode is a continuous conversation', () => {
       expect(await meter.getAttribute('data-metering'), 'and it does not claim to measure').toBe('unavailable');
 
       // Without analysis there is no automatic end-of-turn, so manual Done is
-      // the fallback — and it still completes a whole conversational turn.
+      // the fallback — and it still completes a whole turn, then goes idle.
       await page.click('[data-testid="voice-submit-done"]');
       await waitForVisited(page, 'transcribing');
       expect(session.transcribeCount()).toBe(1);
-      await waitForVisited(page, 'speaking');
+      await waitForCount(session.turnCount, 1, page);
+      await page.waitForTimeout(1000);
+      expect(await voiceState(page)).toContain('idle');
     } finally {
       await session.close();
     }

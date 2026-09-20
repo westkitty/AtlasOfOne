@@ -23,6 +23,13 @@ Browser / installed PWA
                     └─ env.AI → Workers AI (Free plan)
 ```
 
+`/api/finalize` and the Final Assessment it produces are current, implemented,
+deployed behavior and remain in place. `docs/MASTER_INTEGRATION_PLAN.md` §15
+sets Atlas Snapshots — dated, revisable readouts rather than one terminal
+artifact — as the target direction this endpoint's concept is expected to
+evolve toward in a later phase. That evolution is not implemented by this
+document or by this integration cycle's Phase 0; nothing here should be read
+as claiming Snapshots exist yet.
 The Cloudflare Vite plugin is the integration point for Vite static assets and Worker code. `wrangler.jsonc` uses SPA not-found handling and routes `/api/*` through the Worker.
 
 ## State ownership
@@ -106,13 +113,18 @@ to the local script; it never escalates to a paid plan.
 
 `vite-plugin-pwa` generates the service worker and manifest. Phase 1 establishes install/offline-shell support; full device/install validation belongs to later phases.
 
-## Voice architecture (Phase 4)
+## Voice architecture (Phase 4, STT-only per docs/MASTER_INTEGRATION_PLAN.md §17)
+
+Text-to-speech has been removed from this product. Atlas never speaks; there
+is no `window.speechSynthesis`/`SpeechSynthesisUtterance` use, no voice
+picker, and no assistant "speaking" lifecycle state anywhere in the runtime.
+Speech-to-text input remains.
 
 - **Capture**: Browser `MediaRecorder` capture requires explicit player activation, never auto-plays, and immediately discards audio chunks from memory after transcription or abort.
-- **State machine**: Deterministic state progression (`idle` -> `requesting-permission` -> `listening` -> `transcribing` -> `thinking` -> `speaking` -> `idle`) with cancel/fallback to typing at every stage.
+- **State machine**: Deterministic state progression (`idle` -> `requesting-permission` -> `listening` -> `transcribing` -> `idle`) with cancel/fallback to typing at every stage. Provider request latency ("thinking") is tracked as submission state, not as a microphone state.
 - **Agency command firewall**: Spoken controls (`PASS`, `PRIVATE`, `STOP`, `SERIOUS`, `HELP`, `SASS`) are intercepted and executed client-side. They never submit text to the model, never generate evidence, and never award XP or progression.
 - **Backend transcription**: Same-origin `POST /api/transcribe` converts audio buffers to text via `@cf/openai/whisper-tiny-en` in Cloudflare Workers AI with a 2 MB size ceiling and zero transcript/audio logging.
-- **Speech synthesis**: `window.speechSynthesis` speaks Cartographer replies in voice mode, cancellable on STOP, mode toggle, navigation, or unmount. Respects quiet presentation mode with subdued rate and volume.
+- **No automatic re-listen**: the microphone never reopens on its own after a reply. Tap mic -> listen -> stop (silence or Done) -> transcribe -> transcript submitted -> Atlas replies in text. The next turn requires a new, explicit tap.
 
 ## Accessibility
 
@@ -136,7 +148,7 @@ The behavior layer must use semantic buttons/forms, keyboard-accessible navigati
 
 ## Zero-cost invariant
 
-Atlas of One must not *require* paid ChatGPT, paid Cloudflare Workers/Workers AI, paid OpenRouter, a paid domain, paid database, paid speech service, paid deployment, or paid analytics. A later quota exhaustion state must stop/degrade AI features instead of generating cost.
+Atlas of One must not *require* paid ChatGPT, paid Cloudflare Workers/Workers AI, paid OpenRouter, a paid domain, paid database, a paid transcription service, paid deployment, or paid analytics. Text-to-speech is removed from the product entirely (not merely kept free), per `docs/MASTER_INTEGRATION_PLAN.md` §17. A later quota exhaustion state must stop/degrade AI features instead of generating cost.
 
 ## Explicit non-goals for v1/bootstrap
 

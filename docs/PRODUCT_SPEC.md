@@ -6,9 +6,20 @@
 
 The Cartographer adapts conversation to what has already been learned, while the deterministic game system turns accepted substantive participation into visible progress. The product must preserve uncertainty and contradiction rather than flattening a person into a single type.
 
+> **v2 authority note.** `docs/MASTER_INTEGRATION_PLAN.md` establishes Atlas as
+> **journaling-first**, not fundamentally a personality questionnaire: Greyson
+> can journal freely without first being asked a question, and an adventure
+> grows out of what Journal noticed rather than the reverse. The adaptive
+> question/answer campaign described below in Sections 2 and 9 is the
+> currently implemented mechanism and remains accurate as shipped; it is
+> expected to become one entry path alongside a free-form Journal (master
+> plan §8, Phase 1 — not yet implemented) rather than the only one. Where this
+> section and the master plan disagree on product identity, the master plan
+> controls per `AGENTS.md`.
+
 ## 2. Core experience
 
-The player moves among mapped territories, answers adaptive questions, receives Insight Cards, unlocks game abilities and fragments, resolves Boss Fights and Mystery Doors, fills a Vault, and eventually receives a final Atlas/character assessment. Conversation can be typed in v1 and later spoken through the voice state machine defined in the master plan.
+The player moves among mapped territories, answers adaptive questions, receives Insight Cards, unlocks game abilities and fragments, resolves Boss Fights and Mystery Doors, fills a Vault, and eventually receives a final Atlas/character assessment. Conversation can be typed, or spoken through the microphone/transcription state machine described in Section 8 below — text-to-speech output has been removed (`docs/MASTER_INTEGRATION_PLAN.md` §17).
 
 The experience should cover, at minimum, the domains explicitly required by the source material:
 
@@ -143,30 +154,39 @@ recurs on every launch.
 
 ## 8. Voice and accessibility requirements
 
-Voice is a first-class interaction mode, not a substitute for text. It uses
-`getUserMedia` + `MediaRecorder` → `/api/transcribe` → transcript, with browser
-`speechSynthesis` for output.
+**Text-to-speech is removed from this product** (`docs/MASTER_INTEGRATION_PLAN.md`
+§17). Atlas never speaks: there is no `window.speechSynthesis`, no
+`SpeechSynthesisUtterance`, no voice picker, and no assistant "speaking" state.
+Speech-to-text input remains a first-class interaction mode, not a substitute
+for text. It uses `getUserMedia` + `MediaRecorder` → `/api/transcribe` →
+transcript.
 
-**Talk is a continuous turn-taking conversation, not push-to-talk per answer.**
-One activation starts a spoken session: Atlas states the current question aloud,
-then listens on its own. The player finishes a turn by simply stopping talking;
-Atlas answers, establishes what it is asking next, and returns to listening with
-no further tap. The canonical loop is `LISTENING → TRANSCRIBING → THINKING →
-SPEAKING → LISTENING`, and `IDLE` is reserved for a conversation that is not
-running — cancelled, switched to Type, stopped, or failed.
+**Talk is one listening turn per tap, not a hands-free spoken conversation.**
+Tapping the microphone starts listening immediately. The player finishes a
+turn by simply stopping talking, or by pressing "Done speaking". The canonical
+microphone lifecycle is `IDLE → REQUESTING-PERMISSION → LISTENING →
+TRANSCRIBING → IDLE`, with `ERROR` reachable from any active stage. Provider
+request latency ("thinking") is shown as ordinary submission/loading state,
+not as a microphone state. The microphone never reopens on its own after a
+reply — the player taps it again for the next turn.
 
 Spoken-turn completion is detected locally from microphone amplitude; no audio is
 transmitted to decide when someone stopped speaking. "Done speaking" remains
 available as a fallback for noisy rooms, accessibility and long pauses. Silence
 before speech never submits an empty turn. While listening, an amplitude-reactive
-visualizer is the primary status indicator, and its reappearance without a tap is
-how the player knows the turn is theirs again.
+visualizer is the primary status indicator.
 
 The application must remain usable by text if voice is unavailable. Voice states must be visibly captioned. Common voice commands should be recognized locally when voice is implemented.
 
 Accessibility requirements include semantic controls, keyboard access, visible focus, sufficiently large mobile touch targets, reduced-motion respect, readable contrast, transcript/caption availability, and preserving all critical controls in quiet mode.
 
 ## 9. Final assessment
+
+> **v2 authority note.** This section describes the currently implemented,
+> deployed Final Assessment — accurate as shipped. `docs/MASTER_INTEGRATION_PLAN.md`
+> §15 sets dated, revisable **Atlas Snapshots** as the target direction that
+> supersedes a single terminal "final" artifact; that replacement is not yet
+> implemented and this section is not to be read as already describing it.
 
 The final Atlas is generated from confirmed territory summaries, evidence ledger, Insight confirmations, contradictions, revision history, representative quotations, and open uncertainty — not raw transcript alone.
 

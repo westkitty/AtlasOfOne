@@ -1,5 +1,16 @@
 # Atlas of One — Deterministic Game System
 
+> **v2 authority note.** `docs/MASTER_INTEGRATION_PLAN.md` extends this
+> document's prime directive to the Worldwalker Adventure Director and the
+> lightweight JRPG combat system (master plan §§10–13): the game engine
+> remains sole authority over progression and outcomes there too, and a model
+> may only propose language, scene content, and candidate evidence — never
+> award XP, unlocks, or completion directly, and never treat in-fiction
+> adventure/combat behavior as automatic evidence about Greyson (the
+> reflection firewall, master plan §12.11 and §13). Those systems are not yet
+> implemented; this document's existing rules below are already consistent
+> with that direction and are the foundation later phases build on.
+
 ## Prime directive
 
 The game engine — never the Cartographer model — owns XP, levels, territory thresholds, unlocks, achievements, quests, map fragments, and campaign completion.

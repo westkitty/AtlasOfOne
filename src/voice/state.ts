@@ -7,16 +7,18 @@ import type { VoiceState } from './types';
  * 1. Cancel/abort can reset any state back to 'idle'.
  * 2. An error at any stage safely transitions to 'error' (which offers typing fallback).
  * 3. Happy path progresses sequentially:
- *    idle -> requesting-permission -> listening -> transcribing -> thinking -> speaking -> idle.
+ *    idle -> requesting-permission -> listening -> transcribing -> idle.
+ *
+ * This machine describes microphone/transcription lifecycle only. Assistant
+ * text-to-speech has been removed (no 'speaking' state), and provider request
+ * latency ("thinking") is tracked separately by submission state, not here.
  */
 
 const VALID_TRANSITIONS: Record<VoiceState, readonly VoiceState[]> = {
   idle: ['requesting-permission', 'listening', 'error'],
   'requesting-permission': ['listening', 'idle', 'error'],
   listening: ['transcribing', 'idle', 'error'],
-  transcribing: ['thinking', 'idle', 'error'],
-  thinking: ['speaking', 'idle', 'error'],
-  speaking: ['idle', 'listening', 'error'],
+  transcribing: ['idle', 'error'],
   error: ['idle', 'requesting-permission', 'listening']
 };
 
@@ -43,10 +45,6 @@ export function voiceStateLabel(state: VoiceState): string {
       return 'Listening...';
     case 'transcribing':
       return 'Transcribing...';
-    case 'thinking':
-      return 'The Cartographer is thinking...';
-    case 'speaking':
-      return 'Speaking...';
     case 'error':
       return 'Voice unavailable — type below';
   }

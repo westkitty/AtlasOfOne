@@ -18,8 +18,6 @@ export type VoiceState =
   | 'requesting-permission'
   | 'listening'
   | 'transcribing'
-  | 'thinking'
-  | 'speaking'
   | 'error';
 
 /**

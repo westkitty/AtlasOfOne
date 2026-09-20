@@ -155,6 +155,13 @@ so earlier exports still import.
 
 ## Final assessment contract
 
+> **v2 authority note.** This contract governs the currently implemented,
+> deployed `/api/finalize` path and remains in force. `docs/MASTER_INTEGRATION_PLAN.md`
+> §15 sets dated, revisable Atlas Snapshots as the eventual replacement for a
+> single terminal assessment; the invariants below (private-topic exclusion,
+> quote grounding, no progression authority) are expected to carry forward
+> unchanged into that replacement when it is built.
+
 Final synthesis uses confirmed territory summaries, evidence ledger, Insight confirmations, contradictions, revision history, representative quotations, and open uncertainty. It must distinguish statements, evidence-backed synthesis, inference, and unknowns.
 
 `FinalAssessment` and `CartographerTurn` are unrelated shapes, so the turn

@@ -136,27 +136,27 @@ yet deployed at the time of writing.
 - [x] A returning campaign wakes into its existing state without replaying onboarding. *(`onboarding-continuity.test.ts` cases B–E; `onboarding.test.ts` check 12.)*
 - [x] Illumination is short and decisive, and is skipped under reduced motion. *(260ms brightness bloom; disabled by `prefers-reduced-motion` and the in-app setting.)*
 - [x] 320px cold open has no horizontal overflow. *(`onboarding.test.ts` check 2.)*
-- [x] Talk is a continuous turn-taking conversation: one activation, then Atlas states the prompt, listens, answers, establishes the next prompt and listens again with no tap between turns. *(`voice-conversation.test.ts` checks 1 and 4 — two spoken turns, no microphone interaction between them.)*
-- [x] Spoken turns end on locally detected sustained silence, never before speech begins and not on an ordinary mid-sentence pause. *(`voice-conversation.test.ts` check 3.)*
-- [x] "Done speaking" remains available as a fallback and keeps the conversation running. *(check 5.)*
+- [x] **(v2, superseded)** ~~Talk is a continuous turn-taking conversation~~ — text-to-speech and the auto-relisten loop it drove are removed (`docs/MASTER_INTEGRATION_PLAN.md` §17). Talk is now one listening turn per tap: activation starts listening immediately, and the microphone never reopens on its own after a reply. *(`tests/browser/voice-turn.test.ts` checks 1 and 4 — check 4 is now the central invariant that the microphone stays idle after a reply until the player taps again.)*
+- [x] Spoken turns end on locally detected sustained silence, never before speech begins and not on an ordinary mid-sentence pause. *(`voice-turn.test.ts` check 3.)*
+- [x] "Done speaking" remains available as a fallback and completes the turn. *(check 5 — it no longer keeps a conversation "running"; there is no conversation loop left to keep running.)*
 - [x] The microphone visualizer responds to real measured amplitude and is present only while capture is live. *(check 2; louder audio reads measurably higher and silence does not look loud.)*
-- [x] Cancel, STOP and switching to Type all end the loop, and no stale callback can reopen the microphone. *(checks 6, 7, 8; generation tokens invalidate obsolete cycles.)*
-- [x] The player can interrupt the Cartographer and take the turn immediately, with the conversation still alive. *(check 9.)*
-- [x] A spoken local command stays client-side, reaches no provider, awards nothing, and the conversation continues. *(check 10.)*
+- [x] Cancel, STOP and switching to Type all end the turn, and no stale callback can reopen the microphone. *(checks 6, 7, 8; generation tokens invalidate obsolete cycles.)*
+- [x] **(v2, removed)** ~~The player can interrupt the Cartographer~~ — this depended on an assistant "speaking" state that no longer exists; there is nothing to interrupt.
+- [x] A spoken local command stays client-side, reaches no provider, and awards nothing. *(check 9 — it no longer "continues the conversation" automatically; the mic stays idle until tapped again, same as any other turn.)*
 - [x] Recording still works when audio analysis is unavailable, with a truthful indicator and the manual fallback. *(check 11.)*
 - [x] Microphone levels are never persisted, exported or transmitted. *(Levels live only in component state; nothing enters CampaignState or any request.)*
-- [ ] Acoustic barge-in — speaking over the Cartographer without touching anything. *(Open and deliberately deferred: doing it safely needs echo handling so synthesis cannot retrigger itself through the microphone. Tap-to-interrupt covers the need.)*
-- [ ] Real-device confirmation that the cold open and spoken conversation feel right in the hand. *(Open — this is exactly what the Greyson session is for; UNV-021, and UNV-007 for non-Chrome speech behaviour.)*
+- [x] **(v2, removed)** ~~Acoustic barge-in~~ — moot: there is no assistant speech for the microphone to barge into. *(Formerly deferred because synthesis could retrigger itself through the microphone; that risk is removed along with synthesis.)*
+- [ ] Real-device confirmation that the cold open and spoken turn-taking feel right in the hand. *(Open — this is exactly what the Greyson session is for; UNV-021, and UNV-007 for non-Chrome speech-to-text behaviour.)*
 
 ## Voice and Deployment (Phase 4)
 
-- [x] Text and voice modes coexist cleanly on the Talk screen. *(VER-040. Talk is now a continuous conversation rather than per-answer recording — see the presentation block above.)*
+- [x] Text and voice modes coexist cleanly on the Talk screen. *(VER-040, superseded by the v2 TTS-removal pass — see the presentation block above. Talk is one listening turn per tap, not a continuous conversation.)*
 - [x] Spoken local agency commands (PASS, PRIVATE, STOP, SERIOUS, HELP, SASS) execute client-side before sending text to Cartographer; never award XP or progression. *(VER-036, 8 unit checks; VER-040.)*
-- [x] Voice state machine visibly distinguishes idle, requesting-permission, listening, transcribing, thinking, speaking, error. *(VER-035, 6 unit checks.)*
+- [x] Voice state machine visibly distinguishes idle, requesting-permission, listening, transcribing, error. *(VER-035, 6 unit checks, updated for TTS removal — `thinking` and `speaking` are no longer microphone states; provider request latency is tracked as submission state instead.)*
 - [x] Cancel and fallback to typing is available at every state. *(VER-035; VER-040.)*
 - [x] Browser MediaRecorder capture is mobile-first, requires explicit player action, and discards audio blobs immediately after use. *(DEC-021; `src/voice/capture.ts` clears chunks on success, abort and error paths.)*
-- [x] Browser speech synthesis reads Cartographer responses in voice mode, cancellable on STOP, mode toggle, navigation, or unmount. *(VER-040.)*
-- [x] Quiet/serious presentation mode suppresses celebratory voice inflection with subdued volume and rate. *(VER-040 — rate 0.9, volume 0.6.)*
+- [x] **(v2) Text-to-speech is removed.** No production `speechSynthesis`/`SpeechSynthesisUtterance` reference remains, no voice picker is rendered, and Atlas replies in text only. *(`docs/MASTER_INTEGRATION_PLAN.md` §17; negative-scanned against the built `dist/client` and `dist/atlas_of_one` bundles.)*
+- [x] Quiet/serious presentation mode still suppresses celebratory sound effects (`playStinger(..., quiet)`). *(The voice-output rate/volume tuning this item previously described no longer applies — there is no voice output.)*
 - [x] Same-origin `POST /api/transcribe` endpoint converts audio to text using free-plan eligible Workers AI model without logging audio or transcripts. *(VER-038, 9 unit checks; the configured model `@cf/openai/whisper-tiny-en` is free-plan eligible and is confirmed by the live `/api/health` response. Eligibility on an `ATLAS_TRANSCRIBE_MODEL_ID` override is now enforced fail-closed before any binding call — KNOWN-004 resolved, VER-058. One caveat remains: it has never been exercised against real audio, so accuracy, latency and cost are unmeasured, and the model is English-only — UNV-017.)*
 - [x] Worker access secret `ATLAS_ACCESS_SECRET` guards `/api/turn` and `/api/transcribe` with 401 unauthorized rejection. *(VER-039, 8 unit checks; confirmed live in production for `/api/turn`, `/api/transcribe` and `/api/finalize`, with `accessProtected: true` on `/api/health`.)*
 - [x] Access secret is stored as a local client credential in `localStorage`, completely isolated from CampaignState and IndexedDB export. *(VER-039; `src/voice/access.ts`; the secret appears in no state type, schema or export path.)*
@@ -165,6 +165,12 @@ yet deployed at the time of writing.
 - [ ] Physical Android device install and hardware verification. *(Open — UNV-003 / KNOWN-006: no reachable device. `docs/MASTER_BUILD_PLAN.md` requires this in Phase 4, so Phase 4 remains PARTIAL. Offline/PWA/viewport behavior is verified in Chromium only; UNV-007 and UNV-009 remain open alongside it.)*
 
 ## Adversarial Release QA and Final Assessment (Phase 5)
+
+> **v2 authority note.** The Final Assessment items below describe currently
+> implemented, deployed behavior and remain accurate. `docs/MASTER_INTEGRATION_PLAN.md`
+> §15 sets Atlas Snapshots (dated, revisable) as the target replacement for a
+> single terminal assessment; that work is not yet started and these checks
+> are not to be read as already covering it.
 
 - [x] Adversarially tested all player archetypes (short, long, contradictory, private, serious, political, revision-heavy, voice command protection). *(VER-043, 8 checks against real engine and context code.)*
 - [x] Asynchronous hammer and race condition safety: double-submit (BUG-001), stale closure overwrite (BUG-002), cross-campaign import race (BUG-003), voice capture state desync (BUG-004). *(KNOWN-002 resolved. `tests/browser/concurrency.test.ts` drives the real application with mutation proof for every guard; the former self-referential fixture was deleted. BUG-001 turned out to be a live defect — two same-task clicks started two `/api/turn` requests — and was repaired with a synchronous lock. See VER-054.)*
@@ -209,6 +215,6 @@ phase itself. Phase 6 is INCOMPLETE.
 - [x] Real-browser verification: 0 horizontal overflow at 320px, >=44px touch targets, keyboard activation, reload persistence in Chrome. *(VER-051, 14 checks.)*
 - [x] Production access secret rotated, loaded as a Worker secret, and stored in the macOS Keychain. *(VER-041 lineage; corroborated at rev 14 by a `Secret Change` deployment event immediately preceding the `60ce565` deployment, and by `accessProtected: true` on live `/api/health`.)*
 - [ ] Physical Android device install and hardware verification. *(Open — UNV-003 / KNOWN-006: no reachable device.)*
-- [ ] Behavior verified on any browser other than desktop Chrome. *(Open — UNV-007. Safari, Firefox and all mobile engines are unexercised. This matters for voice: `MediaRecorder` codec support and `speechSynthesis` behavior differ on iOS Safari.)*
+- [ ] Behavior verified on any browser other than desktop Chrome. *(Open — UNV-007. Safari, Firefox and all mobile engines are unexercised. This matters for voice: `MediaRecorder` codec and permission-prompt behavior differ on iOS Safari. Text-to-speech is removed, so `speechSynthesis` cross-browser behavior no longer applies here.)*
 - [ ] Real-device touch ergonomics tested by hand rather than measured geometrically. *(Open — UNV-009.)*
 - [ ] **Greyson has actually received and used Atlas, and product friction has been observed.** *(Open — UNV-021. This is the criterion that closes Phase 6. Until it is met, Phase 6 is incomplete regardless of how much onboarding exists.)*

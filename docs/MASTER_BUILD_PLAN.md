@@ -53,10 +53,14 @@ The model still never owns game progression.
 
 ## Phase 4 — Voice + deployment (~83%)
 
-- `MediaRecorder` voice capture, driving a continuous turn-taking Talk conversation with local end-of-turn detection rather than push-to-talk per answer
+**(v2) Text-to-speech has since been removed** per `docs/MASTER_INTEGRATION_PLAN.md`
+§17; the bullets below describe this phase's original scope and are corrected
+to current, STT-only reality:
+
+- `MediaRecorder` voice capture, driving one listening turn per tap with local end-of-turn detection rather than push-to-talk per answer
 - `/api/transcribe`
-- browser speech synthesis
-- explicit voice state machine
+- ~~browser speech synthesis~~ — removed; Atlas replies in text only
+- explicit voice state machine (`idle` -> `requesting-permission` -> `listening` -> `transcribing` -> `idle`, with `error` reachable from any active stage)
 - local voice commands
 - PWA offline shell
 - access secret: the authoritative value is a Cloudflare **Worker secret**
@@ -98,7 +102,7 @@ onboarding is. Tracked as UNV-021.
 
 ## Cut line — not v1
 
-No native wrapper, account system, cloud sync database, multiplayer, paid TTS, custom domain requirement, 3D map, analytics, embeddings/vector DB, admin dashboard, full-duplex WebRTC voice, or runtime AI character art.
+No native wrapper, account system, cloud sync database, multiplayer, **any text-to-speech (paid or free — removed entirely per `docs/MASTER_INTEGRATION_PLAN.md` §17)**, custom domain requirement, 3D map, analytics, embeddings/vector DB, admin dashboard, full-duplex WebRTC voice, or runtime AI character art.
 
 ## Future-only
 

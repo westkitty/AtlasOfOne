@@ -4,14 +4,19 @@ Before substantive work, read in this order:
 
 1. `AGENTS.md`
 2. `OPERATIONAL_STATE.md`
-3. `docs/PRODUCT_SPEC.md`
-4. `docs/ARCHITECTURE.md`
-5. `docs/GAME_SYSTEM.md`
-6. `docs/MODEL_CONTRACT.md`
-7. `docs/ACCEPTANCE.md`
-8. `docs/MASTER_BUILD_PLAN.md`
+3. `docs/MASTER_INTEGRATION_PLAN.md`
+4. `docs/PRODUCT_SPEC.md`
+5. `docs/ARCHITECTURE.md`
+6. `docs/GAME_SYSTEM.md`
+7. `docs/MODEL_CONTRACT.md`
+8. `docs/ACCEPTANCE.md`
+9. `docs/MASTER_BUILD_PLAN.md`
 
-Those files outrank implementation assumptions.
+Those files outrank implementation assumptions. Where an older specialist doc
+(3-9) conflicts with `docs/MASTER_INTEGRATION_PLAN.md` on a controlling v2
+concept — journaling-first identity, the Adventure Director, deterministic
+combat/game authority, Atlas Snapshots, or TTS removal — the master
+integration plan controls until that doc is reconciled.
 
 ## Non-negotiable rules
 

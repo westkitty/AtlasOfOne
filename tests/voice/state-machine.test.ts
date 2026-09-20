@@ -18,14 +18,6 @@ describe('voice state machine', () => {
     current = transitionVoiceState(current, 'transcribing');
     expect(current).toBe('transcribing');
 
-    expect(canTransition(current, 'thinking')).toBe(true);
-    current = transitionVoiceState(current, 'thinking');
-    expect(current).toBe('thinking');
-
-    expect(canTransition(current, 'speaking')).toBe(true);
-    current = transitionVoiceState(current, 'speaking');
-    expect(current).toBe('speaking');
-
     expect(canTransition(current, 'idle')).toBe(true);
     current = transitionVoiceState(current, 'idle');
     expect(current).toBe('idle');
@@ -41,8 +33,6 @@ describe('voice state machine', () => {
       'requesting-permission',
       'listening',
       'transcribing',
-      'thinking',
-      'speaking',
       'error'
     ];
 
@@ -57,9 +47,7 @@ describe('voice state machine', () => {
       'idle',
       'requesting-permission',
       'listening',
-      'transcribing',
-      'thinking',
-      'speaking'
+      'transcribing'
     ];
 
     for (const state of states) {
@@ -69,13 +57,13 @@ describe('voice state machine', () => {
   });
 
   it('safely resets illegal transitions to idle', () => {
-    // Cannot jump from transcribing directly to speaking without thinking
-    expect(canTransition('transcribing', 'speaking')).toBe(false);
-    expect(transitionVoiceState('transcribing', 'speaking')).toBe('idle');
+    // Cannot jump from idle directly to transcribing without listening first
+    expect(canTransition('idle', 'transcribing')).toBe(false);
+    expect(transitionVoiceState('idle', 'transcribing')).toBe('idle');
 
-    // Cannot jump from requesting-permission directly to thinking
-    expect(canTransition('requesting-permission', 'thinking')).toBe(false);
-    expect(transitionVoiceState('requesting-permission', 'thinking')).toBe('idle');
+    // Cannot jump from requesting-permission directly to transcribing
+    expect(canTransition('requesting-permission', 'transcribing')).toBe(false);
+    expect(transitionVoiceState('requesting-permission', 'transcribing')).toBe('idle');
   });
 
   it('provides player-facing labels for every state without backend jargon', () => {
@@ -84,8 +72,6 @@ describe('voice state machine', () => {
       'requesting-permission',
       'listening',
       'transcribing',
-      'thinking',
-      'speaking',
       'error'
     ];
 

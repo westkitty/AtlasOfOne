@@ -52,7 +52,7 @@ describe('browser voice mode and access gate', () => {
     await talkBtn.click();
     await page.waitForSelector('[data-testid="voice-card"]');
     const typeBtn = page.locator('[data-testid="mode-type"]');
-    expect(await typeBtn.isVisible(), 'Type instead is offered while speaking').toBe(true);
+    expect(await typeBtn.isVisible(), 'Type instead is offered while in voice mode').toBe(true);
     expect((await typeBtn.boundingBox())?.height).toBeGreaterThanOrEqual(44);
 
     await typeBtn.click();
@@ -67,8 +67,8 @@ describe('browser voice mode and access gate', () => {
     // that Talk mode is reachable and legible on a machine that may have no
     // microphone at all — the state it settles into depends on the host, and
     // asserting a particular one here would be testing the runner. The
-    // conversational loop itself is proven against stubbed media primitives in
-    // `voice-conversation.test.ts`.
+    // listening/transcribing lifecycle itself is proven against stubbed media
+    // primitives in `voice-turn.test.ts`.
     const statusBadge = page.locator('[data-testid="voice-status"]');
     expect(await statusBadge.isVisible()).toBe(true);
     expect((await statusBadge.textContent())?.trim()).toBeTruthy();
