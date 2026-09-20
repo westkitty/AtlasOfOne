@@ -20,6 +20,9 @@ merge authority (master plan §2A.3).
 | F04 | SELF_VERIFIED | authority | 87d57f3c341b363e078668895b9b691b56258cd7 | integration/atlas-v2-journal-adventure-combat | (none) | this packet | unassigned | no | 2026-09-20 | (uncommitted at receipt time) | git branch --show-current; git rev-parse origin/main match | [F04](proof/F04.md) | none | F05 |
 | F05 | SELF_VERIFIED | authority | 87d57f3c341b363e078668895b9b691b56258cd7 | integration/atlas-v2-journal-adventure-combat | (none) | this packet | unassigned | no | 2026-09-20 | (uncommitted at receipt time) | tsc, npm test, npm run build, npm run test:browser, negative scan | [F05](proof/F05.md) | none | Journal/Adventure/Combat/Provider/Asset lanes (all BLOCKED — schema-v2 freeze, task 7, not yet performed) |
 | V00 | SELF_VERIFIED | verification | 87d57f3c341b363e078668895b9b691b56258cd7 | integration/atlas-v2-journal-adventure-combat | (none) | this packet | unassigned | no | 2026-09-20 | (uncommitted at receipt time) | grep inventory across src/tests/worker/docs, two background research agents | [V00](proof/V00.md) | none | F05 |
+| D05 | SELF_VERIFIED | domain contracts | d232a1898097be9d34f3014bbdc78578175798a9 | refactor/v2-domain-boundaries | (none — packet branch) | Codex | unassigned | no | 2026-09-20 | (pending local commit) | `npx tsc --noEmit`; focused contract tests; `npm test`; `npm run build` | [D05-D07](proof/D05-D07.md) | independent review required before merge | D06, D07; Wave-2 lanes per interface contract |
+| D06 | SELF_VERIFIED | authority | d232a1898097be9d34f3014bbdc78578175798a9 | refactor/v2-domain-boundaries | (none — packet branch) | Codex | unassigned | no | 2026-09-20 | (pending local commit) | current Cartographer firewall regression plus focused dispatch contract tests | [D05-D07](proof/D05-D07.md) | independent review required before merge | D07; integration-owned wiring later |
+| D07 | SELF_VERIFIED | lane ownership | d232a1898097be9d34f3014bbdc78578175798a9 | refactor/v2-domain-boundaries | (none — packet branch) | Codex | unassigned | no | 2026-09-20 | interface-contract review; `npm test`; `npm run build` | [D05-D07](proof/D05-D07.md) | independent review required before merge | Journal, Reflection/Knowledge, Adventure, Combat, Provider, Assets, QA, Persistence/Migration |
 
 ## Notes on this packet's ledger use
 
@@ -36,10 +39,8 @@ merge authority (master plan §2A.3).
   instructions direct committing coherent completed work locally without
   pushing or merging; see the top-level packet report for the actual commit(s)
   created, if any, after this ledger was written.
-- Per the master plan's Phase 0 task list, task 7 ("freeze schema-v2 shared
-  interfaces and branch ownership") was **not** performed — this packet's own
-  governing instructions restrict it to TTS removal and the minimal
-  behavior-preserving extraction that removal required. Every downstream lane
-  (Journal, Knowledge/Reflection, Adventure, Combat, Provider, Asset) is
-  therefore `BLOCKED` on that freeze, not `READY`, regardless of what the
-  master plan's own "Parallel work after gate" note might otherwise suggest.
+- D05–D07 now close the previously deferred Phase 0 task 7 for self-verification:
+  the public contracts, dispatch authority, and hot-zone rules are frozen in
+  `INTERFACE_CONTRACTS.md`. Detailed lane readiness, including the remaining
+  World/UI decomposition dependency, is authoritative there. These entries are
+  not merge authority; independent review remains required.
