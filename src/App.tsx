@@ -22,19 +22,12 @@ import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
 import { clearAccessSecret, getAccessHeaders, getAccessSecret, setAccessSecret } from './voice/access';
 import { isAudioCaptureSupported, startAudioCapture, type ActiveAudioCapture } from './voice/capture';
 import { parseVoiceCommand } from './voice/commands';
-import { transitionVoiceState, voiceStateLabel } from './voice/state';
+import { transitionVoiceState } from './voice/state';
 import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
 
 type Screen = 'world'|'vault'|'me';
 /** The character record shows the restored 96x96 portrait from the art pack. */
 const GREYSON_PORTRAIT = '/assets/atlas/v3/greyson/portrait-neutral.png';
-const GREYSON_PORTRAITS = {
-  neutral: '/assets/atlas/v3/greyson/portrait-neutral.png',
-  serious: '/assets/atlas/v3/greyson/portrait-serious.png',
-  warm: '/assets/atlas/v3/greyson/portrait-warm.png',
-  wry: '/assets/atlas/v3/greyson/portrait-wry.png'
-} as const;
-
 /** How many milestones share the screen at once, and for how long. */
 const MAX_BANNERS = 2;
 const BANNER_MS = 3200;
@@ -896,7 +889,7 @@ export default function App() {
     activeWaystone={activeWaystone}
     talking={talking}
     hasEncounter={Boolean(encounter)}
-    encounterLabel={encounter ? (encounter.kind === 'door' ? encounter.title ?? encounter.heading : encounter.heading) : ''}
+    encounterLabel={encounter ? (encounter.kind === 'door' ? encounter.title ?? '' : encounter.heading) : ''}
     menuOpen={menuOpen}
     screenIsWorld={screen === 'world'}
     isOffline={isOffline}
