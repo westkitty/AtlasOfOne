@@ -48,6 +48,61 @@ describe('RF09 Reflection PRIVATE structural propagation', () => {
     expect(retired.knowledgeGaps[0].status).toBe('open');
   });
 
+  it('propagates a private Journal transitively through gap -> seed -> run -> action -> observation -> reflection -> memory', () => {
+    const state = syntheticV2Campaign();
+    const observationReflection = {
+      ...state.reflections[0],
+      id: 'reflection_from_private_adventure',
+      sourceKind: 'adventure-observation' as const,
+      sourceIds: ['observation_v2']
+    };
+    const input = {
+      ...state,
+      reflections: [privateReflection('journal', ['journal_v2']), observationReflection],
+      knowledgeGaps: [{ ...state.knowledgeGaps[0], sourceEvidenceIds: [], sourceJournalEntryIds: ['journal_v2'] }],
+      adventureMemories: [
+        { ...state.adventureMemories[0], id: 'memory_run', sourceIds: ['run_v2'] },
+        { ...state.adventureMemories[0], id: 'memory_action', sourceIds: ['action_v2'] },
+        { ...state.adventureMemories[0], id: 'memory_observation', sourceIds: ['observation_v2'] },
+        { ...state.adventureMemories[0], id: 'memory_reflection', sourceIds: ['reflection_from_private_adventure'] }
+      ]
+    };
+
+    const retired = retireIneligibleV2State(input);
+    const eligible = providerEligibleV2State(input);
+
+    expect(input.adventureRuns[0].id).toBe('run_v2');
+    expect(input.adventureActions[0].id).toBe('action_v2');
+    expect(input.adventureObservations[0].id).toBe('observation_v2');
+    expect(retired.adventureSeeds[0].status).toBe('retired');
+    expect(eligible.adventureObservationIds).not.toContain('observation_v2');
+    expect(eligible.reflectionIds).not.toContain('reflection_from_private_adventure');
+    expect(retired.adventureMemories.map((memory) => memory.status)).toEqual(['retired', 'retired', 'retired', 'retired']);
+  });
+
+  it('fails closed on broken observation provenance and provenance-free memories while preserving a valid unmasked chain', () => {
+    const state = syntheticV2Campaign();
+    const valid = retireIneligibleV2State(state);
+    const validEligible = providerEligibleV2State(state);
+    expect(validEligible.adventureObservationIds).toContain('observation_v2');
+    expect(valid.adventureMemories[0].status).toBe('active');
+
+    const malformed = {
+      ...state,
+      adventureObservations: [{ ...state.adventureObservations[0], sourceActionIds: ['missing_action'] }],
+      reflections: [{ ...state.reflections[0], id: 'reflection_bad_observation', sourceKind: 'adventure-observation' as const, sourceIds: ['observation_v2'] }],
+      adventureMemories: [
+        { ...state.adventureMemories[0], id: 'memory_bad_observation', sourceIds: ['reflection_bad_observation'] },
+        { ...state.adventureMemories[0], id: 'memory_no_provenance', sourceIds: [] }
+      ]
+    };
+    const retired = retireIneligibleV2State(malformed);
+    const eligible = providerEligibleV2State(malformed);
+    expect(eligible.adventureObservationIds).not.toContain('observation_v2');
+    expect(eligible.reflectionIds).not.toContain('reflection_bad_observation');
+    expect(retired.adventureMemories.map((memory) => memory.status)).toEqual(['retired', 'retired']);
+  });
+
   it('withholds a private AdventureObservation and retires its reflection-backed memory without changing raw observation history', () => {
     const state = syntheticV2Campaign();
     const input = {

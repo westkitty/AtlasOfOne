@@ -76,6 +76,17 @@ export function retireIneligibleV2State(state: CampaignState): CampaignState {
   const adventureSeeds = state.adventureSeeds.map((seed) =>
     seed.status === 'retired' || !hasAnyEligibleSupport(seed.sourceGapIds, eligibleGapIds) ? { ...seed, status: 'retired' as const } : seed
   );
+  const eligibleSeedIds = new Set(adventureSeeds.filter((seed) => seed.status !== 'retired').map((seed) => seed.id));
+  const eligibleRunIds = new Set(
+    state.adventureRuns
+      .filter((run) => eligibleSeedIds.has(run.seedId))
+      .map((run) => run.id)
+  );
+  const eligibleActionIds = new Set(
+    state.adventureActions
+      .filter((action) => eligibleRunIds.has(action.runId))
+      .map((action) => action.id)
+  );
 
   const eligibleSnapshotSources = new Set([...eligibleEvidenceIds, ...eligibleInsightIds, ...eligibleContradictionIds]);
   const atlasSnapshots = state.atlasSnapshots.map((snapshot) => {
@@ -90,7 +101,9 @@ export function retireIneligibleV2State(state: CampaignState): CampaignState {
 
   const adventureObservationIds = new Set(
     state.adventureObservations
-      .filter((observation) => !privacyMask.adventureObservationIds.has(observation.id))
+      .filter((observation) => eligibleRunIds.has(observation.runId)
+        && hasAllEligibleSupport(observation.sourceActionIds, eligibleActionIds)
+        && !privacyMask.adventureObservationIds.has(observation.id))
       .map((observation) => observation.id)
   );
   const reflectionSourceIsEligible = (sourceKind: CampaignState['reflections'][number]['sourceKind'], sourceIds: string[]) => {
@@ -111,13 +124,14 @@ export function retireIneligibleV2State(state: CampaignState): CampaignState {
 
   const eligibleMemorySources = new Set([
     ...eligibleJournalIds, ...eligibleEvidenceIds, ...eligibleInsightIds, ...eligibleContradictionIds,
-    ...state.adventureRuns.map((run) => run.id), ...state.adventureActions.map((action) => action.id), ...adventureObservationIds,
+    ...eligibleGapIds, ...eligibleSeedIds, ...eligibleRunIds, ...eligibleActionIds, ...adventureObservationIds,
     ...eligibleSnapshotIds,
     ...eligibleReflectionIds
   ]);
   const adventureMemories = state.adventureMemories.map((memory) =>
     memory.status === 'retired' || memory.privacy === 'private'
-      || (memory.sourceIds.length > 0 && !memory.sourceIds.every((id) => eligibleMemorySources.has(id)))
+      || memory.sourceIds.length === 0
+      || !memory.sourceIds.every((id) => eligibleMemorySources.has(id))
       ? { ...memory, status: 'retired' as const }
       : memory
   );
@@ -134,9 +148,27 @@ export function providerEligibleV2State(state: CampaignState): ProviderEligibleV
       .filter((entry) => entry.status === 'active' && entry.privacy === 'normal' && !privacyMask.journalIds.has(entry.id))
       .map((entry) => entry.id)
   );
+  const eligibleGapIds = new Set(retired.knowledgeGaps.filter((gap) => gap.status !== 'retired').map((gap) => gap.id));
+  const eligibleSeedIds = new Set(
+    retired.adventureSeeds
+      .filter((seed) => seed.status !== 'retired' && hasAnyEligibleSupport(seed.sourceGapIds, eligibleGapIds))
+      .map((seed) => seed.id)
+  );
+  const eligibleRunIds = new Set(
+    retired.adventureRuns
+      .filter((run) => eligibleSeedIds.has(run.seedId))
+      .map((run) => run.id)
+  );
+  const eligibleActionIds = new Set(
+    retired.adventureActions
+      .filter((action) => eligibleRunIds.has(action.runId))
+      .map((action) => action.id)
+  );
   const adventureObservationIds = new Set(
     retired.adventureObservations
-      .filter((observation) => !privacyMask.adventureObservationIds.has(observation.id))
+      .filter((observation) => eligibleRunIds.has(observation.runId)
+        && hasAllEligibleSupport(observation.sourceActionIds, eligibleActionIds)
+        && !privacyMask.adventureObservationIds.has(observation.id))
       .map((observation) => observation.id)
   );
   const eligibleEvidenceIds = eligibleEvidenceIdsFor(retired);
