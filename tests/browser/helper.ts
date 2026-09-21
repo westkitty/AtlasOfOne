@@ -168,6 +168,12 @@ export async function navigateTo(page: Page, screen: string, timeout = READINESS
     const resume = page.locator('[data-testid="resume-encounter"]');
     await (await resume.isVisible().catch(() => false) ? resume : page.locator('[data-testid="enter-encounter"]')).click();
     await page.waitForSelector('[data-testid="convo"], [data-testid^="encounter-"]', { state: 'visible', timeout });
+    // Legacy browser paths deliberately exercise prompt mapping. Product entry
+    // itself remains Journal-first; focused Journal tests open it directly.
+    if (await page.locator('[data-testid="request-prompt"]').isVisible().catch(() => false)) {
+      await page.click('[data-testid="request-prompt"]');
+      await page.waitForSelector('[data-testid="prompt-question"]', { state: 'visible', timeout });
+    }
     return;
   }
 

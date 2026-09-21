@@ -116,7 +116,7 @@ describe('Atlas browser journey', () => {
 
   it('3. navigates Map to Talk to Vault to Me and back to Map', async () => {
     await goto('Talk');
-    await expect.poll(() => page.textContent('.convo-speaker')).toContain('The Cartographer');
+    await expect.poll(() => page.textContent('.convo-speaker')).toContain('Journal');
     await goto('Vault');
     await expect.poll(() => page.textContent('[data-testid="sheet"] h1')).toBe('Vault');
     await goto('Me');

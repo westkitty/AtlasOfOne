@@ -6,7 +6,7 @@ import { completeOnboardingIfPresent, openAgency, navigateTo } from './helper';
 import { serveDist } from './server';
 
 /**
- * Talk mode is one listening turn per tap, not a hands-free spoken
+ * Dictation is one listening turn per tap, not a hands-free spoken
  * conversation. Text-to-speech has been removed: Atlas never speaks, there is
  * no "speaking" state, and the microphone never reopens on its own after a
  * reply. The central regression this suite guards against is the opposite of
@@ -249,7 +249,7 @@ describe('Talk mode is one listening turn per tap', () => {
     }
   }, 120_000);
 
-  it('3. a turn ends on sustained silence, not before speech and not on a short pause', async () => {
+  it('3. dictation ends on sustained silence, not before speech and not on a short pause', async () => {
     const session = await newVoiceSession();
     try {
       const { page } = session;
@@ -273,16 +273,16 @@ describe('Talk mode is one listening turn per tap', () => {
       // Sustained silence ends it, exactly once.
       await session.setAmplitude(0.002);
       await waitForCount(session.transcribeCount, 1, page);
-      await waitForCount(session.turnCount, 1, page);
       await page.waitForTimeout(600);
       expect(session.transcribeCount(), 'one transcription').toBe(1);
-      expect(session.turnCount(), 'one Cartographer turn').toBe(1);
+      expect(session.turnCount(), 'transcription never starts a Cartographer turn').toBe(0);
+      expect(await page.inputValue('[data-testid="answer-input"]')).toContain('I slow down and ask what an option costs.');
     } finally {
       await session.close();
     }
   }, 120_000);
 
-  it('4. THE CENTRAL INVARIANT: the microphone never reopens on its own after a reply', async () => {
+  it('4. THE CENTRAL INVARIANT: transcription becomes an editable Journal draft and never reopens the microphone', async () => {
     const session = await newVoiceSession();
     try {
       const { page } = session;
@@ -290,21 +290,23 @@ describe('Talk mode is one listening turn per tap', () => {
 
       await speakThenFallSilent(session);
       await waitForCount(session.transcribeCount, 1, page);
-      await waitForCount(session.turnCount, 1, page);
 
-      // The reply has arrived, but nothing reopens the microphone by itself.
+      // The editable draft has arrived, but nothing reopens the microphone by itself.
       await page.waitForTimeout(2000);
-      expect(await voiceState(page), 'idle after a reply, not listening').toContain('idle');
+      expect(await page.isVisible('[data-testid="answer-input"]'), 'transcript returns to an editable textarea').toBe(true);
       expect(await page.locator('[data-testid="mic-visualizer"]').count(), 'no live meter without a tap').toBe(0);
       expect(session.transcribeCount(), 'still exactly one transcription').toBe(1);
-      expect(session.turnCount(), 'still exactly one Cartographer turn').toBe(1);
+      expect(session.turnCount(), 'still no Cartographer turn').toBe(0);
+      await page.fill('[data-testid="answer-input"]', 'Edited synthetic dictated entry.');
+      await page.click('[data-testid="save-journal"]');
 
       // A second turn requires a new, explicit tap.
-      await page.click('[data-testid="mic-button"]');
+      await page.click('[data-testid="mode-talk"]');
       await waitForState(page, 'listening');
       await speakThenFallSilent(session);
       await waitForCount(session.transcribeCount, 2, page);
-      await waitForCount(session.turnCount, 2, page);
+      await page.waitForSelector('[data-testid="answer-input"]');
+      await page.click('[data-testid="save-journal"]');
 
       const persisted = await page.evaluate(
         () => new Promise<string>((resolve) => {
@@ -316,17 +318,18 @@ describe('Talk mode is one listening turn per tap', () => {
         })
       );
       const state = JSON.parse(persisted);
-      expect(state.turns.length, 'two committed answers').toBe(2);
-      expect(state.evidence.length, 'evidence recorded once per answer').toBe(2);
-      // Deterministic engine XP, awarded once per accepted answer and no more.
-      expect(state.xp, 'progression advanced').toBeGreaterThan(0);
-      expect(state.turns.filter((t: any) => t.retracted).length).toBe(0);
+      expect(state.turns.length, 'dictation did not create legacy answers').toBe(0);
+      expect(state.evidence.length, 'dictation did not create evidence').toBe(0);
+      expect(state.xp, 'Journal save awards no progression').toBe(0);
+      expect(state.journalEntries).toHaveLength(2);
+      expect(state.journalEntries.map((entry: any) => entry.inputMode)).toEqual(['speech-to-text', 'speech-to-text']);
+      expect(state.journalEntries[0].text).toBe('Edited synthetic dictated entry.');
     } finally {
       await session.close();
     }
   }, 180_000);
 
-  it('5. manual Done works, and completing a turn still does not reopen the microphone', async () => {
+  it('5. manual Done creates an editable draft and does not reopen the microphone', async () => {
     const session = await newVoiceSession();
     try {
       const { page } = session;
@@ -337,9 +340,9 @@ describe('Talk mode is one listening turn per tap', () => {
       await waitForVisited(page, 'transcribing');
       await waitForCount(session.transcribeCount, 1, page);
       expect(session.transcribeCount()).toBe(1);
-      await waitForCount(session.turnCount, 1, page);
       await page.waitForTimeout(1000);
-      expect(await voiceState(page), 'back to idle, not re-listening').toContain('idle');
+      expect(session.turnCount(), 'manual dictation does not submit a turn').toBe(0);
+      expect(await page.isVisible('[data-testid="answer-input"]'), 'draft is editable').toBe(true);
     } finally {
       await session.close();
     }
@@ -442,7 +445,7 @@ describe('Talk mode is one listening turn per tap', () => {
     }
   }, 120_000);
 
-  it('11. a turn still completes when audio analysis is unavailable, via manual Done', async () => {
+  it('11. a draft still completes when audio analysis is unavailable, via manual Done', async () => {
     const session = await newVoiceSession({ analyser: false });
     try {
       const { page } = session;
@@ -452,14 +455,14 @@ describe('Talk mode is one listening turn per tap', () => {
       expect(await meter.getAttribute('data-metering'), 'and it does not claim to measure').toBe('unavailable');
 
       // Without analysis there is no automatic end-of-turn, so manual Done is
-      // the fallback — and it still completes a whole turn, then goes idle.
+      // the fallback — and it still returns an editable draft.
       await page.click('[data-testid="voice-submit-done"]');
       await waitForVisited(page, 'transcribing');
       await waitForCount(session.transcribeCount, 1, page);
       expect(session.transcribeCount()).toBe(1);
-      await waitForCount(session.turnCount, 1, page);
       await page.waitForTimeout(1000);
-      expect(await voiceState(page)).toContain('idle');
+      expect(session.turnCount()).toBe(0);
+      expect(await page.isVisible('[data-testid="answer-input"]')).toBe(true);
     } finally {
       await session.close();
     }

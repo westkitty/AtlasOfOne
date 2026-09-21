@@ -14,6 +14,7 @@ import { sanctuaryFor } from './world/sanctuaries';
 import { playMenuSound, playStinger } from './world/audio';
 import { EncounterPanel } from './combat/EncounterPanel';
 import { JournalPanel } from './journal/JournalPanel';
+import { retractJournalEntry, saveJournalEntry, setJournalEntryPrivacy } from './journal/state';
 import { AppSheet, MilestoneBanners, ProgressPresentation } from './presentation/AppPresentation';
 import { WorldwalkerPanel } from './world/WorldwalkerPanel';
 import type { InteractableTarget } from './world/playerController';
@@ -24,6 +25,7 @@ import { isAudioCaptureSupported, startAudioCapture, type ActiveAudioCapture } f
 import { parseVoiceCommand } from './voice/commands';
 import { transitionVoiceState } from './voice/state';
 import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
+import type { JournalInputMode } from './contracts/journal';
 
 type Screen = 'world'|'vault'|'me';
 /** The character record shows the restored 96x96 portrait from the art pack. */
@@ -89,6 +91,9 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('world');
   const [reply, setReply] = useState('');
   const [answer, setAnswer] = useState('');
+  const [draftInputMode, setDraftInputMode] = useState<JournalInputMode>('typed');
+  const [draftPrivate, setDraftPrivate] = useState(false);
+  const [promptRequested, setPromptRequested] = useState(false);
   const [message, setMessage] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   /**
@@ -619,8 +624,10 @@ export default function App() {
         return;
       }
       setAnswer(text);
+      setDraftInputMode('speech-to-text');
+      setVoiceMode('type');
+      endConversation();
       setVoiceState('idle');
-      submitText(text);
     } catch {
       setVoiceState('error');
       setMessage('Audio processing failed. You can type below.');
@@ -908,7 +915,7 @@ export default function App() {
       if (!target || target.type === 'landmark') {
         const regionId = target?.id ?? state.activeTerritory;
         dispatch(...(regionId !== state.activeTerritory ? [{ type: 'ACTIVE_TERRITORY_SET', territoryId: regionId } as GameEvent] : []), { type: 'LANDMARK_DISCOVERED', landmarkId: regionId, territoryId: regionId });
-        playStinger('dialogue', quiet); setTalking(true); setReply('');
+        playStinger('dialogue', quiet); openJournal();
       } else if (target.type === 'door') {
         playStinger('door', quiet); dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'door', id: target.id, territoryId: state.activeTerritory }, { type: 'DOOR_OPENED', doorId: target.id }); setReply(''); setTalking(true);
       } else if (target.type === 'boss') {
@@ -919,7 +926,7 @@ export default function App() {
     }}
     onInteriorChange={setActiveInterior}
     onOpenMenu={() => { playMenuSound('open'); setMenuOpen(true); }}
-    onEnter={() => { setTalking(true); setReply(''); }}
+    onEnter={openJournal}
     onResumeEncounter={() => setTalking(true)}
     onDismissWaystone={() => setActiveWaystone(null)}
   />;
@@ -963,10 +970,10 @@ export default function App() {
    */
   const renderActionBar = (onPass: () => void, privateDimension: string) => {
     const moves: { id: string; label: string; hint: string; run: () => void }[] = [];
-    if (canGoDeeper && !promptOverride && activeTerritory.coveredDimensions.length > 0) {
+    if (promptRequested && canGoDeeper && !promptOverride && activeTerritory.coveredDimensions.length > 0) {
       moves.push({ id: 'go-deeper', label: 'Go deeper', hint: 'Pursue this thread further', run: invokeGoDeeper });
     }
-    if (canReroll && !answer.trim() && rerollCount < 3) {
+    if (promptRequested && canReroll && !answer.trim() && rerollCount < 3) {
       moves.push({ id: 'reroll', label: 'Reroll', hint: 'Ask this a different way', run: invokeReroll });
     }
     return <>
@@ -987,6 +994,29 @@ export default function App() {
    * The island stays on screen above this panel, so an answer visibly changes
    * somewhere the player can still see rather than a page they left behind.
    */
+  const openJournal = () => {
+    setAnswer('');
+    setDraftInputMode('typed');
+    setDraftPrivate(false);
+    setPromptRequested(false);
+    setReply('');
+    setTalking(true);
+  };
+
+  const saveJournal = () => {
+    if (!answer.trim() || state.sessionStatus === 'paused') return;
+    setState((current) => saveJournalEntry(current, {
+      text: answer,
+      inputMode: draftInputMode,
+      privacy: draftPrivate ? 'private' : 'normal',
+      sourcePrompt: promptRequested ? prompt.question : undefined
+    }));
+    setAnswer('');
+    setDraftInputMode('typed');
+    setDraftPrivate(false);
+    setReply('Saved locally.');
+  };
+
   const renderConversation = () => <JournalPanel
     activeTerritory={activeTerritory}
     prompt={prompt}
@@ -1003,9 +1033,17 @@ export default function App() {
     micLevel={micLevel}
     micMeterLive={micMeterLive}
     onAnswerChange={setAnswer}
-    onClose={() => { if (voiceMode === 'talk') cancelVoice(); setTalking(false); setMoreOpen(false); }}
+    draftPrivate={draftPrivate}
+    promptRequested={promptRequested}
+    journalEntries={state.journalEntries}
+    onDraftPrivateChange={setDraftPrivate}
+    onRequestPrompt={() => setPromptRequested(true)}
+    onSaveJournal={saveJournal}
+    onRetractJournal={(entryId) => setState((current) => retractJournalEntry(current, entryId))}
+    onSetJournalPrivacy={(entryId, privacy) => setState((current) => setJournalEntryPrivacy(current, entryId, privacy))}
+    onClose={() => { if (voiceMode === 'talk') cancelVoice(); setTalking(false); setMoreOpen(false); setPromptRequested(false); }}
     onModeChange={toggleVoiceMode}
-    onSubmit={submit}
+    onSubmit={() => { if (promptRequested && !draftPrivate) submit(); }}
     onStartRecording={() => void startRecording()}
     onStopRecording={() => void stopRecordingAndProcess()}
     onCancelVoice={cancelVoice}
@@ -1372,7 +1410,7 @@ export default function App() {
           <span className="eyebrow">STEP 2 OF 3</span>
           <h2>Interaction Mode</h2>
           <p className="onboarding-desc">
-            Choose how you would like to explore. You can switch freely between voice and typing anytime on the Talk screen.
+            Choose how you would like to explore. You can switch freely between dictation and typing anytime in Journal.
           </p>
           <div className="onboarding-choices">
             <button
@@ -1382,8 +1420,8 @@ export default function App() {
               aria-pressed={onboardingMode === 'talk'}
               onClick={() => setOnboardingMode('talk')}
             >
-              <strong>Talk</strong>
-              <span>Speak your answer; Atlas replies in text.</span>
+              <strong>Dictate</strong>
+              <span>Speak into an editable Journal draft.</span>
             </button>
             <button
               type="button"
