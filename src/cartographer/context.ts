@@ -1,4 +1,5 @@
 import type { CampaignState, EvidenceBasis, EvidenceRecord, PresentationMode, SassLevel } from '../game/types';
+import { reflectionPrivacyMask } from '../reflection/privacy';
 
 /**
  * The deterministic context compiler.
@@ -201,6 +202,7 @@ export function compileContext(
   // Everything downstream reads from these two filtered pools. Private and
   // retracted material is removed here, once, before any selection happens.
   const visibility = createEvidenceVisibility(state);
+  const privacyMask = reflectionPrivacyMask(state);
   const visibleEvidence = visibility.visibleEvidence;
   const visibleTurns = state.turns.filter((item) => !item.retracted && !isPrivate(state, item.dimension));
 
@@ -226,17 +228,17 @@ export function compileContext(
   const insightIsVisible = visibility.derivedIsVisible;
 
   const confirmedInsights = state.insights
-    .filter((item) => item.status === 'confirmed' && insightIsVisible(item.evidenceIds))
+    .filter((item) => !privacyMask.insightIds.has(item.id) && item.status === 'confirmed' && insightIsVisible(item.evidenceIds))
     .slice(-CONTEXT_BUDGET.confirmedInsights)
     .map((item) => clip(item.summary, CONTEXT_BUDGET.claimChars));
 
   const rejectedInsights = state.insights
-    .filter((item) => item.status === 'rejected' && insightIsVisible(item.evidenceIds))
+    .filter((item) => !privacyMask.insightIds.has(item.id) && item.status === 'rejected' && insightIsVisible(item.evidenceIds))
     .slice(-CONTEXT_BUDGET.rejectedInsights)
     .map((item) => clip(item.title, CONTEXT_BUDGET.claimChars));
 
   const contradictions = state.contradictions
-    .filter((item) => item.status === 'open' && insightIsVisible(item.evidenceIds))
+    .filter((item) => !privacyMask.contradictionIds.has(item.id) && item.status === 'open' && insightIsVisible(item.evidenceIds))
     .slice(-CONTEXT_BUDGET.contradictions)
     .map((item) => ({ claim: clip(item.claim, CONTEXT_BUDGET.claimChars), status: item.status }));
 

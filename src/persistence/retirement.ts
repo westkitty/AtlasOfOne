@@ -1,4 +1,5 @@
 import type { CampaignState, PersistedAtlasSnapshot } from '../game/types';
+import { reflectionPrivacyMask } from '../reflection/privacy';
 
 /**
  * Structural v2 privacy/retraction retirement. This module deliberately works
@@ -27,15 +28,15 @@ function eligibleEvidenceIdsFor(state: CampaignState): Set<string> {
   );
 }
 
-function eligibleDerivedEvidenceIdsFor(state: CampaignState, evidenceIds: Set<string>) {
+function eligibleDerivedEvidenceIdsFor(state: CampaignState, evidenceIds: Set<string>, maskedInsightIds: Set<string>, maskedContradictionIds: Set<string>) {
   const insightIds = new Set(
     state.insights
-      .filter((insight) => insight.status !== 'rejected' && hasAllEligibleSupport(insight.evidenceIds, evidenceIds))
+      .filter((insight) => !maskedInsightIds.has(insight.id) && insight.status !== 'rejected' && hasAllEligibleSupport(insight.evidenceIds, evidenceIds))
       .map((insight) => insight.id)
   );
   const contradictionIds = new Set(
     state.contradictions
-      .filter((contradiction) => hasAllEligibleSupport(contradiction.evidenceIds, evidenceIds))
+      .filter((contradiction) => !maskedContradictionIds.has(contradiction.id) && hasAllEligibleSupport(contradiction.evidenceIds, evidenceIds))
       .map((contradiction) => contradiction.id)
   );
   return { insightIds, contradictionIds };
@@ -46,18 +47,24 @@ export interface ProviderEligibleV2State {
   adventureSeeds: CampaignState['adventureSeeds'];
   adventureMemories: CampaignState['adventureMemories'];
   atlasSnapshots: PersistedAtlasSnapshot[];
+  journalEntryIds: string[];
+  adventureObservationIds: string[];
+  reflectionIds: string[];
   insightIds: string[];
   contradictionIds: string[];
 }
 
 export function retireIneligibleV2State(state: CampaignState): CampaignState {
+  const privacyMask = reflectionPrivacyMask(state);
   const eligibleJournalIds = new Set(
     state.journalEntries
-      .filter((entry) => entry.status === 'active' && entry.privacy === 'normal')
+      .filter((entry) => entry.status === 'active' && entry.privacy === 'normal' && !privacyMask.journalIds.has(entry.id))
       .map((entry) => entry.id)
   );
   const eligibleEvidenceIds = eligibleEvidenceIdsFor(state);
-  const { insightIds: eligibleInsightIds, contradictionIds: eligibleContradictionIds } = eligibleDerivedEvidenceIdsFor(state, eligibleEvidenceIds);
+  const { insightIds: eligibleInsightIds, contradictionIds: eligibleContradictionIds } = eligibleDerivedEvidenceIdsFor(
+    state, eligibleEvidenceIds, privacyMask.insightIds, privacyMask.contradictionIds
+  );
 
   const knowledgeGaps = state.knowledgeGaps.map((gap) => {
     const sources = [...gap.sourceEvidenceIds, ...gap.sourceJournalEntryIds];
@@ -73,6 +80,7 @@ export function retireIneligibleV2State(state: CampaignState): CampaignState {
   const eligibleSnapshotSources = new Set([...eligibleEvidenceIds, ...eligibleInsightIds, ...eligibleContradictionIds]);
   const atlasSnapshots = state.atlasSnapshots.map((snapshot) => {
     if (snapshot.provenance.kind === 'legacy-final-assessment') return { ...snapshot, eligibility: 'historical-ineligible' as const };
+    if (privacyMask.snapshotIds.has(snapshot.id)) return { ...snapshot, eligibility: 'retired' as const };
     const sources = [...snapshot.evidenceIds, ...snapshot.insightIds, ...snapshot.contradictionIds];
     return hasAllEligibleSupport(sources, eligibleSnapshotSources)
       ? snapshot
@@ -80,7 +88,11 @@ export function retireIneligibleV2State(state: CampaignState): CampaignState {
   });
   const eligibleSnapshotIds = new Set(atlasSnapshots.filter((snapshot) => snapshot.eligibility === 'eligible').map((snapshot) => snapshot.id));
 
-  const adventureObservationIds = new Set(state.adventureObservations.map((observation) => observation.id));
+  const adventureObservationIds = new Set(
+    state.adventureObservations
+      .filter((observation) => !privacyMask.adventureObservationIds.has(observation.id))
+      .map((observation) => observation.id)
+  );
   const reflectionSourceIsEligible = (sourceKind: CampaignState['reflections'][number]['sourceKind'], sourceIds: string[]) => {
     if (sourceIds.length === 0) return false;
     switch (sourceKind) {
@@ -100,6 +112,7 @@ export function retireIneligibleV2State(state: CampaignState): CampaignState {
   const eligibleMemorySources = new Set([
     ...eligibleJournalIds, ...eligibleEvidenceIds, ...eligibleInsightIds, ...eligibleContradictionIds,
     ...state.adventureRuns.map((run) => run.id), ...state.adventureActions.map((action) => action.id), ...adventureObservationIds,
+    ...eligibleSnapshotIds,
     ...eligibleReflectionIds
   ]);
   const adventureMemories = state.adventureMemories.map((memory) =>
@@ -115,13 +128,45 @@ export function retireIneligibleV2State(state: CampaignState): CampaignState {
 /** The future provider lane consumes this filtered view, never raw v2 derived state. */
 export function providerEligibleV2State(state: CampaignState): ProviderEligibleV2State {
   const retired = retireIneligibleV2State(state);
+  const privacyMask = reflectionPrivacyMask(retired);
+  const journalEntryIds = new Set(
+    retired.journalEntries
+      .filter((entry) => entry.status === 'active' && entry.privacy === 'normal' && !privacyMask.journalIds.has(entry.id))
+      .map((entry) => entry.id)
+  );
+  const adventureObservationIds = new Set(
+    retired.adventureObservations
+      .filter((observation) => !privacyMask.adventureObservationIds.has(observation.id))
+      .map((observation) => observation.id)
+  );
   const eligibleEvidenceIds = eligibleEvidenceIdsFor(retired);
-  const { insightIds, contradictionIds } = eligibleDerivedEvidenceIdsFor(retired, eligibleEvidenceIds);
+  const { insightIds, contradictionIds } = eligibleDerivedEvidenceIdsFor(
+    retired, eligibleEvidenceIds, privacyMask.insightIds, privacyMask.contradictionIds
+  );
+  const eligibleSnapshotIds = new Set(retired.atlasSnapshots.filter((snapshot) => snapshot.eligibility === 'eligible').map((snapshot) => snapshot.id));
+  const reflectionIds = new Set(
+    retired.reflections
+      .filter((reflection) => {
+        if (reflection.outcome === 'PRIVATE' || reflection.sourceIds.length === 0) return false;
+        const sources = reflection.sourceIds;
+        switch (reflection.sourceKind) {
+          case 'journal': return sources.every((id) => journalEntryIds.has(id));
+          case 'adventure-observation': return sources.every((id) => adventureObservationIds.has(id));
+          case 'insight': return sources.every((id) => insightIds.has(id));
+          case 'contradiction': return sources.every((id) => contradictionIds.has(id));
+          case 'snapshot': return sources.every((id) => eligibleSnapshotIds.has(id));
+        }
+      })
+      .map((reflection) => reflection.id)
+  );
   return {
     knowledgeGaps: retired.knowledgeGaps.filter((gap) => gap.status !== 'retired'),
     adventureSeeds: retired.adventureSeeds.filter((seed) => seed.status !== 'retired'),
     adventureMemories: retired.adventureMemories.filter((memory) => memory.status === 'active' && memory.privacy === 'normal'),
     atlasSnapshots: retired.atlasSnapshots.filter((snapshot) => snapshot.eligibility === 'eligible'),
+    journalEntryIds: [...journalEntryIds],
+    adventureObservationIds: [...adventureObservationIds],
+    reflectionIds: [...reflectionIds],
     insightIds: [...insightIds],
     contradictionIds: [...contradictionIds]
   };

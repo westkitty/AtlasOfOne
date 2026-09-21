@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { CampaignState, EvidenceRecord, InsightRecord } from '../game/types';
 import { createEvidenceVisibility, type EvidenceVisibility } from './context';
+import { reflectionPrivacyMask, type ReflectionPrivacyMask } from '../reflection/privacy';
 import { findAuthorityFields, PROGRESSION_CLAIMS } from './validate';
 
 export const assessmentDomainSectionSchema = z.object({
@@ -86,6 +87,7 @@ export type FinalizeContext = z.infer<typeof finalizeContextSchema>;
 export function compileFinalizeContext(state: CampaignState): FinalizeContext {
   // Same boundary the per-turn context uses, so the two payloads cannot drift.
   const visibility = createEvidenceVisibility(state);
+  const privacyMask = reflectionPrivacyMask(state);
   const isPrivate = visibility.isPrivateDimension;
 
   const territorySummaries = state.territories.map((t) => ({
@@ -106,7 +108,7 @@ export function compileFinalizeContext(state: CampaignState): FinalizeContext {
   // An Insight is a reading of evidence, so it is exactly as private as the
   // evidence beneath it. Status alone says nothing about privacy.
   const activeInsights = state.insights
-    .filter((i) => i.status !== 'rejected' && visibility.derivedIsVisible(i.evidenceIds))
+    .filter((i) => !privacyMask.insightIds.has(i.id) && i.status !== 'rejected' && visibility.derivedIsVisible(i.evidenceIds))
     .map((i) => ({
       title: i.title,
       summary: i.summary,
@@ -117,7 +119,7 @@ export function compileFinalizeContext(state: CampaignState): FinalizeContext {
   // Provenance, not prose. A contradiction can be entirely about a private
   // dimension without ever naming it, so its wording is not the boundary.
   const contradictions = state.contradictions
-    .filter((c) => visibility.derivedIsVisible(c.evidenceIds))
+    .filter((c) => !privacyMask.contradictionIds.has(c.id) && visibility.derivedIsVisible(c.evidenceIds))
     .map((c) => ({ claim: c.claim, status: c.status }));
 
   const revisions = state.turns
@@ -179,11 +181,12 @@ function claimsForDomain(visibleEvidence: EvidenceRecord[], domainKey: string): 
 function inferencesForDomain(
   insights: InsightRecord[],
   visibility: EvidenceVisibility,
+  privacyMask: ReflectionPrivacyMask,
   evidenceById: Map<string, EvidenceRecord>,
   domainKey: string
 ): Array<{ hypothesis: string; confidence: 'low' | 'moderate' | 'strong' }> {
   return insights
-    .filter((i) => i.status !== 'rejected' && visibility.derivedIsVisible(i.evidenceIds))
+    .filter((i) => !privacyMask.insightIds.has(i.id) && i.status !== 'rejected' && visibility.derivedIsVisible(i.evidenceIds))
     .filter((i) => i.evidenceIds.some((id) => {
       const record = evidenceById.get(id);
       return Boolean(record) && dimensionMatchesDomain(record!.dimension, domainKey);
@@ -207,13 +210,14 @@ function inferencesForDomain(
  */
 export function generateLocalAssessment(state: CampaignState): FinalAssessment {
   const visibility = createEvidenceVisibility(state);
+  const privacyMask = reflectionPrivacyMask(state);
   const visibleEvidence = visibility.visibleEvidence;
   const evidenceById = new Map(state.evidence.map((item) => [item.id, item]));
   const visibleClaimById = new Map(visibleEvidence.map((item) => [item.id, item.claim]));
 
   const buildSection = (key: string, title: string, openQ: string): AssessmentDomainSection => {
     const claims = claimsForDomain(visibleEvidence, key);
-    const inferences = inferencesForDomain(state.insights, visibility, evidenceById, key);
+    const inferences = inferencesForDomain(state.insights, visibility, privacyMask, evidenceById, key);
     return {
       title,
       summary: claims.length > 0
@@ -278,7 +282,7 @@ export function generateLocalAssessment(state: CampaignState): FinalAssessment {
   // Only contradictions the campaign actually recorded, each carrying its OWN
   // evidence rather than whichever two claims happened to be first. No default.
   const contradictionsAndTensions: ContradictionEntry[] = state.contradictions
-    .filter((c) => visibility.derivedIsVisible(c.evidenceIds))
+    .filter((c) => !privacyMask.contradictionIds.has(c.id) && visibility.derivedIsVisible(c.evidenceIds))
     .map((c) => ({
       tension: c.claim,
       evidence: c.evidenceIds.map((id) => visibleClaimById.get(id)).filter((claim): claim is string => Boolean(claim)),
