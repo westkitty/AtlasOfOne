@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JournalEntry, KnowledgeGap } from '../../src/contracts';
+import type { AdventureRun, AdventureSeed, JournalEntry, KnowledgeGap } from '../../src/contracts';
 import { createInitialCampaign } from '../../src/game/engine';
 import type { CampaignState, EvidenceRecord, TurnRecord } from '../../src/game/types';
 import {
@@ -10,6 +10,7 @@ import {
   markJournalForExploration,
   passiveCoveragePriority,
   refreshCoverageGaps,
+  selectDiverseKnowledgeGaps,
   selectKnowledgeGaps
 } from '../../src/knowledge/gaps';
 
@@ -44,6 +45,34 @@ function evidence(id: string, sourceTurnIds: string[], strength: 1 | 2 | 3 = 1, 
 
 function journal(id: string, privacy: JournalEntry['privacy'] = 'normal', status: JournalEntry['status'] = 'active', text = 'Synthetic Journal text.'): JournalEntry {
   return { id, createdAt: RECENT, text, inputMode: 'typed', privacy, status, reflectionIds: [], adventureIds: [] };
+}
+
+function gap(
+  id: string,
+  priority: number,
+  territoryIds: string[] = ['atlas'],
+  dimensionIds: string[] = ['bananas'],
+  kind: KnowledgeGap['kind'] = 'underexplored',
+  status: KnowledgeGap['status'] = 'open'
+): KnowledgeGap {
+  return {
+    id, kind, territoryIds, dimensionIds, sourceEvidenceIds: [], sourceJournalEntryIds: [],
+    summary: 'Synthetic gap.', status, priority
+  };
+}
+
+function seed(id: string, sourceGapIds: string[], territoryId = 'atlas', status: AdventureSeed['status'] = 'available'): AdventureSeed {
+  return {
+    id, sourceGapIds, territoryId, status, kind: 'exploration-expedition', locationId: 'synthetic-location',
+    premise: 'Synthetic premise.', learningTarget: 'none'
+  };
+}
+
+function run(id: string, seedId: string, completedAt: string | undefined, startedAt = RECENT): AdventureRun {
+  return {
+    id, seedId, territoryId: 'atlas', locationId: 'synthetic-location', status: 'complete', currentBeatId: 'synthetic-beat',
+    recurringCharacterIds: [], memoryIds: [], startedAt, ...(completedAt === undefined ? {} : { completedAt })
+  };
 }
 
 describe('K00-K05 deterministic Knowledge Gap foundation', () => {
@@ -202,5 +231,190 @@ describe('K00-K05 deterministic Knowledge Gap foundation', () => {
     expect([traumaGap.kind, bananaGap.kind]).not.toContain('contradiction');
     expect([traumaGap.kind, bananaGap.kind]).not.toContain('change');
     expect(passiveCoveragePriority({ evidenceCount: 1, sufficientlyCovered: false, sourceTurnTimestamps: [OLD_75_DAYS], now: NOW })).toBe(50);
+  });
+});
+
+describe('K04 deterministic Knowledge theme diversity', () => {
+  it('exactly preserves base selection order when no eligible Adventure history exists', () => {
+    const state = syntheticState({ knowledgeGaps: [gap('z-low', 10), gap('a-high', 40), gap('b-high', 40)] });
+    expect(selectDiverseKnowledgeGaps(state)).toEqual(selectKnowledgeGaps(state));
+    expect(selectDiverseKnowledgeGaps(state, { limit: 2 }).map((entry) => entry.id)).toEqual(['a-high', 'b-high']);
+  });
+
+  it('suppresses an exact gap used by either of the two latest eligible Adventure runs', () => {
+    const used = gap('used-gap', 100);
+    const alternative = gap('alternative-gap', 90, ['coast'], ['citrus']);
+    const state = syntheticState({
+      knowledgeGaps: [used, alternative],
+      adventureSeeds: [seed('used-seed', ['used-gap'])],
+      adventureRuns: [run('recent-run', 'used-seed', '2026-09-21T11:00:00.000Z')]
+    });
+    expect(selectDiverseKnowledgeGaps(state, { limit: 2 }).map((entry) => entry.id)).toEqual(['alternative-gap']);
+  });
+
+  it('returns an unresolved gap once its exact use ages beyond the cooldown window', () => {
+    const candidate = gap('aged-gap', 100);
+    const recentOne = gap('recent-one', 1, ['north'], ['one'], 'underexplored', 'seeded');
+    const recentTwo = gap('recent-two', 1, ['south'], ['two'], 'underexplored', 'seeded');
+    const state = syntheticState({
+      knowledgeGaps: [candidate, recentOne, recentTwo],
+      adventureSeeds: [seed('aged-seed', ['aged-gap']), seed('one-seed', ['recent-one']), seed('two-seed', ['recent-two'])],
+      adventureRuns: [
+        run('aged-run', 'aged-seed', '2026-09-19T10:00:00.000Z'),
+        run('one-run', 'one-seed', '2026-09-21T10:00:00.000Z'),
+        run('two-run', 'two-seed', '2026-09-20T10:00:00.000Z')
+      ]
+    });
+    expect(selectDiverseKnowledgeGaps(state).map((entry) => entry.id)).toEqual(['aged-gap']);
+  });
+
+  it('penalizes repeated recent territories enough for a near-priority alternative to move ahead', () => {
+    const repeated = gap('repeated-territory', 100, ['atlas'], ['bananas']);
+    const alternative = gap('alternative-territory', 95, ['coast'], ['citrus']);
+    const history = gap('territory-history', 1, ['atlas'], ['history'], 'underexplored', 'seeded');
+    const state = syntheticState({
+      knowledgeGaps: [repeated, alternative, history],
+      adventureSeeds: [seed('history-one', ['territory-history'], 'atlas'), seed('history-two', ['territory-history'], 'atlas'), seed('history-three', ['territory-history'], 'atlas')],
+      adventureRuns: [
+        run('history-run-one', 'history-one', '2026-09-21T11:00:00.000Z'),
+        run('history-run-two', 'history-two', '2026-09-20T11:00:00.000Z'),
+        run('history-run-three', 'history-three', '2026-09-19T11:00:00.000Z')
+      ]
+    });
+    expect(selectDiverseKnowledgeGaps(state).map((entry) => entry.id)[0]).toBe('alternative-territory');
+  });
+
+  it('penalizes repeated recent dimensions independently of territory repetition', () => {
+    const repeated = gap('repeated-dimension', 100, ['atlas'], ['bananas']);
+    const alternative = gap('alternative-dimension', 95, ['atlas'], ['citrus']);
+    const history = gap('dimension-history', 1, ['other'], ['bananas'], 'underexplored', 'seeded');
+    const state = syntheticState({
+      knowledgeGaps: [repeated, alternative, history],
+      adventureSeeds: [seed('dimension-one', ['dimension-history'], 'other'), seed('dimension-two', ['dimension-history'], 'other'), seed('dimension-three', ['dimension-history'], 'other')],
+      adventureRuns: [
+        run('dimension-run-one', 'dimension-one', '2026-09-21T11:00:00.000Z'),
+        run('dimension-run-two', 'dimension-two', '2026-09-20T11:00:00.000Z'),
+        run('dimension-run-three', 'dimension-three', '2026-09-19T11:00:00.000Z')
+      ]
+    });
+    expect(selectDiverseKnowledgeGaps(state).map((entry) => entry.id)[0]).toBe('alternative-dimension');
+  });
+
+  it('preserves stored priorities and greedily avoids a three-gap same-theme batch', () => {
+    const gaps = [
+      gap('first', 100, ['atlas'], ['bananas']),
+      gap('same-theme', 99, ['atlas'], ['bananas']),
+      gap('coast', 98, ['coast'], ['citrus']),
+      gap('ridge', 97, ['ridge'], ['mango']),
+      gap('history', 1, ['history-town'], ['history-dimension'], 'underexplored', 'seeded')
+    ];
+    const state = syntheticState({
+      knowledgeGaps: gaps,
+      adventureSeeds: [seed('history-seed', ['history'], 'history-town')],
+      adventureRuns: [run('history-run', 'history-seed', '2026-09-21T11:00:00.000Z')]
+    });
+    const before = JSON.stringify(state.knowledgeGaps.map(({ id, priority }) => ({ id, priority })));
+    const selected = selectDiverseKnowledgeGaps(state, { limit: 3 });
+    expect(selected.map((entry) => entry.id)).toEqual(['first', 'coast', 'ridge']);
+    expect(JSON.stringify(state.knowledgeGaps.map(({ id, priority }) => ({ id, priority })))).toBe(before);
+    expect(selected.every((entry) => gaps.includes(entry))).toBe(true);
+  });
+
+  it('keeps explicit curiosity priority-driven but still applies its exact-gap cooldown', () => {
+    const curiosity = gap('curiosity-gap', 100, ['atlas'], ['bananas'], 'curiosity');
+    const alternative = gap('alternative-gap', 99, ['coast'], ['citrus']);
+    const history = gap('history-gap', 1, ['atlas'], ['bananas'], 'underexplored', 'seeded');
+    const common = {
+      knowledgeGaps: [curiosity, alternative, history],
+      adventureSeeds: [seed('history-seed', ['history-gap'], 'atlas')],
+      adventureRuns: [run('history-run', 'history-seed', '2026-09-21T11:00:00.000Z')]
+    };
+    expect(selectDiverseKnowledgeGaps(syntheticState(common)).map((entry) => entry.id)[0]).toBe('curiosity-gap');
+    expect(selectDiverseKnowledgeGaps(syntheticState({
+      ...common,
+      adventureSeeds: [seed('curiosity-seed', ['curiosity-gap'], 'atlas')],
+      adventureRuns: [run('curiosity-run', 'curiosity-seed', '2026-09-21T11:00:00.000Z')]
+    })).map((entry) => entry.id)).toEqual(['alternative-gap']);
+  });
+
+  it('ignores private, retracted, and retired seed histories', () => {
+    const privateGap = { ...gap('private-source-gap', 1), sourceJournalEntryIds: ['private-journal'] };
+    const retractedGap = { ...gap('retracted-source-gap', 1), sourceEvidenceIds: ['retracted-evidence'] };
+    const rf09Gap = { ...gap('rf09-source-gap', 1), sourceJournalEntryIds: ['masked-journal'] };
+    const candidates = [gap('a-high', 100), gap('b-low', 90, ['coast'], ['citrus'])];
+    const state = syntheticState({
+      knowledgeGaps: [...candidates, privateGap, retractedGap, rf09Gap],
+      journalEntries: [journal('private-journal', 'private'), journal('masked-journal')],
+      turns: [turn('retracted-turn', RECENT, 'bananas', true)],
+      evidence: [evidence('retracted-evidence', ['retracted-turn'])],
+      reflections: [{
+        id: 'private-reflection', sourceKind: 'journal', sourceIds: ['masked-journal'], privacyRetiredSourceIds: ['masked-journal'],
+        question: 'Synthetic privacy prompt?', response: 'Synthetic privacy response.', createdAt: RECENT, outcome: 'PRIVATE'
+      }],
+      adventureSeeds: [
+        seed('private-seed', ['private-source-gap'], 'atlas'),
+        seed('retracted-seed', ['retracted-source-gap'], 'atlas'),
+        seed('rf09-seed', ['rf09-source-gap'], 'atlas'),
+        seed('retired-seed', ['a-high'], 'atlas', 'retired')
+      ],
+      adventureRuns: [
+        run('private-run', 'private-seed', '2026-09-21T11:00:00.000Z'),
+        run('retracted-run', 'retracted-seed', '2026-09-20T11:00:00.000Z'),
+        run('rf09-run', 'rf09-seed', '2026-09-19T11:00:00.000Z'),
+        run('retired-run', 'retired-seed', '2026-09-19T11:00:00.000Z')
+      ]
+    });
+    expect(selectDiverseKnowledgeGaps(state).map((entry) => entry.id)).toEqual(selectKnowledgeGaps(state).map((entry) => entry.id));
+  });
+
+  it('orders invalid timestamps deterministically after valid history and remains repeatable', () => {
+    const validCandidate = gap('valid-candidate', 100, ['atlas'], ['bananas']);
+    const invalidCandidate = gap('invalid-candidate', 99, ['coast'], ['citrus']);
+    const validHistory = gap('valid-history', 1, ['atlas'], ['history-a'], 'underexplored', 'seeded');
+    const invalidHistory = gap('invalid-history', 1, ['coast'], ['history-b'], 'underexplored', 'seeded');
+    const state = syntheticState({
+      knowledgeGaps: [validCandidate, invalidCandidate, validHistory, invalidHistory],
+      adventureSeeds: [seed('valid-seed', ['valid-history'], 'atlas'), seed('invalid-seed', ['invalid-history'], 'coast')],
+      adventureRuns: [
+        run('valid-run', 'valid-seed', '2026-09-20T11:00:00.000Z'),
+        run('invalid-run', 'invalid-seed', 'not-a-timestamp')
+      ]
+    });
+    const options = { recentRunWindow: 1, exactGapCooldownRuns: 0 };
+    const first = selectDiverseKnowledgeGaps(state, options).map((entry) => entry.id);
+    expect(first[0]).toBe('invalid-candidate');
+    expect(selectDiverseKnowledgeGaps(state, options).map((entry) => entry.id)).toEqual(first);
+  });
+
+  it('suppresses repetition across long synthetic history without changing base priorities', () => {
+    const repeated = gap('long-repeated', 100, ['atlas'], ['bananas']);
+    const alternative = gap('long-alternative', 95, ['coast'], ['citrus']);
+    const history = gap('long-history', 1, ['atlas'], ['bananas'], 'underexplored', 'seeded');
+    const state = syntheticState({
+      knowledgeGaps: [repeated, alternative, history],
+      adventureSeeds: Array.from({ length: 12 }, (_, index) => seed(`long-seed-${index}`, ['long-history'], 'atlas')),
+      adventureRuns: Array.from({ length: 12 }, (_, index) => run(`long-run-${index}`, `long-seed-${index}`, `2026-09-${String(21 - index).padStart(2, '0')}T11:00:00.000Z`))
+    });
+    const priorities = state.knowledgeGaps.map((entry) => entry.priority);
+    expect(selectDiverseKnowledgeGaps(state).map((entry) => entry.id)[0]).toBe('long-alternative');
+    expect(state.knowledgeGaps.map((entry) => entry.priority)).toEqual(priorities);
+  });
+
+  it('is content-blind: trauma and bananas structures rerank identically', () => {
+    const stateFor = (dimension: string) => syntheticState({
+      knowledgeGaps: [
+        gap('first', 100, ['atlas'], [dimension]),
+        gap('second', 95, ['coast'], ['alternative']),
+        gap('history', 1, ['atlas'], [dimension], 'underexplored', 'seeded')
+      ],
+      adventureSeeds: [seed('seed-one', ['history'], 'atlas'), seed('seed-two', ['history'], 'atlas'), seed('seed-three', ['history'], 'atlas')],
+      adventureRuns: [
+        run('run-one', 'seed-one', '2026-09-21T11:00:00.000Z'),
+        run('run-two', 'seed-two', '2026-09-20T11:00:00.000Z'),
+        run('run-three', 'seed-three', '2026-09-19T11:00:00.000Z')
+      ]
+    });
+    expect(selectDiverseKnowledgeGaps(stateFor('trauma')).map((entry) => entry.id))
+      .toEqual(selectDiverseKnowledgeGaps(stateFor('bananas')).map((entry) => entry.id));
   });
 });
