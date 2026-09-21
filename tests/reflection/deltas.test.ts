@@ -166,7 +166,7 @@ describe('RF06 supported contradiction candidates', () => {
 describe('RF07 change-over-time candidates', () => {
   it('finds a revision-basis record with a player-authored revision Turn and older same-dimension evidence', () => {
     const state = stateFor({
-      turns: [turn('turn-old', { createdAt: firstTime }), turn('turn-new', { createdAt: secondTime, revision: true })],
+      turns: [turn('turn-old', { createdAt: firstTime, dimension: 'values' }), turn('turn-new', { createdAt: secondTime, dimension: 'values', revision: true })],
       evidence: [
         evidence('old', { sourceTurnIds: ['turn-old'], dimension: 'values' }),
         evidence('new', { sourceTurnIds: ['turn-new'], dimension: 'values', basis: 'revision' })
@@ -185,13 +185,13 @@ describe('RF07 change-over-time candidates', () => {
   });
 
   it('requires both revision basis and an actual revision Turn', () => {
-    const commonTurns = [turn('turn-old', { createdAt: firstTime }), turn('turn-new', { createdAt: secondTime, revision: false })];
+    const commonTurns = [turn('turn-old', { createdAt: firstTime, dimension: 'values' }), turn('turn-new', { createdAt: secondTime, dimension: 'values', revision: false })];
     const modelOnly = stateFor({
       turns: commonTurns,
       evidence: [evidence('old', { sourceTurnIds: ['turn-old'], dimension: 'values' }), evidence('new', { sourceTurnIds: ['turn-new'], dimension: 'values', basis: 'revision' })]
     });
     const turnOnly = stateFor({
-      turns: [...commonTurns.slice(0, 1), turn('turn-new', { createdAt: secondTime, revision: true })],
+      turns: [...commonTurns.slice(0, 1), turn('turn-new', { createdAt: secondTime, dimension: 'values', revision: true })],
       evidence: [evidence('old', { sourceTurnIds: ['turn-old'], dimension: 'values' }), evidence('new', { sourceTurnIds: ['turn-new'], dimension: 'values', basis: 'explicit' })]
     });
 
@@ -202,8 +202,8 @@ describe('RF07 change-over-time candidates', () => {
   it('prefers a counter-linked older record over a closer unlinked record and otherwise chooses the closest prior record', () => {
     const state = stateFor({
       turns: [
-        turn('turn-counter', { createdAt: firstTime }), turn('turn-close', { createdAt: secondTime }),
-        turn('turn-new-a', { createdAt: thirdTime, revision: true }), turn('turn-new-b', { createdAt: thirdTime, revision: true })
+        turn('turn-counter', { createdAt: firstTime, dimension: 'values' }), turn('turn-close', { createdAt: secondTime, dimension: 'values' }),
+        turn('turn-new-a', { createdAt: thirdTime, dimension: 'values', revision: true }), turn('turn-new-b', { createdAt: thirdTime, dimension: 'values', revision: true })
       ],
       evidence: [
         evidence('counter', { sourceTurnIds: ['turn-counter'], dimension: 'values', counterEvidenceIds: ['new-a'] }),
@@ -218,13 +218,28 @@ describe('RF07 change-over-time candidates', () => {
     expect(candidates.find((candidate) => candidate.newerEvidenceId === 'new-b')?.olderEvidenceId).toBe('close');
   });
 
+  it('fails closed when provider evidence dimension disagrees with its source Turn dimension', () => {
+    const state = stateFor({
+      turns: [
+        turn('turn-old', { createdAt: firstTime, dimension: 'values' }),
+        turn('turn-new', { createdAt: secondTime, dimension: 'relationships', revision: true })
+      ],
+      evidence: [
+        evidence('old', { sourceTurnIds: ['turn-old'], dimension: 'values' }),
+        evidence('new', { sourceTurnIds: ['turn-new'], dimension: 'values', basis: 'revision' })
+      ]
+    });
+
+    expect(detectChangeOverTimeCandidates(state)).toEqual([]);
+  });
+
   it('excludes equal or later times, invalid time/provenance, private/retracted material, and ordinary newer evidence', () => {
     const state = stateFor({
       privateTopics: ['private-dimension'],
       turns: [
-        turn('turn-old-equal', { createdAt: secondTime }), turn('turn-old-later', { createdAt: thirdTime }), turn('turn-new', { createdAt: secondTime, revision: true }),
-        turn('turn-invalid', { createdAt: 'not-a-time' }), turn('turn-private', { createdAt: firstTime, dimension: 'private-dimension' }), turn('turn-retracted', { createdAt: firstTime, retracted: true }),
-        turn('turn-ordinary', { createdAt: secondTime, revision: false })
+        turn('turn-old-equal', { createdAt: secondTime, dimension: 'values' }), turn('turn-old-later', { createdAt: thirdTime, dimension: 'values' }), turn('turn-new', { createdAt: secondTime, dimension: 'values', revision: true }),
+        turn('turn-invalid', { createdAt: 'not-a-time', dimension: 'values' }), turn('turn-private', { createdAt: firstTime, dimension: 'private-dimension' }), turn('turn-retracted', { createdAt: firstTime, dimension: 'values', retracted: true }),
+        turn('turn-ordinary', { createdAt: secondTime, dimension: 'values', revision: false })
       ],
       evidence: [
         evidence('old-equal', { sourceTurnIds: ['turn-old-equal'], dimension: 'values' }), evidence('old-later', { sourceTurnIds: ['turn-old-later'], dimension: 'values' }),
@@ -241,7 +256,7 @@ describe('RF07 change-over-time candidates', () => {
     const claimCanary = 'RF07_CLAIM_CANARY_98d2';
     const answerCanary = 'RF07_ANSWER_CANARY_2ac1';
     const state = stateFor({
-      turns: [turn('turn-old', { createdAt: firstTime, answer: answerCanary }), turn('turn-new', { createdAt: secondTime, revision: true, answer: answerCanary })],
+      turns: [turn('turn-old', { createdAt: firstTime, dimension: 'values', answer: answerCanary }), turn('turn-new', { createdAt: secondTime, dimension: 'values', revision: true, answer: answerCanary })],
       evidence: [evidence('old', { sourceTurnIds: ['turn-old'], claim: claimCanary, dimension: 'values' }), evidence('new', { sourceTurnIds: ['turn-new'], claim: claimCanary, dimension: 'values', basis: 'revision' })]
     });
     const snapshot = structuredClone(state);
@@ -266,7 +281,7 @@ describe('RF07 change-over-time candidates', () => {
 
   it('has stable IDs and deterministic order across repeated calls', () => {
     const state = stateFor({
-      turns: [turn('turn-old-a', { createdAt: firstTime }), turn('turn-new-z', { createdAt: thirdTime, revision: true }), turn('turn-old-b', { createdAt: firstTime }), turn('turn-new-a', { createdAt: secondTime, revision: true })],
+      turns: [turn('turn-old-a', { createdAt: firstTime, dimension: 'a' }), turn('turn-new-z', { createdAt: thirdTime, dimension: 'a', revision: true }), turn('turn-old-b', { createdAt: firstTime, dimension: 'b' }), turn('turn-new-a', { createdAt: secondTime, dimension: 'b', revision: true })],
       evidence: [
         evidence('old-a', { sourceTurnIds: ['turn-old-a'], dimension: 'a' }), evidence('new-z', { sourceTurnIds: ['turn-new-z'], dimension: 'a', basis: 'revision' }),
         evidence('old-b', { sourceTurnIds: ['turn-old-b'], dimension: 'b' }), evidence('new-a', { sourceTurnIds: ['turn-new-a'], dimension: 'b', basis: 'revision' })

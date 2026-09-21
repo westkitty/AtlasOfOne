@@ -85,6 +85,7 @@ function eligibleEvidence(state: CampaignState): Map<string, EligibleEvidence> {
 function timedEligibleEvidence(eligible: Map<string, EligibleEvidence>): TimedEligibleEvidence[] {
   const timed: TimedEligibleEvidence[] = [];
   for (const entry of eligible.values()) {
+    if (entry.sourceTurns.some((turn) => turn.dimension !== entry.evidence.dimension)) continue;
     const sourceTimes = entry.sourceTurns.map((turn) => Date.parse(turn.createdAt));
     if (sourceTimes.some((time) => !Number.isFinite(time))) continue;
     timed.push({ ...entry, time: Math.max(...sourceTimes) });
