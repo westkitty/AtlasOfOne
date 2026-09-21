@@ -26,28 +26,22 @@ export interface PassiveCoverageScoreInput {
   now: string;
 }
 
-const safeSlug = (value: string) => {
-  const slug = value
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return slug || 'item';
-};
+const encodedIdentity = (parts: readonly string[]) => encodeURIComponent(JSON.stringify(parts));
 
 const referenceNow = (options: CoverageGapOptions) => options.now ?? new Date().toISOString();
 
 export function coverageGapId(kind: Extract<KnowledgeGap['kind'], 'unknown' | 'underexplored'>, territoryId: string, dimensionId: string): string {
-  return `${COVERAGE_ID_PREFIX}${safeSlug(kind)}_${safeSlug(territoryId)}_${safeSlug(dimensionId)}`;
+  return `${COVERAGE_ID_PREFIX}${encodedIdentity([kind, territoryId, dimensionId])}`;
 }
 
 export function curiosityGapId(journalEntryId: string): string {
-  return `${CURIOSITY_ID_PREFIX}${safeSlug(journalEntryId)}`;
+  return `${CURIOSITY_ID_PREFIX}${encodedIdentity([journalEntryId])}`;
 }
 
 export function isGeneratedCoverageGap(gap: KnowledgeGap): boolean {
-  return gap.id.startsWith(COVERAGE_ID_PREFIX);
+  if (gap.kind !== 'unknown' && gap.kind !== 'underexplored') return false;
+  if (gap.territoryIds.length !== 1 || gap.dimensionIds.length !== 1 || gap.sourceJournalEntryIds.length !== 0) return false;
+  return gap.id === coverageGapId(gap.kind, gap.territoryIds[0], gap.dimensionIds[0]);
 }
 
 function agePoints(sourceTurnTimestamps: readonly string[], now: string): number {
@@ -138,6 +132,7 @@ export function generateCoverageGaps(state: CampaignState, options: CoverageGapO
 /** Returns RF09-eligible persisted gaps in deterministic selection order. */
 export function selectKnowledgeGaps(state: CampaignState, options: KnowledgeGapSelectionOptions = {}): KnowledgeGap[] {
   const gaps = providerEligibleV2State(state).knowledgeGaps
+    .filter((gap) => gap.dimensionIds.every((dimensionId) => !state.privateTopics.includes(dimensionId)))
     .filter((gap) => options.includeNonOpen || gap.status === 'open')
     .sort((left, right) => right.priority - left.priority || left.id.localeCompare(right.id));
   const limit = options.limit;

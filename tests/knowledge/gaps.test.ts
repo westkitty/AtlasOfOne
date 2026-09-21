@@ -6,6 +6,7 @@ import {
   coverageGapId,
   curiosityGapId,
   generateCoverageGaps,
+  isGeneratedCoverageGap,
   markJournalForExploration,
   passiveCoveragePriority,
   refreshCoverageGaps,
@@ -46,6 +47,18 @@ function journal(id: string, privacy: JournalEntry['privacy'] = 'normal', status
 }
 
 describe('K00-K05 deterministic Knowledge Gap foundation', () => {
+  it('uses collision-safe deterministic IDs and does not mistake arbitrary prefixed gaps for generated coverage state', () => {
+    expect(coverageGapId('unknown', 'a-b', 'c')).not.toBe(coverageGapId('unknown', 'a', 'b-c'));
+    expect(coverageGapId('unknown', 'atlas', 'self description')).not.toBe(coverageGapId('unknown', 'atlas', 'self-description'));
+    expect(curiosityGapId('journal/a')).not.toBe(curiosityGapId('journal-a'));
+
+    const manualPrefixed: KnowledgeGap = {
+      id: 'knowledge_gap_coverage_manual-looking', kind: 'unknown', territoryIds: ['atlas'], dimensionIds: ['bananas'],
+      sourceEvidenceIds: [], sourceJournalEntryIds: [], summary: 'Manually authored synthetic gap.', status: 'open', priority: 7
+    };
+    expect(isGeneratedCoverageGap(manualPrefixed)).toBe(false);
+  });
+
   it('creates a deterministic unknown candidate with score 90 for zero eligible evidence', () => {
     const gaps = generateCoverageGaps(syntheticState(), { now: NOW });
     expect(gaps).toEqual([expect.objectContaining({
@@ -63,6 +76,21 @@ describe('K00-K05 deterministic Knowledge Gap foundation', () => {
     const gaps = generateCoverageGaps(syntheticState({ turns: [turn('turn_old', OLD_75_DAYS)], evidence: [evidence('evidence_old', ['turn_old'])] }), { now: NOW });
     expect(gaps[0]).toMatchObject({ kind: 'underexplored', priority: 50 });
     expect(generateCoverageGaps(syntheticState({ turns: [turn('turn_invalid_time', 'not-a-timestamp')], evidence: [evidence('evidence_invalid_time', ['turn_invalid_time'])] }), { now: NOW })[0].priority).toBe(60);
+  });
+
+  it('uses the exact 14/60/180-day age buckets and the weak multi-evidence coverage score', () => {
+    const daysAgo = (days: number) => new Date(Date.parse(NOW) - days * 24 * 60 * 60 * 1000).toISOString();
+    const score = (days: number, evidenceCount = 1) => passiveCoveragePriority({
+      evidenceCount, sufficientlyCovered: false, sourceTurnTimestamps: [daysAgo(days)], now: NOW
+    });
+
+    expect(score(13)).toBe(30);
+    expect(score(14)).toBe(40);
+    expect(score(59)).toBe(40);
+    expect(score(60)).toBe(50);
+    expect(score(179)).toBe(50);
+    expect(score(180)).toBe(60);
+    expect(score(1, 2)).toBe(15);
   });
 
   it('does not create a passive coverage gap when two distinct source turns include strength-two evidence', () => {
@@ -129,15 +157,18 @@ describe('K00-K05 deterministic Knowledge Gap foundation', () => {
   it('selects RF09-eligible open gaps by priority then ID with a bounded limit', () => {
     const gap = (id: string, priority: number, status: KnowledgeGap['status'] = 'open'): KnowledgeGap => ({ id, kind: 'underexplored', territoryIds: ['atlas'], dimensionIds: [], sourceEvidenceIds: [], sourceJournalEntryIds: [], summary: 'Synthetic gap.', status, priority });
     const maskedGap = { ...gap('masked-by-rf09', 200), sourceJournalEntryIds: ['journal_masked'] };
+    const stalePrivateDimensionGap = { ...gap('stale-private-dimension', 250), dimensionIds: ['private-synthetic'], summary: 'PRIVATE_DIMENSION_GAP_CANARY_4c12' };
     const state = syntheticState({
       journalEntries: [journal('journal_masked', 'normal', 'active', 'RF09_MASKED_SYNTHETIC_CANARY')],
       reflections: [{ id: 'reflection_private_journal', sourceKind: 'journal', sourceIds: ['journal_masked'], privacyRetiredSourceIds: ['journal_masked'], question: 'Synthetic privacy prompt?', response: 'Synthetic privacy response.', createdAt: RECENT, outcome: 'PRIVATE' }],
-      knowledgeGaps: [gap('z-low', 10), gap('b-high', 40), gap('a-high', 40), gap('seeded', 99, 'seeded'), gap('retired', 100, 'retired'), maskedGap]
+      privateTopics: ['private-synthetic'],
+      knowledgeGaps: [gap('z-low', 10), gap('b-high', 40), gap('a-high', 40), gap('seeded', 99, 'seeded'), gap('retired', 100, 'retired'), maskedGap, stalePrivateDimensionGap]
     });
     expect(selectKnowledgeGaps(state).map((entry) => entry.id)).toEqual(['a-high', 'b-high', 'z-low']);
     expect(selectKnowledgeGaps(state, { limit: 2 }).map((entry) => entry.id)).toEqual(['a-high', 'b-high']);
     expect(selectKnowledgeGaps(state, { includeNonOpen: true }).map((entry) => entry.id)).toEqual(['seeded', 'a-high', 'b-high', 'z-low']);
     expect(JSON.stringify(selectKnowledgeGaps(state))).not.toContain('RF09_MASKED_SYNTHETIC_CANARY');
+    expect(JSON.stringify(selectKnowledgeGaps(state))).not.toContain('PRIVATE_DIMENSION_GAP_CANARY_4c12');
   });
 
   it('refreshes only generated open coverage gaps, resolves stale ones, and preserves all other gaps', () => {
