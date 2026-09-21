@@ -335,6 +335,7 @@ describe('Talk mode is one listening turn per tap', () => {
       await page.waitForTimeout(200);
       await page.click('[data-testid="voice-submit-done"]');
       await waitForVisited(page, 'transcribing');
+      await waitForCount(session.transcribeCount, 1, page);
       expect(session.transcribeCount()).toBe(1);
       await waitForCount(session.turnCount, 1, page);
       await page.waitForTimeout(1000);
@@ -454,6 +455,7 @@ describe('Talk mode is one listening turn per tap', () => {
       // the fallback — and it still completes a whole turn, then goes idle.
       await page.click('[data-testid="voice-submit-done"]');
       await waitForVisited(page, 'transcribing');
+      await waitForCount(session.transcribeCount, 1, page);
       expect(session.transcribeCount()).toBe(1);
       await waitForCount(session.turnCount, 1, page);
       await page.waitForTimeout(1000);
