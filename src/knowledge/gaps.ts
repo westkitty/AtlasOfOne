@@ -204,12 +204,13 @@ export function selectDiverseKnowledgeGaps(state: CampaignState, options: Divers
   const baseCandidates = selectKnowledgeGaps(state);
   const history = eligibleAdventureHistory(state);
   const limit = normalizedLimit(options.limit, baseCandidates.length);
-  if (history.length === 0) return baseCandidates.slice(0, limit);
+  const validRecentHistory = history.filter((entry) => entry.timestamp !== null);
+  if (validRecentHistory.length === 0) return baseCandidates.slice(0, limit);
 
   const cooldownRuns = normalizedWindow(options.exactGapCooldownRuns, DEFAULT_EXACT_GAP_COOLDOWN_RUNS);
-  const cooldownGapIds = new Set(history.slice(0, cooldownRuns).flatMap(({ seed }) => seed.sourceGapIds));
+  const cooldownGapIds = new Set(validRecentHistory.slice(0, cooldownRuns).flatMap(({ seed }) => seed.sourceGapIds));
   const candidates = baseCandidates.filter((gap) => !cooldownGapIds.has(gap.id));
-  const recentRuns = history.slice(0, normalizedWindow(options.recentRunWindow, DEFAULT_RECENT_RUN_WINDOW));
+  const recentRuns = validRecentHistory.slice(0, normalizedWindow(options.recentRunWindow, DEFAULT_RECENT_RUN_WINDOW));
   const recentTerritoryCounts = new Map<string, number>();
   const recentDimensionCounts = new Map<string, number>();
   const eligibleGapsById = new Map(selectKnowledgeGaps(state, { includeNonOpen: true }).map((gap) => [gap.id, gap]));

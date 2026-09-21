@@ -386,6 +386,18 @@ describe('K04 deterministic Knowledge theme diversity', () => {
     expect(selectDiverseKnowledgeGaps(state, options).map((entry) => entry.id)).toEqual(first);
   });
 
+  it('does not manufacture cooldown or repetition recency from invalid-only run timestamps', () => {
+    const used = gap('invalid-only-used', 100, ['atlas'], ['bananas']);
+    const alternative = gap('invalid-only-alternative', 95, ['coast'], ['citrus']);
+    const state = syntheticState({
+      knowledgeGaps: [used, alternative],
+      adventureSeeds: [seed('invalid-only-seed', ['invalid-only-used'], 'atlas')],
+      adventureRuns: [run('invalid-only-run', 'invalid-only-seed', 'not-a-timestamp')]
+    });
+    expect(selectDiverseKnowledgeGaps(state).map((entry) => entry.id))
+      .toEqual(selectKnowledgeGaps(state).map((entry) => entry.id));
+  });
+
   it('suppresses repetition across long synthetic history without changing base priorities', () => {
     const repeated = gap('long-repeated', 100, ['atlas'], ['bananas']);
     const alternative = gap('long-alternative', 95, ['coast'], ['citrus']);
