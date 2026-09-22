@@ -1,5 +1,6 @@
 import type { AdventureSeed } from '../contracts/adventure';
 import type { CampaignState } from '../game/types';
+import { selectKnowledgeGaps } from '../knowledge/gaps';
 import { buildGapSeedRequest, type GapSeedRequest } from '../knowledge/seed-request';
 import { providerEligibleV2State } from '../persistence/retirement';
 
@@ -99,8 +100,10 @@ export function materializeAdventureSeed(
 /** Deterministic available-seed view for later W02/A01 consumers. */
 export function selectAvailableAdventureSeeds(state: CampaignState): AdventureSeed[] {
   const usedSeedIds = new Set(state.adventureRuns.map((run) => run.seedId));
+  const privateSafeGapIds = new Set(selectKnowledgeGaps(state, { includeNonOpen: true }).map((gap) => gap.id));
   const eligible = providerEligibleV2State(state).adventureSeeds
     .filter((seed) => seed.status === 'available' && !usedSeedIds.has(seed.id))
+    .filter((seed) => seed.sourceGapIds.length === 0 || seed.sourceGapIds.some((gapId) => privateSafeGapIds.has(gapId)))
     .sort((left, right) => left.id.localeCompare(right.id));
   const seenKeys = new Set<string>();
   return eligible.filter((seed) => {

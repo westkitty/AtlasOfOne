@@ -164,6 +164,26 @@ describe('A00 AdventureSeed state / eligibility / deduplication', () => {
     expect(selectAvailableAdventureSeeds(campaign).map((seed) => seed.id)).toEqual(['available']);
   });
 
+  it('fails closed for private-dimension source gaps while preserving mixed-support and source-less pure-fun seeds', () => {
+    const base = state({ knowledgeGaps: [gap('gap-safe', 90)] });
+    const request = requestFor(base);
+    const privateGap = gap('gap-private', 80, { status: 'seeded', dimensionIds: ['secret'] });
+    const safeGap = gap('gap-safe', 90, { status: 'seeded' });
+    const privateOnly = seedFrom(request, { id: 'private-only', sourceGapIds: [privateGap.id] });
+    const mixed = seedFrom(request, { id: 'mixed', sourceGapIds: [privateGap.id, safeGap.id], premise: 'Mixed support.' });
+    const pureFun: AdventureSeed = {
+      id: 'pure-fun', sourceGapIds: [], kind: 'pure-fun-wildcard', territoryId: 'atlas', locationId: 'atlas',
+      premise: 'Synthetic pure fun.', learningTarget: 'none', status: 'available'
+    };
+    const campaign = state({
+      privateTopics: ['secret'],
+      knowledgeGaps: [privateGap, safeGap],
+      adventureSeeds: [privateOnly, mixed, pureFun]
+    });
+
+    expect(selectAvailableAdventureSeeds(campaign).map((seed) => seed.id)).toEqual(['mixed', 'pure-fun']);
+  });
+
   it('dedupes legacy-equivalent available seeds for later consumers without mutating stored history', () => {
     const base = state({ knowledgeGaps: [gap('gap-a', 90)] });
     const request = requestFor(base);
