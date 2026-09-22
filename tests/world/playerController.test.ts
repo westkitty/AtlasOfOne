@@ -56,6 +56,17 @@ describe('overworld player controller', () => {
     expect(target?.id).toBe('identity');
   });
 
+  it('treats an external Adventure marker as a physical nearby interactable only inside radius', () => {
+    const campaign = createInitialCampaign();
+    const marker = { type: 'adventure' as const, id: 'seed-synthetic', label: 'Adventure opportunity', x: 120, y: 300 };
+    const near = findNearbyInteractable(128, 306, campaign, [marker]);
+    expect(near).toMatchObject({ type: 'adventure', id: 'seed-synthetic', label: 'Adventure opportunity' });
+    expect(near?.distance).toBeLessThan(42);
+
+    const far = findNearbyInteractable(60, 300, campaign, [marker]);
+    expect(far?.type).not.toBe('adventure');
+  });
+
   it('returns null when far away from any landmark or encounter', () => {
     const campaign = createInitialCampaign();
     // Middle of open terrain far from landmarks, doors, or waystones

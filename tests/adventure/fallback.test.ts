@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { KnowledgeGap } from '../../src/contracts';
 import {
   LOCAL_FALLBACK_ADVENTURE_TEMPLATE,
+  localFallbackTemplateForSeed,
   renderLocalAdventureScene
 } from '../../src/adventure/fallback';
 import { advanceAdventureBeat, enterAdventureTemplate, validateAdventureTemplate } from '../../src/adventure/runtime';
@@ -77,6 +78,20 @@ describe('A06 deterministic local fallback Adventure renderer', () => {
     expect(new Set(snapshots.map((item) => item.title)).size).toBe(6);
   });
 
+  it('adapts the same local fallback mechanics to an existing reflection-eligible seed kind without changing seed identity', () => {
+    const state = activeFallbackCampaign();
+    const seed = state.adventureSeeds[0];
+    const adaptedSeed = { ...seed, kind: 'exploration-expedition' as const };
+    const adapted = { ...state, adventureSeeds: [adaptedSeed] };
+    const template = localFallbackTemplateForSeed(adaptedSeed);
+    expect(template).not.toBeNull();
+    expect(template?.kind).toBe('exploration-expedition');
+    expect(template?.beats.map((beat) => beat.role)).toEqual(['hook', 'approach', 'complication', 'encounter', 'choice', 'consequence']);
+    expect(adaptedSeed.id).toBe(seed.id);
+    expect(renderLocalAdventureScene(adapted, adapted.adventureRuns[0].id, template!)).not.toBeNull();
+    expect(localFallbackTemplateForSeed({ ...adaptedSeed, learningTarget: 'none' })).toBeNull();
+  });
+
   it('is pure/read-only and returns identical output for identical state', () => {
     const state = activeFallbackCampaign();
     const before = structuredClone(state);
@@ -95,7 +110,7 @@ describe('A06 deterministic local fallback Adventure renderer', () => {
     expect(renderLocalAdventureScene(entered, 'missing-run')).toBeNull();
 
     const incompatible = { ...entered, adventureSeeds: entered.adventureSeeds.map((seed) => ({ ...seed, kind: 'ethical-conflict' as const })) };
-    expect(renderLocalAdventureScene(incompatible, runId)).toBeNull();
+    expect(renderLocalAdventureScene(incompatible, runId, LOCAL_FALLBACK_ADVENTURE_TEMPLATE)).toBeNull();
 
     const complete = { ...entered, adventureRuns: entered.adventureRuns.map((run) => ({ ...run, status: 'complete' as const, completedAt: '2026-09-21T15:00:00.000Z' })) };
     expect(renderLocalAdventureScene(complete, runId)).toBeNull();

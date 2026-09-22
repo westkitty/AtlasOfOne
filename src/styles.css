@@ -182,6 +182,29 @@ html[data-reduced-motion="true"] .world-layer { transition: none; }
 .world-place:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 /* Greyson walks the island. */
+.world-opportunity-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  color: var(--gold);
+  border: 1px solid #f4dfa280;
+  border-radius: 999px;
+  background: #101923d9;
+  box-shadow: 0 0 0 3px #05090e99, 0 0 16px #f4dfa233;
+  font-size: .95rem;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.world-opportunity-marker.is-near {
+  transform: translate(-50%, -50%) scale(1.14);
+  box-shadow: 0 0 0 3px #05090e99, 0 0 22px #f4dfa266;
+}
+html[data-reduced-motion="true"] .world-opportunity-marker { transition: none; }
+
 .world-greyson {
   position: absolute; width: 34px; height: 46px;
   transform: translate(-50%, -86%);

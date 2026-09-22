@@ -14,15 +14,17 @@ import { neighboursOf, regionFor, routeBetween } from './world/geography';
 import { sanctuaryFor } from './world/sanctuaries';
 import { playMenuSound, playStinger } from './world/audio';
 import { FallbackAdventureCard } from './adventure/FallbackAdventureCard';
-import { renderLocalAdventureScene } from './adventure/fallback';
+import { localFallbackTemplateForSeed, renderLocalAdventureScene } from './adventure/fallback';
 import { materializeJournalAdventureSeed } from './adventure/journalSeed';
-import { selectActiveAdventureRun } from './adventure/runs';
+import { selectActiveAdventureRun, startAdventureRun } from './adventure/runs';
+import { enterAdventureTemplate } from './adventure/runtime';
 import { EncounterPanel } from './combat/EncounterPanel';
 import { JournalPanel, type JournalExplorationStatus } from './journal/JournalPanel';
 import { retractJournalEntry, saveJournalEntry, setJournalEntryPrivacy } from './journal/state';
 import { curiosityGapId, markJournalForExploration, retireKnowledgeGap } from './knowledge/gaps';
 import { AppSheet, MilestoneBanners, ProgressPresentation } from './presentation/AppPresentation';
 import { WorldwalkerPanel } from './world/WorldwalkerPanel';
+import { selectAdventureWorldMarkers } from './world/adventureMarkers';
 import type { InteractableTarget } from './world/playerController';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
 import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
@@ -261,6 +263,7 @@ export default function App() {
    * it on the engine's deterministic authority rather than on a feeling about
    * how much has been said.
    */
+  const adventureWorldMarkers = useMemo(() => selectAdventureWorldMarkers(state), [state]);
   const localFallbackScene = useMemo(() => {
     if (!isOffline && provider.id !== 'disabled') return null;
     const activeRun = selectActiveAdventureRun(state);
@@ -918,6 +921,7 @@ export default function App() {
     atMaxLevel={atMaxLevel}
     xpPercent={xpPercent}
     activeTerritoryLabel={activeTerritory.label}
+    adventureMarkers={adventureWorldMarkers}
     onSelectRegion={(territoryId) => {
       if (territoryId === state.activeTerritory) return;
       const from = state.activeTerritory;
@@ -933,6 +937,21 @@ export default function App() {
         playStinger('door', quiet); dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'door', id: target.id, territoryId: state.activeTerritory }, { type: 'DOOR_OPENED', doorId: target.id }); setReply(''); setTalking(true);
       } else if (target.type === 'boss') {
         playStinger('boss', quiet); dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'boss', id: target.id, territoryId: state.activeTerritory }, { type: 'BOSS_STARTED', bossId: target.id }); setReply(''); setTalking(true);
+      } else if (target.type === 'adventure') {
+        const at = new Date().toISOString();
+        setState((current) => {
+          const started = startAdventureRun(current, target.id, { now: () => at });
+          if (started === current) return current;
+          const run = selectActiveAdventureRun(started);
+          const seed = run ? started.adventureSeeds.find((candidate) => candidate.id === run.seedId) : null;
+          const template = seed ? localFallbackTemplateForSeed(seed) : null;
+          return run && seed && template
+            ? enterAdventureTemplate(started, run.id, template, { now: () => at })
+            : started;
+        });
+        playStinger('discover', quiet);
+        setReply('');
+        setTalking(false);
       } else if (target.type === 'waystone') {
         playStinger('discover', quiet); setActiveWaystone({ id: target.id, label: target.label, inscription: target.inscription });
       }

@@ -18,7 +18,9 @@ import type { CampaignState, TerritoryStatus } from '../game/types';
 import { OverworldCanvas } from './OverworldCanvas';
 import { TouchControls } from './TouchControls';
 import {
+  findNearbyInteractable,
   updatePlayer,
+  type ExternalInteractableTarget,
   type InteractableTarget,
   type PlayerState
 } from './playerController';
@@ -37,6 +39,8 @@ import {
 } from './interiors';
 import { InteriorCanvas } from './InteriorCanvas';
 import { sanctuaryFor } from './sanctuaries';
+import { WorldMarkerIcon } from './markers';
+import type { AdventureWorldMarker } from './adventureMarkers';
 
 export interface WorldMapProps {
   state: CampaignState;
@@ -52,6 +56,7 @@ export interface WorldMapProps {
   activeInterior?: string | null;
   onInteriorChange?: (interiorId: string | null) => void;
   onPositionSettled?: (position: { x: number; y: number; territoryId: string }) => void;
+  adventureMarkers?: readonly AdventureWorldMarker[];
 }
 
 const STATUS_WORD: Record<TerritoryStatus, string> = {
@@ -100,7 +105,8 @@ export function WorldMap({
   controlsDisabled = false,
   activeInterior = null,
   onInteriorChange,
-  onPositionSettled
+  onPositionSettled,
+  adventureMarkers = []
 }: WorldMapProps) {
   usePreloadedFrames();
 
@@ -115,6 +121,14 @@ export function WorldMap({
     return { x: restored.x, y: restored.y, facing, isMoving: false, territoryId: state.activeTerritory, nearbyTarget: null };
   });
   const lastReportedPosition = useRef<string | null>(null);
+
+  const adventureInteractables = useMemo<ExternalInteractableTarget[]>(() => adventureMarkers.map((marker) => ({
+    type: 'adventure',
+    id: marker.seedId,
+    label: marker.ariaLabel,
+    x: marker.x,
+    y: marker.y
+  })), [adventureMarkers]);
 
   const inputVectorRef = useRef({ x: 0, y: 0 });
 
@@ -302,7 +316,7 @@ export function WorldMap({
           const input = inputVectorRef.current;
           if (input.x !== 0 || input.y !== 0) {
             setPlayer((curr) => {
-              const next = updatePlayer(curr, input, dt, state);
+              const next = updatePlayer(curr, input, dt, state, adventureInteractables);
               if (next.isMoving) {
                 playFootstep('trail');
               }
@@ -339,8 +353,22 @@ export function WorldMap({
     player.territoryId,
     activeInterior,
     currentRoom,
-    activeProp
+    activeProp,
+    adventureInteractables
   ]);
+
+  // Recompute proximity when an opportunity appears/disappears while Greyson is
+  // standing still; otherwise the [A] verb would remain stale until the next step.
+  useEffect(() => {
+    if (activeInterior) return;
+    setPlayer((prev) => {
+      const nearbyTarget = findNearbyInteractable(prev.x, prev.y, state, adventureInteractables);
+      const same = prev.nearbyTarget?.type === nearbyTarget?.type
+        && prev.nearbyTarget?.id === nearbyTarget?.id
+        && Math.abs((prev.nearbyTarget?.distance ?? -1) - (nearbyTarget?.distance ?? -1)) < 0.01;
+      return same ? prev : { ...prev, nearbyTarget };
+    });
+  }, [activeInterior, state, adventureInteractables]);
 
   // Keep player territory in sync if state.activeTerritory changes externally
   useEffect(() => {
@@ -600,6 +628,21 @@ export function WorldMap({
               +{mark.xp}
             </div>
           )}
+
+          {adventureMarkers.map((marker) => (
+            <div
+              key={marker.id}
+              className={`world-opportunity-marker${player.nearbyTarget?.type === 'adventure' && player.nearbyTarget.id === marker.seedId ? ' is-near' : ''}`}
+              data-testid="adventure-world-marker"
+              data-marker-kind={marker.kind}
+              style={{
+                left: `${(marker.x / WORLD.width) * 100}%`,
+                top: `${(marker.y / WORLD.height) * 100}%`
+              }}
+            >
+              <WorldMarkerIcon model={marker} />
+            </div>
+          ))}
 
           {/* Greyson avatar element for test selectors */}
           <div

@@ -6,7 +6,7 @@ import { availableBosses, availableDoors } from '../game/encounters';
 import { findNearbyWaystone, WAYSTONES } from './props';
 
 export interface InteractableTarget {
-  type: 'landmark' | 'door' | 'boss' | 'waystone' | 'prop' | 'exit';
+  type: 'landmark' | 'door' | 'boss' | 'waystone' | 'prop' | 'exit' | 'adventure';
   id: string;
   label: string;
   x: number;
@@ -14,6 +14,8 @@ export interface InteractableTarget {
   distance: number;
   inscription?: string;
 }
+
+export type ExternalInteractableTarget = Omit<InteractableTarget, 'distance'>;
 
 export interface PlayerState {
   x: number;
@@ -54,7 +56,8 @@ export function detectTerritory(x: number, y: number): Region {
 export function findNearbyInteractable(
   x: number,
   y: number,
-  state: CampaignState
+  state: CampaignState,
+  externalTargets: readonly ExternalInteractableTarget[] = []
 ): InteractableTarget | null {
   const candidates: InteractableTarget[] = [];
 
@@ -130,6 +133,14 @@ export function findNearbyInteractable(
     });
   }
 
+  // 5. Presentation-derived world opportunities such as W02 Adventure markers.
+  // The caller supplies only public coordinates/category copy; source reasoning
+  // never enters the controller.
+  for (const target of externalTargets) {
+    const d = Math.hypot(x - target.x, y - target.y);
+    if (d <= INTERACTION_RADIUS) candidates.push({ ...target, distance: d });
+  }
+
   if (candidates.length === 0) return null;
   candidates.sort((a, b) => a.distance - b.distance);
   return candidates[0];
@@ -142,7 +153,8 @@ export function updatePlayer(
   current: PlayerState,
   inputVector: { x: number; y: number },
   dtSeconds: number,
-  campaignState: CampaignState
+  campaignState: CampaignState,
+  externalTargets: readonly ExternalInteractableTarget[] = []
 ): PlayerState {
   const isMoving = Math.hypot(inputVector.x, inputVector.y) > 0.05;
 
@@ -171,7 +183,7 @@ export function updatePlayer(
   }
 
   const territory = detectTerritory(newX, newY);
-  const nearbyTarget = findNearbyInteractable(newX, newY, campaignState);
+  const nearbyTarget = findNearbyInteractable(newX, newY, campaignState, externalTargets);
 
   return {
     x: newX,

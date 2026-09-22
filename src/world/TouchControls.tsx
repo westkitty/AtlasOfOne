@@ -262,6 +262,8 @@ export function TouchControls({
                 ? 'Inspect'
                 : nearbyTarget.type === 'exit'
                 ? 'Exit'
+                : nearbyTarget.type === 'adventure'
+                ? 'Start'
                 : 'Talk'
               : 'Interact'}
           </span>

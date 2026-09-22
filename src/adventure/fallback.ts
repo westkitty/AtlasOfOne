@@ -1,4 +1,4 @@
-import type { AdventureBeatRole, AdventureTemplate } from '../contracts/adventure';
+import type { AdventureBeatRole, AdventureLearningTarget, AdventureSeed, AdventureTemplate } from '../contracts/adventure';
 import { TERRITORY_DEFINITIONS } from '../game/data';
 import type { CampaignState } from '../game/types';
 import { validateAdventureTemplate } from './runtime';
@@ -47,6 +47,29 @@ export const LOCAL_FALLBACK_ADVENTURE_TEMPLATE: AdventureTemplate = {
   cooldownClass: 'local-fallback'
 };
 
+/**
+ * I01 compatibility adapter: keep the fixed local six-beat structure/copy while
+ * matching the already-authoritative seed kind. This deliberately changes no
+ * seed identity, premise, source gaps or learning target.
+ */
+export function localFallbackTemplateForSeed(
+  seed: Pick<AdventureSeed, 'kind' | 'learningTarget'>
+): AdventureTemplate | null {
+  if (seed.learningTarget !== 'reflection-eligible') return null;
+  if (seed.kind === LOCAL_FALLBACK_ADVENTURE_TEMPLATE.kind) return LOCAL_FALLBACK_ADVENTURE_TEMPLATE;
+  return {
+    ...LOCAL_FALLBACK_ADVENTURE_TEMPLATE,
+    id: `local-fallback-${seed.kind}`,
+    kind: seed.kind,
+    learningTarget: seed.learningTarget as AdventureLearningTarget,
+    beats: LOCAL_FALLBACK_ADVENTURE_TEMPLATE.beats.map((entry) => ({
+      ...entry,
+      allowedEncounterKinds: [...entry.allowedEncounterKinds],
+      exits: [...entry.exits]
+    }))
+  };
+}
+
 const COPY: Record<AdventureBeatRole, Omit<LocalAdventureScene, 'templateId' | 'runId' | 'beatId' | 'role' | 'terminal'>> = {
   hook: {
     kicker: 'Something is off',
@@ -93,22 +116,23 @@ const COPY: Record<AdventureBeatRole, Omit<LocalAdventureScene, 'templateId' | '
 export function renderLocalAdventureScene(
   state: CampaignState,
   runId: string,
-  template: AdventureTemplate = LOCAL_FALLBACK_ADVENTURE_TEMPLATE
+  template?: AdventureTemplate
 ): LocalAdventureScene | null {
-  if (!validateAdventureTemplate(template)) return null;
   const run = selectActiveAdventureRun(state);
   if (!run || run.id !== runId) return null;
   const seed = state.adventureSeeds.find((candidate) => candidate.id === run.seedId);
   if (!seed || seed.status !== 'started') return null;
-  if (seed.kind !== template.kind || seed.learningTarget !== template.learningTarget) return null;
-  if (!template.validTerritories.includes(run.territoryId)) return null;
+  const resolvedTemplate = template ?? localFallbackTemplateForSeed(seed);
+  if (!resolvedTemplate || !validateAdventureTemplate(resolvedTemplate)) return null;
+  if (seed.kind !== resolvedTemplate.kind || seed.learningTarget !== resolvedTemplate.learningTarget) return null;
+  if (!resolvedTemplate.validTerritories.includes(run.territoryId)) return null;
   if (seed.territoryId !== run.territoryId || seed.locationId !== run.locationId) return null;
 
-  const current = template.beats.find((candidate) => candidate.id === run.currentBeatId);
+  const current = resolvedTemplate.beats.find((candidate) => candidate.id === run.currentBeatId);
   if (!current) return null;
   const copy = COPY[current.role];
   return {
-    templateId: template.id,
+    templateId: resolvedTemplate.id,
     runId: run.id,
     beatId: current.id,
     role: current.role,
