@@ -13,6 +13,9 @@ import type { CampaignState, GameEvent, SassLevel } from './game/types';
 import { neighboursOf, regionFor, routeBetween } from './world/geography';
 import { sanctuaryFor } from './world/sanctuaries';
 import { playMenuSound, playStinger } from './world/audio';
+import { FallbackAdventureCard } from './adventure/FallbackAdventureCard';
+import { renderLocalAdventureScene } from './adventure/fallback';
+import { selectActiveAdventureRun } from './adventure/runs';
 import { EncounterPanel } from './combat/EncounterPanel';
 import { JournalPanel, type JournalExplorationStatus } from './journal/JournalPanel';
 import { retractJournalEntry, saveJournalEntry, setJournalEntryPrivacy } from './journal/state';
@@ -257,6 +260,12 @@ export default function App() {
    * it on the engine's deterministic authority rather than on a feeling about
    * how much has been said.
    */
+  const localFallbackScene = useMemo(() => {
+    if (!isOffline && provider.id !== 'disabled') return null;
+    const activeRun = selectActiveAdventureRun(state);
+    return activeRun ? renderLocalAdventureScene(state, activeRun.id) : null;
+  }, [state, isOffline, provider.id]);
+
   const campaignEnded = campaignReachedEndState(state);
   const chartedTerritories = state.territories.filter((t) => t.status === 'charted' || t.status === 'deeply-charted').length;
   const dispatch = (...events: GameEvent[]) => setState((current) => applyGameEvents(current, events));
@@ -1607,6 +1616,7 @@ export default function App() {
     ) : (
       <>
         {renderWorld()}
+        {screen === 'world' && localFallbackScene && <FallbackAdventureCard scene={localFallbackScene} />}
         {talking && (encounter ? renderEncounter() : renderConversation())}
 
         {/* Milestones land on the world, briefly, without blocking anything. */}
