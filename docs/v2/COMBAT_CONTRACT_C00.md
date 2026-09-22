@@ -114,10 +114,12 @@ First C07 MVP slice, chosen to unlock the later C15/C16 vertical fixtures:
 - exactly one player combatant;
 - at least one enemy;
 - positive integer max HP;
+- the sole player combatant uses the 100 HP encounter-local baseline;
 - unique combatant IDs;
 - unique gimmicks;
 - positive integer `turnLimit` when present;
 - objective prerequisites above;
+- MVP `survive-turns` limits stay inside the Appendix-I 3-5 round range;
 - non-negative integer reward amounts when present;
 - unique reward IDs.
 

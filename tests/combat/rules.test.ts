@@ -106,6 +106,23 @@ describe('C00 deterministic combat contract', () => {
     ]));
   });
 
+  it('enforces Appendix-I player HP and survival-round baselines instead of allowing content to override mechanics', () => {
+    const wrongPlayerHp = validateCombatDefinitionContract(definition({
+      combatants: [
+        { id: 'player', templateId: 'player-synthetic', team: 'player', maxHp: 99 },
+        { id: 'enemy', templateId: 'enemy-synthetic', team: 'enemy', maxHp: 54 }
+      ]
+    }));
+    expect(wrongPlayerHp.issues).toContainEqual(expect.objectContaining({ code: 'player-max-hp-mismatch' }));
+
+    const tooShort = validateCombatDefinitionContract(definition({ objective: 'survive-turns', turnLimit: 2 }));
+    const tooLong = validateCombatDefinitionContract(definition({ objective: 'survive-turns', turnLimit: 6 }));
+    expect(tooShort.issues).toContainEqual(expect.objectContaining({ code: 'survival-turn-limit-out-of-range' }));
+    expect(tooLong.issues).toContainEqual(expect.objectContaining({ code: 'survival-turn-limit-out-of-range' }));
+    expect(validateCombatDefinitionContract(definition({ objective: 'survive-turns', turnLimit: 3 })).ok).toBe(true);
+    expect(validateCombatDefinitionContract(definition({ objective: 'survive-turns', turnLimit: 5 })).ok).toBe(true);
+  });
+
   it('enforces objective prerequisites instead of guessing hidden targets or state', () => {
     const survive = validateCombatDefinitionContract(definition({ objective: 'survive-turns' }));
     expect(survive.issues).toContainEqual(expect.objectContaining({ code: 'missing-turn-limit' }));

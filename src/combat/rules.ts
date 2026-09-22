@@ -143,7 +143,9 @@ export type CombatContractIssueCode =
   | 'multiple-players'
   | 'missing-enemy'
   | 'invalid-max-hp'
+  | 'player-max-hp-mismatch'
   | 'invalid-turn-limit'
+  | 'survival-turn-limit-out-of-range'
   | 'missing-turn-limit'
   | 'missing-ally'
   | 'missing-required-gimmick'
@@ -181,6 +183,11 @@ export function validateCombatDefinitionContract(definition: CombatDefinition): 
   if (playerCount > 1) push('multiple-players', 'combatants', 'Exactly one player combatant is required.');
   if (enemyCount === 0) push('missing-enemy', 'combatants', 'At least one enemy combatant is required.');
 
+  const player = playerCount === 1 ? definition.combatants.find((combatant) => combatant.team === 'player') : undefined;
+  if (player && Number.isInteger(player.maxHp) && player.maxHp > 0 && player.maxHp !== COMBAT_TUNING.playerStartingHp) {
+    push('player-max-hp-mismatch', 'combatants', `Player maxHp must equal encounter-local baseline ${COMBAT_TUNING.playerStartingHp}.`);
+  }
+
   for (const [index, combatant] of definition.combatants.entries()) {
     if (blank(combatant.id)) push('blank-id', `combatants[${index}].id`, 'Combatant id must be nonblank.');
     if (blank(combatant.templateId)) push('blank-id', `combatants[${index}].templateId`, 'Combatant template id must be nonblank.');
@@ -202,6 +209,11 @@ export function validateCombatDefinitionContract(definition: CombatDefinition): 
   const objectiveRule = COMBAT_OBJECTIVE_RULES[definition.objective];
   if (objectiveRule.requiresTurnLimit && definition.turnLimit === undefined) {
     push('missing-turn-limit', 'turnLimit', `${definition.objective} requires an explicit deterministic turn limit.`);
+  }
+  if (definition.objective === 'survive-turns' && definition.turnLimit !== undefined
+    && (definition.turnLimit < COMBAT_TUNING.turnTargets.survival.min || definition.turnLimit > COMBAT_TUNING.turnTargets.survival.max)) {
+    push('survival-turn-limit-out-of-range', 'turnLimit',
+      `MVP survive-turns limit must be ${COMBAT_TUNING.turnTargets.survival.min}-${COMBAT_TUNING.turnTargets.survival.max} rounds.`);
   }
   if (objectiveRule.requiresAlly && !definition.combatants.some((combatant) => combatant.team === 'ally')) {
     push('missing-ally', 'combatants', `${definition.objective} requires at least one ally combatant.`);
