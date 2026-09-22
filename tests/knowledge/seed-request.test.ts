@@ -4,6 +4,7 @@ import { createInitialCampaign } from '../../src/game/engine';
 import type { CampaignState, EvidenceRecord, TurnRecord } from '../../src/game/types';
 import {
   buildGapSeedRequest,
+  buildGapSeedRequestForGap,
   K07_MAX_EVIDENCE_CLAIM_CHARS,
   K07_MAX_EVIDENCE_CLAIMS,
   K07_MAX_GAPS
@@ -196,6 +197,22 @@ describe('K07 deterministic gap -> seed request boundary', () => {
     const second = buildGapSeedRequest(campaign);
     expect(second).toEqual(first);
     expect(campaign).toEqual(before);
+  });
+
+  it('supports explicit-player targeting of one exact eligible gap without K04 choosing a different peer', () => {
+    const campaign = state({
+      knowledgeGaps: [
+        gap('gap-a', 'curiosity', 100, { dimensionIds: [] }),
+        gap('gap-z', 'curiosity', 100, { dimensionIds: [] })
+      ]
+    });
+    expect(buildGapSeedRequest(campaign)?.gapIds).toEqual(['gap-a', 'gap-z']);
+    expect(buildGapSeedRequestForGap(campaign, 'gap-z')).toMatchObject({
+      gapIds: ['gap-z'], territoryId: 'atlas', adventureKind: 'exploration-expedition',
+      permittedThemes: [], evidenceClaims: [], learningTarget: 'reflection-eligible'
+    });
+    expect(buildGapSeedRequestForGap(campaign, 'missing')).toBeNull();
+    expect(buildGapSeedRequestForGap(campaign, 'gap-z', { gapLimit: 0 })).toBeNull();
   });
 
   it('hard-caps user-supplied bounds', () => {

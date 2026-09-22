@@ -1,7 +1,7 @@
 import type { AdventureSeed } from '../contracts/adventure';
 import type { CampaignState } from '../game/types';
 import { selectKnowledgeGaps } from '../knowledge/gaps';
-import { buildGapSeedRequest, type GapSeedRequest } from '../knowledge/seed-request';
+import { buildGapSeedRequest, buildGapSeedRequestForGap, type GapSeedRequest } from '../knowledge/seed-request';
 import { providerEligibleV2State } from '../persistence/retirement';
 
 export interface AdventureSeedMaterializationOptions {
@@ -42,13 +42,25 @@ function arraysEqual(left: readonly string[], right: readonly string[]): boolean
  * This prevents a stale request from surviving a later privacy/retraction change.
  * Gap-ID order is normalized because it is structural set membership for A00.
  */
+function sameRequestContext(current: GapSeedRequest | null, request: GapSeedRequest): boolean {
+  return Boolean(current)
+    && structuralSeedKey(current!) === structuralSeedKey(request)
+    && arraysEqual(current!.permittedThemes, request.permittedThemes)
+    && arraysEqual(current!.forbiddenDimensions, request.forbiddenDimensions)
+    && arraysEqual(current!.evidenceClaims, request.evidenceClaims);
+}
+
 function requestStillCurrent(state: CampaignState, request: GapSeedRequest): boolean {
-  const current = buildGapSeedRequest(state);
-  if (!current) return false;
-  return structuralSeedKey(current) === structuralSeedKey(request)
-    && arraysEqual(current.permittedThemes, request.permittedThemes)
-    && arraysEqual(current.forbiddenDimensions, request.forbiddenDimensions)
-    && arraysEqual(current.evidenceClaims, request.evidenceClaims);
+  if (sameRequestContext(buildGapSeedRequest(state), request)) return true;
+  if (request.gapIds.length !== 1) return false;
+  const explicitGap = state.knowledgeGaps.find((gap) => gap.id === request.gapIds[0]);
+  if (!explicitGap
+    || explicitGap.kind !== 'curiosity'
+    || explicitGap.sourceJournalEntryIds.length !== 1
+    || explicitGap.sourceEvidenceIds.length !== 0
+    || explicitGap.dimensionIds.length !== 0
+  ) return false;
+  return sameRequestContext(buildGapSeedRequestForGap(state, request.gapIds[0]), request);
 }
 
 function equivalentSeedExists(state: CampaignState, request: GapSeedRequest): boolean {

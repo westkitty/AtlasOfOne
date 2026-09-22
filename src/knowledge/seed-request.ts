@@ -1,7 +1,7 @@
 import type { AdventureKind, AdventureLearningTarget } from '../contracts/adventure';
 import type { KnowledgeGap, KnowledgeGapKind } from '../contracts/reflection';
 import type { CampaignState, EvidenceRecord } from '../game/types';
-import { selectDiverseKnowledgeGaps } from './gaps';
+import { selectDiverseKnowledgeGaps, selectKnowledgeGaps } from './gaps';
 
 export interface GapSeedRequest {
   gapIds: string[];
@@ -101,6 +101,33 @@ function evidenceClaimsFor(
   return claims;
 }
 
+function buildRequestFromSelection(
+  state: CampaignState,
+  selected: readonly KnowledgeGap[],
+  gapLimit: number,
+  claimLimit: number,
+  claimChars: number
+): GapSeedRequest | null {
+  const primary = selected[0];
+  if (!primary) return null;
+  const territoryId = primaryTerritoryId(state, primary);
+  if (!territoryId) return null;
+  const territoryGaps = selectedForTerritory(selected, territoryId, gapLimit);
+  if (territoryGaps.length === 0) return null;
+  const permittedThemes = uniqueSorted(
+    territoryGaps.flatMap((gap) => gap.dimensionIds).filter((dimensionId) => !state.privateTopics.includes(dimensionId))
+  );
+  return {
+    gapIds: territoryGaps.map((gap) => gap.id),
+    territoryId,
+    adventureKind: ADVENTURE_KIND_BY_GAP_KIND[primary.kind],
+    permittedThemes,
+    forbiddenDimensions: uniqueSorted(state.privateTopics),
+    evidenceClaims: evidenceClaimsFor(state, territoryGaps, territoryId, claimLimit, claimChars),
+    learningTarget: 'reflection-eligible'
+  };
+}
+
 /**
  * K07 boundary: deterministic, read-only Knowledge -> seed request compilation.
  *
@@ -113,28 +140,32 @@ export function buildGapSeedRequest(state: CampaignState, options: GapSeedReques
   const claimLimit = normalizedBound(options.evidenceClaimLimit, K07_MAX_EVIDENCE_CLAIMS, K07_MAX_EVIDENCE_CLAIMS);
   const claimChars = normalizedBound(options.evidenceClaimChars, K07_MAX_EVIDENCE_CLAIM_CHARS, K07_MAX_EVIDENCE_CLAIM_CHARS);
   if (gapLimit <= 0) return null;
-
-  const selected = selectDiverseKnowledgeGaps(state, { limit: gapLimit });
-  const primary = selected[0];
-  if (!primary) return null;
-
-  const territoryId = primaryTerritoryId(state, primary);
-  if (!territoryId) return null;
-
-  const territoryGaps = selectedForTerritory(selected, territoryId, gapLimit);
-  if (territoryGaps.length === 0) return null;
-
-  const permittedThemes = uniqueSorted(
-    territoryGaps.flatMap((gap) => gap.dimensionIds).filter((dimensionId) => !state.privateTopics.includes(dimensionId))
+  return buildRequestFromSelection(
+    state,
+    selectDiverseKnowledgeGaps(state, { limit: gapLimit }),
+    gapLimit,
+    claimLimit,
+    claimChars
   );
+}
 
-  return {
-    gapIds: territoryGaps.map((gap) => gap.id),
-    territoryId,
-    adventureKind: ADVENTURE_KIND_BY_GAP_KIND[primary.kind],
-    permittedThemes,
-    forbiddenDimensions: uniqueSorted(state.privateTopics),
-    evidenceClaims: evidenceClaimsFor(state, territoryGaps, territoryId, claimLimit, claimChars),
-    learningTarget: 'reflection-eligible'
-  };
+/**
+ * Explicit-player variant of K07. It targets one exact currently eligible open
+ * gap instead of asking K04 to choose among candidates. This exists for surfaces
+ * where the player has already pointed at the thing to explore; explicit agency
+ * outranks automatic diversity/cooldown routing, while RF09/K05 eligibility and
+ * the same privacy/budget boundary still apply.
+ */
+export function buildGapSeedRequestForGap(
+  state: CampaignState,
+  gapId: string,
+  options: GapSeedRequestOptions = {}
+): GapSeedRequest | null {
+  if (!gapId.trim()) return null;
+  const gapLimit = normalizedBound(options.gapLimit, 1, 1);
+  const claimLimit = normalizedBound(options.evidenceClaimLimit, K07_MAX_EVIDENCE_CLAIMS, K07_MAX_EVIDENCE_CLAIMS);
+  const claimChars = normalizedBound(options.evidenceClaimChars, K07_MAX_EVIDENCE_CLAIM_CHARS, K07_MAX_EVIDENCE_CLAIM_CHARS);
+  if (gapLimit <= 0) return null;
+  const exact = selectKnowledgeGaps(state).find((gap) => gap.id === gapId);
+  return exact ? buildRequestFromSelection(state, [exact], 1, claimLimit, claimChars) : null;
 }

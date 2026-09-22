@@ -15,6 +15,7 @@ import { sanctuaryFor } from './world/sanctuaries';
 import { playMenuSound, playStinger } from './world/audio';
 import { FallbackAdventureCard } from './adventure/FallbackAdventureCard';
 import { renderLocalAdventureScene } from './adventure/fallback';
+import { materializeJournalAdventureSeed } from './adventure/journalSeed';
 import { selectActiveAdventureRun } from './adventure/runs';
 import { EncounterPanel } from './combat/EncounterPanel';
 import { JournalPanel, type JournalExplorationStatus } from './journal/JournalPanel';
@@ -1064,6 +1065,12 @@ export default function App() {
     onRetractJournal={(entryId) => setState((current) => retractJournalEntry(current, entryId))}
     onSetJournalPrivacy={(entryId, privacy) => setState((current) => setJournalEntryPrivacy(current, entryId, privacy))}
     onExploreLater={(entryId) => { setState((current) => markJournalForExploration(current, entryId)); setReply('Saved for later exploration.'); }}
+    onExploreNow={(entryId) => {
+      const preview = materializeJournalAdventureSeed(state, entryId);
+      if (preview === state) { setReply('That path is not available anymore.'); return; }
+      setState((current) => materializeJournalAdventureSeed(current, entryId));
+      setReply('Adventure ready. Your journal entry stays unchanged.');
+    }}
     onStopExploring={(entryId) => { setState((current) => retireKnowledgeGap(current, curiosityGapId(entryId))); setReply('Removed from Explore later. The entry stays in your journal.'); }}
     onClose={() => { if (voiceMode === 'talk') cancelVoice(); setTalking(false); setMoreOpen(false); setPromptRequested(false); }}
     onModeChange={toggleVoiceMode}
