@@ -10,6 +10,7 @@ import {
   markJournalForExploration,
   passiveCoveragePriority,
   refreshCoverageGaps,
+  retireKnowledgeGap,
   selectDiverseKnowledgeGaps,
   selectKnowledgeGaps
 } from '../../src/knowledge/gaps';
@@ -231,6 +232,70 @@ describe('K00-K05 deterministic Knowledge Gap foundation', () => {
     expect([traumaGap.kind, bananaGap.kind]).not.toContain('contradiction');
     expect([traumaGap.kind, bananaGap.kind]).not.toContain('change');
     expect(passiveCoveragePriority({ evidenceCount: 1, sufficientlyCovered: false, sourceTurnTimestamps: [OLD_75_DAYS], now: NOW })).toBe(50);
+  });
+});
+
+
+describe('K06 explicit Knowledge gap retirement', () => {
+  it('retires an exact open curiosity gap without rewriting its source or unrelated campaign state', () => {
+    const source = journal('journal-retire');
+    const openGap: KnowledgeGap = {
+      id: curiosityGapId(source.id), kind: 'curiosity', territoryIds: ['atlas'], dimensionIds: [], sourceEvidenceIds: [],
+      sourceJournalEntryIds: [source.id], summary: 'Player explicitly chose to explore a Journal entry.', status: 'open', priority: 100
+    };
+    const state = syntheticState({ journalEntries: [source], knowledgeGaps: [openGap], turns: [turn('turn-safe', RECENT)], evidence: [evidence('evidence-safe', ['turn-safe'])] });
+    const before = structuredClone(state);
+    const result = retireKnowledgeGap(state, openGap.id, { now: NOW });
+    expect(result.knowledgeGaps[0]).toEqual({ ...openGap, status: 'retired' });
+    expect(result.updatedAt).toBe(NOW);
+    expect(result.journalEntries).toEqual(before.journalEntries);
+    expect(result.turns).toEqual(before.turns);
+    expect(result.evidence).toEqual(before.evidence);
+    expect(result.contradictions).toEqual(before.contradictions);
+    expect(result.reflections).toEqual(before.reflections);
+    for (const key of ['xp', 'level', 'territories', 'quests', 'achievements', 'mapFragments', 'worldJourney'] as const) expect(result[key]).toEqual(before[key]);
+  });
+
+  it('retires seeded gaps, is idempotent, and no-ops for missing/resolved/retired gaps', () => {
+    const seeded = gap('seeded-gap', 50, ['atlas'], ['bananas'], 'underexplored', 'seeded');
+    const state = syntheticState({ knowledgeGaps: [seeded] });
+    const retired = retireKnowledgeGap(state, seeded.id, { now: NOW });
+    expect(retired.knowledgeGaps[0].status).toBe('retired');
+    expect(retireKnowledgeGap(retired, seeded.id, { now: RECENT })).toBe(retired);
+    expect(retireKnowledgeGap(state, 'missing-gap', { now: NOW })).toBe(state);
+    const resolvedState = syntheticState({ knowledgeGaps: [{ ...seeded, status: 'resolved' }] });
+    expect(retireKnowledgeGap(resolvedState, seeded.id, { now: NOW })).toBe(resolvedState);
+  });
+
+  it('removes a retired gap from selectors and structurally retires only seeds that lose all eligible support', () => {
+    const source = journal('journal-retire');
+    const retiring: KnowledgeGap = {
+      id: curiosityGapId(source.id), kind: 'curiosity', territoryIds: ['atlas'], dimensionIds: [], sourceEvidenceIds: [],
+      sourceJournalEntryIds: [source.id], summary: 'Synthetic retire target.', status: 'open', priority: 100
+    };
+    const other = gap('other-gap', 90);
+    const state = syntheticState({
+      journalEntries: [source], knowledgeGaps: [retiring, other],
+      adventureSeeds: [seed('only-target', [retiring.id]), seed('mixed-support', [retiring.id, other.id]), seed('unrelated', [other.id])]
+    });
+    const result = retireKnowledgeGap(state, retiring.id, { now: NOW });
+    expect(selectKnowledgeGaps(result).map((entry) => entry.id)).toEqual(['other-gap']);
+    expect(selectDiverseKnowledgeGaps(result).map((entry) => entry.id)).toEqual(['other-gap']);
+    expect(result.adventureSeeds.map(({ id, status }) => [id, status])).toEqual([
+      ['only-target', 'retired'], ['mixed-support', 'available'], ['unrelated', 'available']
+    ]);
+    expect(result.knowledgeGaps.find((entry) => entry.id === other.id)).toEqual(other);
+  });
+
+  it('keeps K02 opt-in explicit, private/retracted-safe, and progression-free', () => {
+    const base = syntheticState({ journalEntries: [journal('normal'), journal('private', 'private'), journal('retracted', 'normal', 'retracted')] });
+    const before = structuredClone(base);
+    const marked = markJournalForExploration(base, 'normal', { now: NOW });
+    expect(marked.knowledgeGaps).toHaveLength(1);
+    expect(markJournalForExploration(base, 'private', { now: NOW })).toBe(base);
+    expect(markJournalForExploration(base, 'retracted', { now: NOW })).toBe(base);
+    expect(marked.journalEntries).toEqual(before.journalEntries);
+    for (const key of ['xp', 'level', 'turns', 'evidence', 'territories', 'quests', 'achievements', 'mapFragments', 'worldJourney'] as const) expect(marked[key]).toEqual(before[key]);
   });
 });
 

@@ -1,6 +1,6 @@
 import type { KnowledgeGap } from '../contracts/reflection';
 import type { CampaignState, EvidenceRecord, TurnRecord } from '../game/types';
-import { providerEligibleV2State } from '../persistence/retirement';
+import { providerEligibleV2State, retireIneligibleV2State } from '../persistence/retirement';
 
 const COVERAGE_ID_PREFIX = 'knowledge_gap_coverage_';
 const CURIOSITY_ID_PREFIX = 'knowledge_gap_curiosity_';
@@ -293,6 +293,21 @@ export function refreshCoverageGaps(state: CampaignState, options: CoverageGapOp
   if (additions.length > 0) changed = true;
   if (!changed) return state;
   return { ...state, knowledgeGaps: [...knowledgeGaps, ...additions], updatedAt: now };
+}
+
+/**
+ * Explicit player-owned retirement for one exact durable Knowledge gap.
+ *
+ * This changes lifecycle state only. Source Journal/evidence/history is preserved,
+ * and the canonical structural retirement pass handles dependent seed eligibility.
+ */
+export function retireKnowledgeGap(state: CampaignState, gapId: string, options: CoverageGapOptions = {}): CampaignState {
+  const target = state.knowledgeGaps.find((gap) => gap.id === gapId);
+  if (!target || (target.status !== 'open' && target.status !== 'seeded')) return state;
+
+  const now = referenceNow(options);
+  const knowledgeGaps = state.knowledgeGaps.map((gap) => gap.id === gapId ? { ...gap, status: 'retired' as const } : gap);
+  return retireIneligibleV2State({ ...state, knowledgeGaps, updatedAt: now });
 }
 
 /** Creates a durable gap only after an explicit player "Explore this" action. */

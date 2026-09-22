@@ -14,8 +14,9 @@ import { neighboursOf, regionFor, routeBetween } from './world/geography';
 import { sanctuaryFor } from './world/sanctuaries';
 import { playMenuSound, playStinger } from './world/audio';
 import { EncounterPanel } from './combat/EncounterPanel';
-import { JournalPanel } from './journal/JournalPanel';
+import { JournalPanel, type JournalExplorationStatus } from './journal/JournalPanel';
 import { retractJournalEntry, saveJournalEntry, setJournalEntryPrivacy } from './journal/state';
+import { curiosityGapId, markJournalForExploration, retireKnowledgeGap } from './knowledge/gaps';
 import { AppSheet, MilestoneBanners, ProgressPresentation } from './presentation/AppPresentation';
 import { WorldwalkerPanel } from './world/WorldwalkerPanel';
 import type { InteractableTarget } from './world/playerController';
@@ -1019,6 +1020,15 @@ export default function App() {
     setReply('Saved locally.');
   };
 
+  const journalExplorationStatusByEntryId = useMemo(() => {
+    const statuses: Record<string, JournalExplorationStatus> = {};
+    for (const entry of state.journalEntries) {
+      const gap = state.knowledgeGaps.find((candidate) => candidate.id === curiosityGapId(entry.id));
+      statuses[entry.id] = gap?.status ?? 'none';
+    }
+    return statuses;
+  }, [state.journalEntries, state.knowledgeGaps]);
+
   const renderConversation = () => <JournalPanel
     activeTerritory={activeTerritory}
     prompt={prompt}
@@ -1038,11 +1048,14 @@ export default function App() {
     draftPrivate={draftPrivate}
     promptRequested={promptRequested}
     journalEntries={state.journalEntries}
+    explorationStatusByEntryId={journalExplorationStatusByEntryId}
     onDraftPrivateChange={setDraftPrivate}
     onRequestPrompt={() => setPromptRequested(true)}
     onSaveJournal={saveJournal}
     onRetractJournal={(entryId) => setState((current) => retractJournalEntry(current, entryId))}
     onSetJournalPrivacy={(entryId, privacy) => setState((current) => setJournalEntryPrivacy(current, entryId, privacy))}
+    onExploreLater={(entryId) => { setState((current) => markJournalForExploration(current, entryId)); setReply('Saved for later exploration.'); }}
+    onStopExploring={(entryId) => { setState((current) => retireKnowledgeGap(current, curiosityGapId(entryId))); setReply('Removed from Explore later. The entry stays in your journal.'); }}
     onClose={() => { if (voiceMode === 'talk') cancelVoice(); setTalking(false); setMoreOpen(false); setPromptRequested(false); }}
     onModeChange={toggleVoiceMode}
     onSubmit={() => { if (promptRequested && !draftPrivate) submit(); }}

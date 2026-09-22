@@ -19,3 +19,5 @@
 .journal-entry p { white-space: pre-wrap; margin: 10px 0 6px; line-height: 1.45; }
 .journal-entry-actions { justify-content: flex-start; margin-top: 10px; }
 .journal-entry-actions button { min-height: 44px; padding: 0 10px; }
+
+.journal-exploration-state { display: inline-flex; min-height: 44px; align-items: center; padding: 0 4px; color: var(--muted); font-size: .78rem; }
