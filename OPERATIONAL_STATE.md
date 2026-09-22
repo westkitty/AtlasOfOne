@@ -7,10 +7,10 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 43,
+  "state_revision": 44,
   "last_updated": "2026-09-22",
   "current_baseline": {
-    "identity": "rev43",
+    "identity": "rev44",
     "state": "partially-verified",
     "last_verified": "2026-09-22"
   },
@@ -28,8 +28,8 @@
     "note": "The Vault retraction affordance. This is what is DEPLOYED; the baseline above is not, pending human review."
   },
   "repository_head_at_write": {
-    "commit": "616f3fa7bb2a3df3a5c7056a01ae8c17173a1c38",
-    "note": "v2 integration-branch HEAD after reviewed A06 local fallback Adventure renderer integration and post-integration typecheck/unit/build/browser proof, before this state-only update. Expected to advance when this revision is committed; main and deployed application content remain separate identities."
+    "commit": "8c3e6c9b70fab77a1da29b527d351ad352e9a951",
+    "note": "v2 integration-branch HEAD after revision 43 recorded reviewed A06 integration, before this bounded state-correction update. Expected to advance when this correction is committed; main and deployed application content remain separate identities."
   },
   "scope_boundaries": [
     "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight across all 8 territories and Mystery Door encounters, local persistence, PWA manifest/offline shell, CI browser workflow, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime, live Workers AI bakeoff and measured provider selection, Phase 4 voice interaction history plus v2 STT-only transition (MediaRecorder capture, explicit voice state machine, local agency command parser, /api/transcribe endpoint; assistant TTS removed on the v2 integration branch), ATLAS_ACCESS_SECRET Worker secret + client credential gate, Cloudflare Workers production deployment, Cloudflare Workers Builds Git repository integration, Phase 5 adversarial release QA (player archetype fixtures, async hammer protection, network degradation resilience, persistence torture & migration, defensive security bounds, BUG-001 through BUG-005 defect resolution), Final Atlas Assessment synthesis engine (/api/finalize endpoint + deterministic offline generator + print-to-PDF styles), Phase 6 minimal onboarding flow (5-step sequence, 0 XP, 0 unlocks, full agency controls preview, dual persistence via IndexedDB + localStorage), the deployed Final Assessment trust boundary (provenance-based derived-record privacy, non-fabricating offline synthesis, deterministic end-state gate, focused semantic validation of remote assessments), the browser-harness hydration-race repair, and real-application async regression coverage replacing the former self-referential fixtures (230 unit tests passed with 1 skipped across 30 files, 76 real-browser tests in Chrome across 8 suites; physical Android device hardware verification unverified pending reachable device UNV-003)"
@@ -315,6 +315,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **PND-014:** Closed. `tests/browser/encounter-concurrency.test.ts` (5 checks) proves both encounter types against the real application. The Boss Fight defect reproduced and was repaired; the Mystery Door's deterministic progression was already protected by the engine, and its duplicate enrichment requests were repaired at the same boundary. The repair is deliberately NOT the `submitInFlight` shape the revision-15 note anticipated — see VER-056 and DEC-030 for why the encounter lifecycle needs a different release point.
 - **PND-013:** **Partially closed.** KNOWN-004 and KNOWN-005 are resolved in `a787285` (VER-058, VER-059). What remains is KNOWN-003, the `CAMPAIGN_COMPLETED` dispatcher gap, which is a product decision about how a campaign ends rather than a mechanical repair and is deliberately not being taken without direction.
 - **PND-015:** **Open — dependency/test-runtime reproducibility across worktrees.** `package-lock.json` is intentionally untracked under DEC-013, but the D00-D04 review proved that separate worktrees can resolve different toolchain minors from the same `package.json` (`vitest` 5.0.0 vs 5.0.1 and Vite 8.2.2 vs 8.3.0 were observed). This did not produce a reproducible product defect, but it can change browser-test timing and build output, so release-quality work needs one explicit reproducibility decision: either track/pin an install artifact or define another deterministic install strategy. Do not silently change dependency policy inside a feature lane; resolve this as a bounded infrastructure packet.
+- **PND-016:** **Open — reconcile stale `tests/browser/overworld-verbs.test.ts` with Journal-first behavior.** On 2026-09-22 the suite failed 7/10 identically on reviewed A06 candidate and freshly built untouched integration base `38700ac`. The first failing assertion expects the legacy prompted Talk `prompt-question`; current product authority opens the blank Journal surface instead. Because the suite reuses one page, that failed test exits before cleanup, leaves the Journal overlay open, and cascades later pointer-interception failures. Core `journey.test.ts` remains 18/18 green. Treat this as bounded test-maintenance/QA debt, not a product defect and not permission to restore questionnaire behavior.
 - **PND-005:** Intentionally deferred. Detailed canonical turnaround source `sheets/aerron_turnaround_hires.png` is not committed/available in repo and trigger/role remains an unresolved design decision (Level 8 vs all territories charted vs final assessment). Leave pending until source asset and decision are supplied.
 
 ## 10. Active Decisions, Defaults, and Prohibitions
@@ -439,6 +440,13 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **Repair class:** Rev 25 closes the Worldwalker unification release onto `main`: the cinematic entry/Talk baseline, physical overworld, journey persistence, lifecycle hardening, and deterministic browser proof are merged and deployed. Current verified production bundle: `assets/index-CI2VK5XI.js` from release head `6e720b2`. Open items deliberately left visible: KNOWN-003, KNOWN-006, PND-005, PND-009, PND-013 remainder, UNV-003, UNV-004, UNV-007, UNV-009, UNV-010, UNV-017, UNV-018, UNV-019, UNV-021, UNV-023, UNV-024 and UNK-002.
 
 ## 13. Compact Revision Log
+
+### Revision 44 — 2026-09-22
+
+- **Artifact/source identity:** local integration branch `integration/atlas-v2-journal-adventure-combat` at state head `8c3e6c9` before this state-only correction; application content remains the reviewed A06 integration already recorded in revision 43.
+- **State delta:** adds the missing explicit Pending Work row `PND-016` for the baseline-stale `overworld-verbs` regression. Revision 43/VER-082 already named the item, but the Pending Work insertion was accidentally skipped because that identifier was present elsewhere in the file. No product, routing, verification or next-packet decision changes: W01 remains the critical-path scope.
+- **Verification evidence:** `PND-016` now exists once in the Pending Work registry and continues to match the base-vs-candidate 7/10 evidence recorded in `docs/v2/proof/A06-review.md`.
+- **Protected limitations:** this correction does not repair the stale suite, alter Journal-first behavior, or change application code.
 
 ### Revision 43 — 2026-09-22
 
