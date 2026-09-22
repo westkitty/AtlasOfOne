@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { eventsFromTurn } from './cartographer/apply';
+import { reconcileRevisionCounterEvidence } from './reflection/runtime';
 import { createRemoteProvider, requestFinalAssessment, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
 import { compileFinalizeContext, generateLocalAssessment } from './cartographer/finalize';
@@ -431,7 +432,8 @@ export default function App() {
       if (current.sessionStatus === 'paused' || current.privateTopics.includes(turnPrompt.dimension)) {
         return current;
       }
-      return applyGameEvents(current, eventsFromTurn(turnPrompt, text, turn, providerId));
+      const applied = applyGameEvents(current, eventsFromTurn(turnPrompt, text, turn, providerId));
+      return reconcileRevisionCounterEvidence(current, applied);
     });
     setReply(turn.reply); setAnswer('');
     setPromptOverride(null); setRerollCount(0);
