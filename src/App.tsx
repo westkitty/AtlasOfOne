@@ -19,8 +19,6 @@ import { clearAccessSecret, getAccessHeaders, getAccessSecret, setAccessSecret }
 import { isAudioCaptureSupported, startAudioCapture, type ActiveAudioCapture } from './voice/capture';
 import { parseVoiceCommand } from './voice/commands';
 import { transitionVoiceState, voiceStateLabel } from './voice/state';
-import { cancelSpeech, speakText } from './voice/synthesis';
-import { availableVoices, forgetResolvedVoice, getVoicePreference, primeVoices, setVoicePreference } from './voice/voices';
 import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
 
 type Screen = 'world'|'vault'|'me';
@@ -96,20 +94,6 @@ const SILENCE_HOLD_MS = 1400;
 /** Safety bound. Never fabricates an answer — it returns to a listening retry. */
 const MAX_LISTEN_MS = 45_000;
 
-/** Short spoken acknowledgement for a local command, so the loop stays audible. */
-function voiceCommandAcknowledgement(command: VoiceCommandType): string {
-  switch (command) {
-    case 'pass': return 'Passed. No penalty.';
-    case 'private': return 'Private. I will not intentionally return to that dimension.';
-    case 'serious': return 'Serious mode. I will keep this plain.';
-    case 'help': return 'You can say pass, private, stop, serious, help, or sass. Say stop any time.';
-    case 'sass-low':
-    case 'sass-medium':
-    case 'sass-risks': return 'Sass adjusted.';
-    default: return 'Understood.';
-  }
-}
-
 const hasCompletedOnboarding = (campaign: { onboardingCompleted?: boolean; turns: unknown[] }, markerSet: boolean) =>
   campaign.onboardingCompleted === true || markerSet || campaign.turns.length > 0;
 
@@ -139,29 +123,8 @@ export default function App() {
   const [micLevel, setMicLevel] = useState(0);
   const [micMeterLive, setMicMeterLive] = useState(false);
   const unsubscribeLevel = useRef<(() => void) | null>(null);
-  /**
-   * Talk is a conversation, not a recorder.
-   *
-   * `voiceState` says what the machinery is doing right now; `conversationActive`
-   * says whether Atlas should keep taking turns. A transient operation ending —
-   * a synthesis finishing, a transcription returning — never ends the
-   * conversation. Only an explicit lifecycle event does: Cancel, STOP, a switch
-   * to Type, an import, an unrecoverable failure, or unmount.
-   *
-   * Both a ref and state: the ref is the lifecycle authority because it mutates
-   * synchronously and a stale callback must not be able to reopen a microphone
-   * (DEC-029); the state exists so the UI can render.
-   */
-  const conversationActive = useRef(false);
-  const [conversing, setConversing] = useState(false);
-  /**
-   * Generation token. Every conversation start/stop bumps it, and every async
-   * continuation captures the value it began with. A callback from an obsolete
-   * cycle compares unequal and does nothing at all.
-   */
+  /** Capture generation token. Every start/stop invalidates stale microphone work. */
   const conversationId = useRef(0);
-  /** Reply awaiting speech, spoken together with the next prompt by an effect. */
-  const [pendingReply, setPendingReply] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
   // Async concurrency and request lifecycle guards
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -261,13 +224,6 @@ export default function App() {
   /** The conversation panel scrolls; an opened sheet must not open off-screen. */
   const agencySheetRef = useRef<HTMLDivElement | null>(null);
   /**
-   * Which voice the Cartographer speaks with. Stored locally on the device only:
-   * it never enters CampaignState, an export, or a provider payload.
-   */
-  const [voiceChoices, setVoiceChoices] = useState<ReturnType<typeof availableVoices>>([]);
-  const [voiceUri, setVoiceUri] = useState<string | null>(() => getVoicePreference());
-  useEffect(() => { void primeVoices().then(() => setVoiceChoices(availableVoices())); }, []);
-  /**
    * Transient reaction to a committed turn: how much XP the engine just granted
    * and where the mark landed. Derived by observing state that has ALREADY been
    * committed, never by predicting it, so this cannot become a second source of
@@ -308,11 +264,10 @@ export default function App() {
       .finally(() => { if (live) setHydrated(true); });
     return () => { live = false; };
   }, []);
-  useEffect(() => { void primeVoices(); }, []);
   useEffect(() => { if (hydrated) void saveCampaign(state).catch(() => setMessage('Automatic save failed. Export before leaving.')); }, [state, hydrated]);
   useEffect(() => { document.documentElement.dataset.reducedMotion = String(state.settings.reducedMotion); }, [state.settings.reducedMotion]);
   // No live audio context may outlive the component.
-  useEffect(() => () => { conversationActive.current = false; conversationId.current += 1; unsubscribeLevel.current?.(); unsubscribeLevel.current = null; }, []);
+  useEffect(() => () => { conversationId.current += 1; unsubscribeLevel.current?.(); unsubscribeLevel.current = null; }, []);
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
@@ -331,7 +286,6 @@ export default function App() {
   }, []);
   // Reset voice actions on navigation or unmount
   useEffect(() => {
-    cancelSpeech();
     if (activeCapture) {
       activeCapture.abort();
       setActiveCapture(null);
@@ -471,21 +425,7 @@ export default function App() {
     });
     setReply(turn.reply); setAnswer('');
     setPromptOverride(null); setRerollCount(0);
-    if (voiceMode === 'talk' && conversationActive.current) {
-      // The effect below speaks the reply together with whatever Atlas is asking
-      // next, so the player never has to read the screen to know their cue.
-      setVoiceState('thinking');
-      setPendingReply(turn.reply);
-    } else if (voiceMode === 'talk') {
-      setVoiceState('speaking');
-      speakText(turn.reply, {
-        quiet: state.presentation === 'quiet',
-        onEnd: () => setVoiceState('idle'),
-        onError: () => setVoiceState('idle')
-      });
-    } else {
-      setVoiceState('idle');
-    }
+    setVoiceState('idle');
   };
 
   /**
@@ -517,53 +457,13 @@ export default function App() {
     }
   };
 
-  /**
-   * The conversational half of a turn: say what happened, establish what is
-   * being asked next, then hand the microphone back — with no tap in between.
-   *
-   * `prompt` is derived from the freshly committed state, so the question spoken
-   * here is the real next question. It is only appended when the reply does not
-   * already contain it, so Atlas never asks the same thing twice in one breath.
-   */
-  useEffect(() => {
-    if (pendingReply === null) return;
-    if (!conversationActive.current || voiceMode !== 'talk') { setPendingReply(null); return; }
-    const generation = conversationId.current;
-    const question = prompt.question.trim();
-    const spoken = pendingReply.includes(question) || !question ? pendingReply : `${pendingReply} ${question}`;
-    setPendingReply(null);
-    setVoiceState('speaking');
-    speakText(spoken, {
-      quiet: state.presentation === 'quiet',
-      onEnd: () => {
-        // A finished utterance does not end a conversation.
-        if (conversationActive.current && generation === conversationId.current) void beginListeningTurn(generation);
-        else setVoiceState('idle');
-      },
-      onError: () => {
-        if (conversationActive.current && generation === conversationId.current) void beginListeningTurn(generation);
-        else setVoiceState('idle');
-      }
-    });
-    // Speech is driven by the reply arriving; re-running on other state would
-    // interrupt an utterance mid-sentence.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingReply]);
-
-  /**
-   * Start a spoken conversation. This is the ONE deliberate action: Atlas states
-   * the current question aloud and then listens on its own.
-   */
+  /** Start one speech-to-text capture. Atlas responses remain visual text only. */
   const startConversation = () => {
-    conversationActive.current = true;
     conversationId.current += 1;
-    const generation = conversationId.current;
-    setConversing(true);
-    void generation;
-    setPendingReply(prompt.question);
+    void beginListeningTurn(conversationId.current);
   };
 
-  const submitText = (text: string) => {
+  const submitText =  const submitText = (text: string) => {
     if (!text.trim() || state.sessionStatus === 'paused' || isSubmitting || submitInFlight.current) return;
     if (isOffline || provider.id === 'disabled') { commitTurn(createMockTurn(state, prompt, text), text, 'mock', prompt); return; }
     // Claimed synchronously, before the first await, so a second click in the
@@ -584,17 +484,12 @@ export default function App() {
   const canGoDeeper = Boolean(state.unlocks.find((item) => item.id === 'go-deeper')?.unlockedAt);
   const canReroll = Boolean(state.unlocks.find((item) => item.id === 'reroll')?.unlockedAt);
 
-  const speakIfConversing = (line: string) => {
-    if (voiceMode === 'talk' && conversationActive.current) { setVoiceState('thinking'); setPendingReply(line); }
-  };
-
-  const invokeGoDeeper = () => {
+  const invokeGoDeeper =  const invokeGoDeeper = () => {
     if (!canGoDeeper || state.sessionStatus === 'paused') return;
     setPromptOverride({ kind: 'deeper', prompt: deeperPrompt(basePrompt) });
     setMoreOpen(false);
     const line = 'Going deeper on the same thread. Nothing is scored for asking.';
     setReply(line);
-    speakIfConversing(line);
   };
 
   const invokeReroll = () => {
@@ -605,25 +500,21 @@ export default function App() {
     setMoreOpen(false);
     const line = 'Reframed. Same coordinate, different way in. Rerolling costs nothing.';
     setReply(line);
-    speakIfConversing(line);
   };
 
   const toggleVoiceMode = (mode: VoiceMode) => {
     if (mode === voiceMode) return;
-    // Whichever direction, the current loop stops first and every in-flight
-    // continuation is invalidated, so a late transcription or a finishing
-    // utterance can never submit or reopen the microphone (BUG-004).
+    // Whichever direction, invalidate every in-flight capture/transcription first.
     pendingCaptureCancelled.current = true;
     endConversation();
     stopLevelMeter();
-    cancelSpeech();
     if (activeCapture) {
       activeCapture.abort();
       setActiveCapture(null);
     }
     setVoiceState('idle');
     setVoiceMode(mode);
-    // Choosing Talk is the single deliberate act that starts the conversation.
+    // Choosing Talk starts one dictation capture.
     if (mode === 'talk') startConversation();
   };
 
@@ -638,7 +529,6 @@ export default function App() {
   const beginListeningTurn = async (generation = conversationId.current) => {
     if (state.sessionStatus === 'paused' || isSubmitting) return;
     if (generation !== conversationId.current) return;
-    cancelSpeech();
     pendingCaptureCancelled.current = false;
     setVoiceState('requesting-permission');
     try {
@@ -679,9 +569,7 @@ export default function App() {
 
   /** Manual entry point kept for retry and for the visible recording affordance. */
   const startRecording = async () => {
-    conversationActive.current = true;
     conversationId.current += 1;
-    setConversing(true);
     await beginListeningTurn(conversationId.current);
   };
 
@@ -713,9 +601,8 @@ export default function App() {
       }
       const text = res.text.trim();
       if (!text) {
-        // Never fabricate a turn. Keep listening if the conversation is running.
-        setMessage('No speech detected. Still listening.');
-        if (conversationActive.current && generation === conversationId.current) { void beginListeningTurn(generation); return; }
+        // Never fabricate a turn and never reopen the microphone automatically.
+        setMessage('No speech detected. Try again or type instead.');
         setVoiceState('idle');
         return;
       }
@@ -723,16 +610,13 @@ export default function App() {
       if (command) {
         // Local commands never reach the Cartographer and never award progress.
         executeVoiceCommand(command.type);
-        if (command.type !== 'stop' && conversationActive.current && generation === conversationId.current) {
-          setPendingReply(voiceCommandAcknowledgement(command.type));
-          return;
-        }
         setVoiceState('idle');
         return;
       }
+      // STT produces editable text. The player decides whether and when to submit.
       setAnswer(text);
-      setVoiceState('thinking');
-      submitText(text);
+      setVoiceState('idle');
+      setVoiceMode('type');
     } catch {
       setVoiceState('error');
       setMessage('Audio processing failed. You can type below.');
@@ -748,15 +632,9 @@ export default function App() {
     setMicLevel(0);
   };
 
-  /**
-   * Ends the conversational loop. Bumping the generation invalidates every
-   * in-flight continuation, so nothing can reopen the microphone afterwards.
-   */
+  /** Invalidate every in-flight capture/transcription continuation. */
   const endConversation = () => {
-    conversationActive.current = false;
     conversationId.current += 1;
-    setConversing(false);
-    setPendingReply(null);
   };
 
   const cancelVoice = () => {
@@ -767,13 +645,12 @@ export default function App() {
       activeCapture.abort();
       setActiveCapture(null);
     }
-    cancelSpeech();
     setVoiceState('idle');
   };
 
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState !== 'visible' && conversationActive.current) cancelVoice();
+      if (document.visibilityState !== 'visible' && (activeCapture || voiceState !== 'idle')) cancelVoice();
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
@@ -1259,7 +1136,7 @@ export default function App() {
       <div className="voice-card" data-testid="voice-card">
         <span className={`voice-badge ${voiceState}`} data-testid="voice-status">{voiceStateLabel(voiceState)}</span>
         {voiceState === 'idle' && (
-          <button className="mic-btn" data-testid="mic-button" aria-label="Start the conversation" onClick={startConversation} disabled={state.sessionStatus==='paused'}>
+          <button className="mic-btn" data-testid="mic-button" aria-label="Start dictation" onClick={startConversation} disabled={state.sessionStatus==='paused'}>
             🎙
           </button>
         )}
@@ -1298,24 +1175,9 @@ export default function App() {
             <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
           </div>
         )}
-        {(voiceState === 'transcribing' || voiceState === 'thinking') && (
+        {voiceState === 'transcribing' && (
           <div className="voice-actions">
             <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
-          </div>
-        )}
-        {voiceState === 'speaking' && (
-          <div className="voice-actions">
-            {/* Barge-in: the player takes the floor without waiting for the
-                Cartographer to finish, and the conversation stays alive. This
-                used to cancel the whole voice session, which is not what
-                interrupting someone means. */}
-            <button
-              data-testid="voice-interrupt"
-              onClick={() => { cancelSpeech(); if (conversationActive.current) void beginListeningTurn(conversationId.current); else cancelVoice(); }}
-            >
-              Interrupt
-            </button>
-            <button data-testid="voice-cancel-speaking" onClick={cancelVoice}>Cancel</button>
           </div>
         )}
         {voiceState === 'error' && (
@@ -1425,7 +1287,6 @@ export default function App() {
     try {
       currentRequestId.current++;
       pendingCaptureCancelled.current = true;
-      cancelSpeech();
       if (activeCapture) {
         activeCapture.abort();
         setActiveCapture(null);
@@ -1583,22 +1444,7 @@ export default function App() {
       )}
     </article>
 
-    <article className="card settings"><h2>Cartographer</h2><label>Sass<select data-testid="sass-select" value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label>
-      {voiceChoices.length>1&&<label>Voice<select
-        data-testid="voice-select"
-        value={voiceUri ?? ''}
-        onChange={(event)=>{
-          const chosen = event.target.value || null;
-          setVoicePreference(chosen);
-          forgetResolvedVoice();
-          setVoiceUri(chosen);
-          setMessage(chosen ? `Cartographer voice set to ${voiceChoices.find((v)=>v.voiceURI===chosen)?.name ?? 'your choice'}.` : 'Cartographer voice set automatically.');
-        }}
-      >
-        <option value="">Automatic ({voiceChoices[0]?.name})</option>
-        {voiceChoices.map((voice)=><option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} · {voice.lang}</option>)}
-      </select></label>}
-      {voiceChoices.length>0&&<p className="settings-note">Spoken by {voiceChoices.find((v)=>v.voiceURI===voiceUri)?.name ?? voiceChoices[0]?.name}. Stored on this device only.</p>}</article>
+    <article className="card settings"><h2>Cartographer</h2><label>Sass<select data-testid="sass-select" value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label></article>
     <article className="card settings"><h2>Your Atlas</h2><p className="settings-note">Everything lives on this device. Export a copy before you switch phones or clear data.</p><button onClick={()=>downloadCampaign(state)}>Export Atlas</button><label className="file">Import Atlas<input type="file" accept="application/json,.json,.atlas" onChange={(e)=>void importFile(e.target.files?.[0])}/></label></article>
     <article className="card settings access-section">
       <h2>Cartographer Access Code</h2>
