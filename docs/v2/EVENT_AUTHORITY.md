@@ -111,6 +111,8 @@ They may mutate only their owned domain state unless they emit a typed shared-mu
 
 Only integration-owned code may convert a validated domain outcome into cross-domain campaign mutation.
 
+The current legacy `GameEvent` union mixes intent-like commands (for example starting an encounter) with derived outcome/progression events (for example level/reward consequences). **Membership in `GameEvent` is not permission to dispatch it.** Authority comes from the validated call path and owning engine. New v2 lanes must not copy the mixed legacy union as an authority model.
+
 Shared mutation includes:
 
 - campaign XP/level/unlock/achievement/quest changes;
@@ -146,6 +148,7 @@ Rules:
 3. This bridge is **not precedent** for new v2 modes.
 4. P00+ provider-mode work must move new modes to typed proposal schemas with no direct shared-event construction.
 5. When Journal/Reflection conversion supersedes the legacy path, the old allowlist may shrink or disappear; it may never broaden to preserve convenience.
+6. The existing legacy path has one explicit compatibility debt: accepted `EVIDENCE_ADDED` events currently award deterministic engine XP for non-duplicate evidence. A provider cannot choose the XP amount, but proposal cardinality can indirectly influence how many such events exist. D06 preserves that verified v1 behavior during migration; **new v2 modes may not inherit this coupling**. Any v2 reward tied to evidence/reflection must be decided by bounded deterministic conversion rules rather than raw proposal count.
 
 ---
 
@@ -349,13 +352,20 @@ Convenience is not sufficient reason to widen the shared event union.
 
 ## 12. Dispatcher rules
 
+A shared mutation request is authority-bearing data, not a generic event bus message. It must be attributable to either:
+
+- validated human intent; or
+- a deterministic domain outcome produced by an owning engine/reducer.
+
+Raw provider/model proposal is never a valid shared-mutation origin.
+
 Any shared dispatcher must satisfy all of these:
 
 - accepts only typed shared events/mutation requests;
 - never accepts raw model proposals;
 - never infers authority from prose;
 - validates referenced IDs/active state;
-- is deterministic for the same valid input state;
+- makes the same **mechanical authority decision** for the same validated semantic inputs; timestamps/UUIDs may differ as metadata and are not treated as mechanics authority;
 - preserves idempotency or explicitly documents one-shot semantics;
 - preserves provenance;
 - applies privacy/retraction cascades before provider context can observe retired data;
@@ -375,7 +385,10 @@ Extend/preserve the existing firewall so mutation fails if:
 
 - `PROVIDER_EVENT_TYPES` gains a fourth type;
 - forged provider fields grant progression;
-- model-proposed provenance is mistaken for player-authored evidence.
+- model-proposed provenance is mistaken for player-authored evidence;
+- a test or adapter treats membership in the broad legacy `GameEvent` union as permission for provider/UI dispatch of derived progression/outcome events.
+
+The compatibility suite should also pin the known legacy evidence-XP coupling so migration can deliberately replace it rather than accidentally changing it.
 
 ### 13.2 New provider proposal firewall
 
@@ -458,7 +471,7 @@ Do not broaden authority to unblock a feature packet.
 
 Once reviewed and merged:
 
-- existing legacy provider authority remains exactly three compatibility events;
+- existing legacy provider authority remains exactly three compatibility events, with its indirect evidence-XP coupling explicitly quarantined as migration debt rather than a v2 pattern;
 - all new v2 provider modes are proposal-only;
 - feature lanes may own domain-local commands/reducers;
 - integration alone owns cross-domain/shared mutation widening;
