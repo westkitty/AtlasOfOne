@@ -77,7 +77,18 @@ describe('v2 blank Journal user path (J02/J03)', () => {
   });
 
   it('holds at 320px with real touch targets and no horizontal overflow', async () => {
+    await page.click('[data-testid="journal-close"]');
     await page.setViewportSize(NARROW);
+
+    for (const id of ['open-journal', 'enter-encounter']) {
+      const box = await page.locator(`[data-testid="${id}"]`).boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.height, `${id} height`).toBeGreaterThanOrEqual(44);
+      expect(box!.width, `${id} width`).toBeGreaterThanOrEqual(44);
+    }
+
+    await page.click('[data-testid="open-journal"]');
+    await page.waitForSelector('[data-testid="journal-composer"]');
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
