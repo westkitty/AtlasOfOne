@@ -24,7 +24,7 @@ This ledger is derived execution state for the Atlas v2 integration cycle. It do
 | V00 | MERGED | voice | 24631bf | integration/atlas-v2-journal-adventure-combat | GPT-5.6 Sol | source inventory review | NO | exact TTS reference inventory | docs/v2/proof/V00.md | none | V01 |
 | V01 | MERGE_READY | voice | 24631bf | feat/v2-stt-only-voice | implementation lane | GPT-5.6 Sol | NO | no-TTS source/bundle; STT; typing; no auto-reopen; background cancel; unit/build/browser | docs/v2/proof/V01.md | none | V02-V08 |
 | D00 | READY | decomposition | after F05 | lane branch | unassigned | unassigned | A? | App responsibility/seam map | pending | none | D01 |
-| M00 | READY | migration | after F05 | lane branch | unassigned | unassigned | NO | synthetic v1 fixtures validate | pending | none | M01 |
+| M00 | MERGE_READY | migration | acc8246 | test/v2-v1-canonical-fixtures | GPT-5.6 Sol | GitHub Actions + GPT-5.6 Sol review | NO | 2 canonical fixtures; 306 unit; build; 143 browser | docs/v2/proof/M00.md | none | M01 |
 
 ## Shared-file hot zone
 
