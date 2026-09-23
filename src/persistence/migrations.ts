@@ -8,15 +8,30 @@ export const CURRENT_SCHEMA_VERSION = 2;
  * Schema v1 remains frozen historical input authority.
  *
  * Every v1 payload is validated and normalized by the v1 parser first. Migration
- * then changes only the version discriminator and introduces the inert v2
- * collections. M03+ own semantic transformations such as FinalAssessment ->
- * historical Snapshot; M02 deliberately preserves that legacy field unchanged.
+ * then raises the version discriminator, introduces the v2 collections, and
+ * preserves any legacy FinalAssessment as an immutable historical Snapshot.
+ *
+ * v1 never recorded the exact evidence/insight/contradiction IDs that fed an old
+ * FinalAssessment. The historical Snapshot therefore carries empty provenance
+ * ID arrays rather than fabricating links that cannot be proven.
  */
 export function migrateV1ToV2(input: unknown): CampaignState {
   const v1 = campaignStateSchemaV1.parse(input);
+  const atlasSnapshots = v1.finalAssessment
+    ? [{
+        id: `snapshot_legacy_${v1.finalAssessment.id}`,
+        createdAt: v1.finalAssessment.generatedAt,
+        evidenceIds: [],
+        insightIds: [],
+        contradictionIds: [],
+        synthesis: v1.finalAssessment
+      }]
+    : [];
+
   return campaignStateSchemaV2.parse({
     ...v1,
-    schemaVersion: 2
+    schemaVersion: 2,
+    atlasSnapshots
   }) as CampaignState;
 }
 
