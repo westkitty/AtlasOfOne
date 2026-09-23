@@ -28,7 +28,7 @@
     "live_bundle": "assets/index-C-UCvyfo.js",
     "deployment": "4578a6d4-9b6d-486d-bf11-ee0f94992929",
     "main_ci_run": "34186545117",
-    "note": "The Vault retraction affordance. This is what is DEPLOYED; the baseline above is not, pending human review."
+    "note": "Historical predecessor to the Revision 25 production baseline; retained only for lineage."
   },
   "repository_head_at_write": {
     "commit": "d21c234c6402145ffe6c5d977655625563028853",
@@ -37,7 +37,12 @@
     "note": "Integration staging code head before this state/proof reconciliation commit. The state commit will advance integration. v2 runtime work has not merged to main."
   },
   "scope_boundaries": [
-    "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight across all 8 territories and Mystery Door encounters, local persistence, PWA manifest/offline shell, CI browser workflow, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime, live Workers AI bakeoff and measured provider selection, Phase 4 voice interaction (MediaRecorder capture, explicit voice state machine, local agency command parser, browser speech synthesis, /api/transcribe endpoint), ATLAS_ACCESS_SECRET Worker secret + client credential gate, Cloudflare Workers production deployment, Cloudflare Workers Builds Git repository integration, Phase 5 adversarial release QA (player archetype fixtures, async hammer protection, network degradation resilience, persistence torture & migration, defensive security bounds, BUG-001 through BUG-005 defect resolution), Final Atlas Assessment synthesis engine (/api/finalize endpoint + deterministic offline generator + print-to-PDF styles), Phase 6 minimal onboarding flow (5-step sequence, 0 XP, 0 unlocks, full agency controls preview, dual persistence via IndexedDB + localStorage), the deployed Final Assessment trust boundary (provenance-based derived-record privacy, non-fabricating offline synthesis, deterministic end-state gate, focused semantic validation of remote assessments), the browser-harness hydration-race repair, and real-application async regression coverage replacing the former self-referential fixtures (230 unit tests passed with 1 skipped across 30 files, 76 real-browser tests in Chrome across 8 suites; physical Android device hardware verification unverified pending reachable device UNV-003)"
+    "Atlas v2 is a mobile-first, local-first React/TypeScript/Vite PWA for Greyson: Journal-first input, Worldwalker as the living game world, optional generated Adventures, lightweight deterministic JRPG-style Combat, Reflection as the firewall between fictional behavior and self-knowledge, and dated revisable Atlas Snapshots.",
+    "Deterministic TypeScript owns progression, world/game state, Adventure/Combat outcomes and rewards, persistence, migrations, privacy/retraction propagation, provenance and Snapshot eligibility. Model output is typed proposal data only.",
+    "Runtime personal state remains local-first in IndexedDB with local export/import/delete. No server campaign database, analytics, account system, cloud journal store or vector database is part of this integration cycle.",
+    "Assistant TTS/full-duplex spoken output is explicitly excluded from v2. Optional STT may create editable text; typing remains complete.",
+    "main is a release/deployment surface. Active v2 runtime work remains on integration/atlas-v2-journal-adventure-combat until the final release gate.",
+    "Real Greyson journal/private content is excluded from repository fixtures, generic evaluation corpora and development prompts."
   ],
   "linked_parent_state": null,
   "integration_candidate_baseline": {
@@ -57,12 +62,12 @@
 ## 1. Project Identity and Scope
 
 - **Project ID:** `atlas-of-one`
-- **Purpose:** Build Atlas of One, beginning with The Greyson Map: an adaptive, gamified personality-cartography experience whose game progression remains deterministic and whose personal campaign data is local-first.
+- **Purpose:** Build Atlas of One / The Greyson Map as a mobile-first, local-first journaling adventure game for Greyson: Journal -> optional Worldwalker adventure -> consequence -> optional Reflection -> Greyson confirms/revises/rejects/leaves uncertain -> Atlas/world remember.
 - **Project type:** Mobile-first React/TypeScript PWA with a Cloudflare Worker API boundary.
 - **Primary root or artifact:** repository root.
 - **Target environment:** Current evergreen mobile browsers first; installable PWA; Cloudflare Worker deployment live.
 - **Canonical authority:** Current explicit user instructions, then repository source-of-truth documents distilled from supplied planning/source material and accepted asset mapping.
-- **Governed scope:** Phase 1 VERIFIED COMPLETE. Phase 2 VERIFIED COMPLETE. Phase 3 PARTIALLY VERIFIED — the provider selection is confirmed by source and by the live `/api/health` response, but the original bakeoff's raw execution metrics remain REPORTED rather than reproducible (UNV-019). Phase 4 PARTIAL — voice, transcription endpoint, access gate, production deployment and Workers Builds Git deployment are done; the physical Android install/device check required by `docs/MASTER_BUILD_PLAN.md` is open (UNV-003), alongside UNV-007, UNV-009 and UNV-017. Phase 5 **VERIFIED COMPLETE** — the Final Assessment trust boundary and BUG-001 through BUG-005 carry genuine, mutation-proven regression coverage against real production paths, and the plan's single long-session retraction/export/delete/import/finalization proof has now been run end to end as one continuous browser session (PND-004 closed, VER-061). Building it also closed a product gap: retraction had no player-reachable path until this pass. Phase 6 INCOMPLETE — onboarding is implemented and browser-verified, but Phase 6 is "Give it to Greyson" and completes only through actual use and observed friction (UNV-021). No percentages are recorded; Atlas is not complete.
+- **Governed scope:** Revision 25 remains the last verified deployed v1 production runtime. The active v2 integration cycle has completed authority adoption, baseline proof, TTS removal/STT simplification, canonical v1 migration fixtures, protected-capability compilation, and behavior-preserving App decomposition through D04. D05 interface freeze is under review. Schema v2, Journal persistence, Reflection, Knowledge Gaps, Adventure runtime, Combat runtime, memory, Snapshots, full vertical-slice integration, mobile/non-Chrome proof, Greyson pilot, release candidate review and deployment remain incomplete. No percentage-complete claim is authoritative.
 
 - **Explicitly not governed:** Paid-model integration, real Greyson campaign content, 3D/native/account systems.
 
