@@ -123,6 +123,7 @@ export interface CombatDefinition {
    * ambush. No random initiative exists.
    */
   openingPhase?: Exclude<CombatPhase, 'resolved'>;
+  openingReason?: 'ambush';
 }
 
 export interface CombatState {
