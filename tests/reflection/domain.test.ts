@@ -45,6 +45,7 @@ describe('ReflectionRecord state machine (RF00)', () => {
 
     expect(privateRecord.decision).toBe('private');
     expect(privateRecord.epistemicStatus).toBe('confirmed');
+    expect(privateRecord.response).toBe('Yes.');
     expect(privateRecord.privacy).toBe('private');
     expect(reflectionIsStructurallyVisible(privateRecord)).toBe(false);
   });
