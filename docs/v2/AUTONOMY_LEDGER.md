@@ -27,9 +27,9 @@ This ledger is derived execution state for the Atlas v2 integration cycle. It do
 | M00 | MERGED | migration | acc8246 | test/v2-v1-canonical-fixtures | GPT-5.6 Sol | GitHub Actions + GPT-5.6 Sol review | NO | 2 canonical fixtures; 306 unit; build; 143 browser | docs/v2/proof/M00.md | none | M01 |
 | F07 | MERGED | foundation | 909eba4 | docs/v2-capability-invariants | GPT-5.6 Sol | GitHub Actions + GPT-5.6 Sol review | NO | verified/requested invariant manifest + impact-radius gates | docs/v2/proof/F07.md | none | D06 |
 | D01 | MERGED | decomposition | b8048b9 | refactor/v2-presentational-extraction | GPT-5.6 Sol | GitHub Actions + GPT-5.6 Sol review | NO | presentation-only diff; 284 unit; build; 130 browser; merged integration CI | docs/v2/proof/D01.md | none | D02,D03,D04 |
-| D02 | READY | decomposition | d3fb055 | lane branch | unassigned | unassigned | NO | journal-facing shell boundary; compile + full browser suite unchanged | pending | D01 complete | D05 |
-| D03 | READY | decomposition | d3fb055 | lane branch | unassigned | unassigned | NO | encounter/combat presentation boundary; encounter browser suite green | pending | D01 complete | D05 |
-| D04 | READY | decomposition | d3fb055 | lane branch | unassigned | unassigned | NO | world-interaction orchestration hooks; Worldwalker journey green | pending | D01 complete | D05 |
+| D02 | MERGED | decomposition | 0f45266 | refactor/v2-journal-shell | GPT-5.6 Sol | GitHub Actions + GPT-5.6 Sol review | NO | Journal shell; 286 unit; build; 130 browser; combined integration #82 | docs/v2/proof/D02.md | none | D05 |
+| D03 | MERGED | decomposition | 0f45266 | refactor/v2-encounter-shell | GPT-5.6 Sol | GitHub Actions + GPT-5.6 Sol review | NO | encounter shell; encounters 13; concurrency 5; combined integration #82 | docs/v2/proof/D03.md | none | D05 |
+| D04 | MERGED | decomposition | 0f45266 | refactor/v2-world-interaction-hook | GPT-5.6 Sol | GitHub Actions + GPT-5.6 Sol review | NO | Worldwalker hook; overworld verbs 10; combined integration #82 | docs/v2/proof/D04.md | none | D05 |
 
 ## Shared-file hot zone
 

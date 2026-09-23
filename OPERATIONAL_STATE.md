@@ -7,18 +7,21 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 24,
-  "last_updated": "2026-09-15",
+  "state_revision": 26,
+  "last_updated": "2026-09-23",
   "current_baseline": {
-    "identity": "rev24",
+    "identity": "integration-v2-staging@d21c234",
     "state": "partially-verified",
-    "last_verified": "2026-09-15"
+    "last_verified": "2026-09-23T16:39:29Z",
+    "note": "Active development baseline only. It is not deployed; main remains a separate release surface."
   },
   "application_content_baseline": {
-    "commit": "31b01b080b89fe2cd61168c280f65e24755bce3d",
-    "live_bundle": "assets/index-DjpTENkf.js",
-    "state": "pending-human-review",
-    "note": "The last commit that CHANGED compiled application content — the Vault retraction affordance required by PND-004. Per DEC-028 this points at the code/test commit, never at the state commit that describes it and never at the merge that contains it. Deployment and live-bundle confirmation follow the merge."
+    "commit": "b5a3a2f",
+    "release_head": "6e720b2",
+    "live_bundle": "assets/index-CI2VK5XI.js",
+    "deployment": "b93894a6-269d-4e93-8343-13dc33397e20",
+    "state": "last-verified-production-rev25",
+    "note": "Revision 25 is the last production runtime identity verified in this state file. main later advanced to 1b51033 through v2 authority documentation; the live bundle after that documentation merge was not re-probed in this continuation."
   },
   "previous_application_content_baseline": {
     "commit": "93c29c1ba79a41018987b7c66ae8f6191624ab11",
@@ -28,13 +31,26 @@
     "note": "The Vault retraction affordance. This is what is DEPLOYED; the baseline above is not, pending human review."
   },
   "repository_head_at_write": {
-    "commit": "0b475573b9ccc06fa58d7362e93450194eb15d23",
-    "note": "Repository HEAD when this revision was written. Expected to advance when this revision merges; that does not invalidate the application content baseline above."
+    "commit": "d21c234c6402145ffe6c5d977655625563028853",
+    "branch": "integration/atlas-v2-journal-adventure-combat",
+    "main_commit": "1b5103333f09884bf87286787e29885fd53d447c",
+    "note": "Integration staging code head before this state/proof reconciliation commit. The state commit will advance integration. v2 runtime work has not merged to main."
   },
   "scope_boundaries": [
     "mobile-first React/TypeScript PWA, deterministic campaign engine, deterministic Boss Fight across all 8 territories and Mystery Door encounters, local persistence, PWA manifest/offline shell, CI browser workflow, mock Cartographer, Workers AI provider boundary with context compiler and validation, browser-runtime journey proof, canonical Aerron/Greyson map assets, Cloudflare Worker runtime, live Workers AI bakeoff and measured provider selection, Phase 4 voice interaction (MediaRecorder capture, explicit voice state machine, local agency command parser, browser speech synthesis, /api/transcribe endpoint), ATLAS_ACCESS_SECRET Worker secret + client credential gate, Cloudflare Workers production deployment, Cloudflare Workers Builds Git repository integration, Phase 5 adversarial release QA (player archetype fixtures, async hammer protection, network degradation resilience, persistence torture & migration, defensive security bounds, BUG-001 through BUG-005 defect resolution), Final Atlas Assessment synthesis engine (/api/finalize endpoint + deterministic offline generator + print-to-PDF styles), Phase 6 minimal onboarding flow (5-step sequence, 0 XP, 0 unlocks, full agency controls preview, dual persistence via IndexedDB + localStorage), the deployed Final Assessment trust boundary (provenance-based derived-record privacy, non-fabricating offline synthesis, deterministic end-state gate, focused semantic validation of remote assessments), the browser-harness hydration-race repair, and real-application async regression coverage replacing the former self-referential fixtures (230 unit tests passed with 1 skipped across 30 files, 76 real-browser tests in Chrome across 8 suites; physical Android device hardware verification unverified pending reachable device UNV-003)"
   ],
-  "linked_parent_state": null
+  "linked_parent_state": null,
+  "integration_candidate_baseline": {
+    "branch": "integration/atlas-v2-journal-adventure-combat",
+    "commit": "d21c234c6402145ffe6c5d977655625563028853",
+    "pull_request": 12,
+    "draft": true,
+    "ci_run": "35889470764",
+    "unit": "286/286 across 37 files",
+    "browser": "130/130 across 14 files",
+    "build": "passed",
+    "deployed": false
+  }
 }
 -->
 
@@ -52,43 +68,51 @@
 
 ## 2. Current Baseline
 
-Three identities, deliberately separated. Collapsing them is what made revision 14
-go stale, and a documentation change advances only the first of them.
+Atlas currently has four identities that must not be collapsed: authority/source state, v2 integration staging, deployed application content, and live deployment evidence.
 
-### 2a. Repository / source state
+### 2a. Active v2 development / integration state
 
-- **Repository:** `westkitty/AtlasOfOne`, branch `main`.
-- **Repository HEAD when this revision was written:** `70d4aa08231631f41412d6fc29c5db7262bb57de` — "Merge pull request #6 from westkitty/fix/pre-handoff-small-defects".
-- Repository HEAD advances on every merge, including documentation-only merges. **It is not by itself evidence about what is deployed.** See DEC-028.
+- **Repository:** `westkitty/AtlasOfOne`.
+- **Active development branch:** `integration/atlas-v2-journal-adventure-combat`.
+- **Verified code head:** `d21c234c6402145ffe6c5d977655625563028853`.
+- **Integration PR:** #12, still **DRAFT**. It is a staging/review surface, not release authority.
+- **Combined integration proof:** GitHub Actions `Atlas validation #82`, run `35889470764`: **286/286 unit tests across 37 files**, production/PWA build PASS, **130/130 real-Chrome browser tests across 14 files**.
+- D02 Journal shell, D03 encounter shell and D04 Worldwalker orchestration all coexist on this exact head.
+- **Current `main`:** `1b5103333f09884bf87286787e29885fd53d447c`, the merge of v2 authority-adoption PR #11. The v2 runtime implementation in the integration branch has **not** merged to `main`.
 
-### 2b. Deployed application-content baseline
+### 2b. Last verified deployed application-content baseline
 
-- **Application content commit:** `93c29c1ba79a41018987b7c66ae8f6191624ab11` — the Vault retraction affordance (VER-061). This is the code/test commit itself, not the state commit that describes it and not the merge that contains it (DEC-028).
-- **Client bundle built from it:** `assets/index-C-UCvyfo.js` (with `assets/index-DU0P19tK.css`).
-- **Contains:** the Final Assessment trust-boundary hardening (`e940788`), the BUG-001 synchronous submission lock (`cbab040`), the encounter same-task lock (`b087451`), the transcription eligibility guard and onboarding normalization (`a787285`), and player-reachable retraction (`93c29c1`).
-- **Previous application content:** `a787285` / `assets/index-BfRybavN.js`, deployment `373c63e7`, main CI `34185348383` — superseded once this pass merges and deploys.
-- Revision 15 demonstrated the rule in practice: its own documentation-only merge advanced 2a to `4d41d27` while application content stayed at `4d128a2` and the bundle stayed byte-identical at 453 016 bytes. The bundle identity, not the Git SHA, is the authority on what is running.
+- **Last production release verified by this state file:** Revision 25, release head `6e720b2`.
+- **Implementation content:** `b5a3a2f`.
+- **Verified production bundle:** `assets/index-CI2VK5XI.js`.
+- **Cloudflare deployment:** `b93894a6-269d-4e93-8343-13dc33397e20`.
+- `main` later advanced to `1b51033` through the authority-adoption documentation merge. This continuation did **not** re-probe the live bundle after that docs merge, so Git HEAD is not being substituted for runtime evidence.
+- The v2 integration bundle is not deployed.
 
 ### 2c. Runtime and deployment evidence
 
-- **Last confirmed deployment:** `373c63e7-18de-43cd-989f-fa2f161d747e` (`2026-09-08T03:59:07Z`) serving `assets/index-BfRybavN.js`. Earlier: `d1c13091` (`00:41:44Z`) from the revision-15 documentation merge, which produced a new deployment record while serving byte-identical content — the first live confirmation of DEC-028.
-- **Main CI:** `Atlas validation` run `34185348383` (head `70d4aa0`) success, preceded by `34182568035`, `34174123501` and `34173319642`.
-- **Live probes (unauthenticated):** `GET /` 200; `GET /api/health` 200 reporting `workers-ai`, `@cf/qwen/qwen3-30b-a3b-fp8`, `@cf/openai/whisper-tiny-en`, `accessProtected: true`; `POST /api/turn`, `POST /api/transcribe` and `POST /api/finalize` each **401** without a credential.
-- **No live Workers AI inference** has been used in any release, repair or verification. Zero neurons spent.
+- Revision 25 verified live root and `/api/health` HTTP 200 and the production bundle identity above.
+- No v2 packet in this continuation changed Cloudflare configuration, secrets, provider selection, or production data.
+- No live Workers AI inference was required for V01/M00/D00-D04 validation.
+- Workers Builds remains coupled to `main`; therefore any future merge to `main` is a deployment action and remains prohibited until the final release gate.
 
 ### 2d. Shared facts
 
-- **Baseline state:** `partially-verified` — Phase 4, Phase 5 and Phase 6 all retain open required evidence.
-- **Validation identity:** revision 18 against application content `93c29c1`; local runs recorded in VER-061 and VER-062, earlier runs in VER-053 through VER-060, remote runs in section 2c.
-- **Active default user route:** onboarding on a fresh install, Map on a completed onboarding, verified in a real browser.
-- **Live provider state:** Cloudflare authenticated via supported Wrangler OAuth keyring. Configured Cartographer `@cf/qwen/qwen3-30b-a3b-fp8` and transcription `@cf/openai/whisper-tiny-en`, both confirmed by the production health endpoint. `ATLAS_ACCESS_SECRET` configured in production. Workers Builds connected to `westkitty/AtlasOfOne` on `main`. Zero dollars spent.
-- **Deployment coupling:** Workers Builds auto-deploys `main`, so any push to `main` is a deployment action. A documentation-only merge still triggers a build and a new deployment record while leaving application content byte-identical.
+- **Project state:** `partially-verified / v2-integration-in-progress`.
+- Authority is Journal-first; Worldwalker, deterministic Adventure/Combat, Reflection firewall, revisable Snapshots and explicit no-TTS are governing target behavior.
+- The integration runtime is now STT-only and behavior-preservingly decomposed, but schema v2, blank Journal persistence, Reflection, Knowledge Gaps, Adventure runtime, Combat runtime, memory and Snapshots are **not yet implemented**.
+- Existing v1 deterministic engine, persistence, privacy, Boss/Mystery, Worldwalker, offline/PWA and agency behavior remain protected by `docs/v2/CAPABILITY_INVARIANTS.md`.
+- No percentage-complete claim is authoritative.
 
 ## 3. Artifact Contract
 
-The current artifact contains the requested source-of-truth documents, React/TypeScript/Vite/Cloudflare/Dexie/Zod/PWA/Vitest stack, four-screen mobile shell, deterministic campaign engine, deterministic Boss Fight and Mystery Door encounters in `src/game/encounters.ts`, automatic local persistence, import/export/delete foundations, mock Cartographer, synthetic fixtures, a sustained 100-turn campaign test, real-browser journey suite, curated canonical Aerron/Greyson map sprites, CI, the complete Cartographer provider layer, and the Phase 4 voice and access modules in `src/voice/`. No paid AI is connected.
+The active v2 integration artifact contains the reconciled source-of-truth documents, the existing React/TypeScript/Vite/Cloudflare/Dexie/Zod/PWA/Vitest stack, deterministic v1 campaign/encounter authority, IndexedDB/export/import foundations, Worldwalker, canonical Greyson/Aerron assets, the Workers AI proposal boundary, **STT-only input with no assistant TTS**, canonical synthetic v1 migration fixtures, the protected-capability manifest, and behavior-preserving presentation/orchestration boundaries in `PresentationControls`, `JournalPanel`, `EncounterPanel` and `useWorldInteraction`.
 
-**No dependency was added in this pass.** Runtime dependencies remain `dexie`, `react`, `react-dom`, `zod`; dev dependencies are unchanged. The `ai` binding in `wrangler.jsonc` is Workers AI Free and creates no cost by existing.
+Those extracted boundaries are not claims that Journal v2, Adventure, Combat, Reflection, Knowledge Gaps or Snapshots are implemented. They exist so those systems can be added without continuing to grow one monolithic `App.tsx`.
+
+**No dependency was added by V01/M00/D00-D04.** Runtime dependencies remain `dexie`, `react`, `react-dom`, `zod`; dev dependencies are unchanged.
+
+The deployed production artifact remains tracked separately in section 2b.
 
 ## 4. Active Invariants
 
@@ -112,6 +136,13 @@ The current artifact contains the requested source-of-truth documents, React/Typ
 - **INV-018:** Compiled provider context is bounded by `CONTEXT_BUDGET` and does not grow with campaign length.
 - **INV-019:** Malformed model structure earns at most one repair attempt. A semantic violation is refused outright and never repaired. No retry loop exists.
 - **INV-020:** No Cloudflare credential, model registry or provider configuration reaches browser code. A model outside the free-plan eligible registry is refused by the Worker before a request exists, so a misconfiguration cannot create cost. Quota exhaustion is non-retryable and degrades to the local script.
+- **INV-021:** **V2 voice lock.** Assistant TTS, spoken Cartographer output, browser `speechSynthesis`, voice picker and automatic microphone reopen are absent from v2. Optional STT may produce editable text; typing remains complete.
+- **INV-022:** **Journal-first / fiction firewall.** Greyson may journal without a preceding question. Fictional Adventure/Combat actions are observations only and cannot become confirmed self-evidence without an explicit real-world/reflection path.
+- **INV-023:** **Deterministic authority.** TypeScript owns progression, world state, Adventure/Combat outcomes/rewards, persistence, migration, privacy retirement and Snapshot eligibility. Provider output remains typed proposal data.
+- **INV-024:** **Human authority.** Greyson can confirm, partially accept, reject, revise, retract, mark private or remain uncertain. Rejected/private/retracted state must affect future eligibility/provenance rather than being overwritten.
+- **INV-025:** **V2 provenance propagation.** PRIVATE/retracted source eligibility must propagate through evidence, gaps, seeds, memories, reflections and Snapshot inputs by source IDs/status, never prose search.
+- **INV-026:** **Snapshot continuity.** Atlas never permanently completes Greyson. Multiple dated immutable historical Snapshots may coexist; old Snapshots are not rewritten by later state.
+- **INV-027:** **Release boundary.** `main` is a deployment surface. Partial v2 work remains on the integration branch until the explicit release gate authorizes a merge.
 
 ## 5. Verified Working Behavior
 
@@ -218,6 +249,10 @@ The current artifact contains the requested source-of-truth documents, React/Typ
   - **Deliberately deferred:** acoustic barge-in (speaking over the Cartographer untouched) needs echo handling so synthesis cannot retrigger itself through the microphone. Tap-to-interrupt covers the need. Recorded as an open acceptance criterion rather than silently skipped.
   - **Evidence:** `tests/browser/voice-conversation.test.ts` (11 checks) drives the real App with deterministic `getUserMedia`, `MediaRecorder`, `AudioContext` and `speechSynthesis`, amplitude flowing through the real analyser path; the central check completes two spoken turns with no microphone interaction between them. Cold-open behaviour is proven in `onboarding.test.ts`, `hydration-race.test.ts` and `onboarding-continuity.test.ts`.
 - **VER-064:** **Current validation totals.** On application content `31b01b0`: `npx tsc --noEmit` clean; `npm test` 30 files, **237 passed, 1 skipped**; `npm run test:browser` 12 files, **105 passed**; production build passing; `git diff --check` clean.
+- **VER-065:** **Pre-v2 baseline captured.** Integration baseline CI #51 on `24631bf` passed **304 unit tests across 38 files**, production/PWA build and **143 real-Chrome browser tests across 15 files** before runtime mutation. Receipt: `docs/v2/proof/F05.md`.
+- **VER-066:** **TTS removed / STT-only verified on integration.** V01 removes synthesis, voice selection, Voice Lab and output-speech states; dictation produces editable text and never auto-submits/reopens. Feature CI #61 passed **284 unit / 130 browser** tests including source+built-bundle no-TTS scan and background cancellation; merged-integration CI #65 repeated the green proof. Receipt: `docs/v2/proof/V01.md`.
+- **VER-067:** **Canonical v1 migration inputs frozen.** M00 adds current and legacy synthetic schema-v1 exports plus importer tests. CI #62 passed **306 unit / 143 browser** tests; no real Greyson content is present. Receipt: `docs/v2/proof/M00.md`.
+- **VER-068:** **Behavior-preserving App decomposition D01-D04 verified together.** Presentation controls, Journal shell, encounter shell and Worldwalker orchestration were extracted without moving game/provider/persistence authority. Combined integration CI #82 on `d21c234` passed **286/286 unit tests across 37 files**, production/PWA build and **130/130 browser tests across 14 files**, including Worldwalker 10, encounter concurrency 5, encounters 13 and STT-only voice 6. Receipts: `docs/v2/proof/D01.md`, `D02.md`, `D03.md`, `D04.md`.
 
 ## 6. Known Not Working
 
@@ -225,7 +260,7 @@ Phase 5 identified five defects (BUG-001 double-submit race, BUG-002 stale closu
 
 - **KNOWN-001:** **RESOLVED.** *(Was: production still carried the Final Assessment trust-boundary defects — the ungated synthesize action, fabricated zero-evidence claims, and derived Insights/Contradictions reaching `/api/finalize` without provenance filtering.)* Closed by the release of `e940788` through merge `9e00c6d`. Verified by content, not assumption: the live bundle contains the end-state gate and honest-summary strings and contains none of the four previously shipped fabrications. See VER-052.
 - **KNOWN-002:** **RESOLVED.** *(Was: BUG-001 through BUG-004 had repairs in `src/App.tsx` but no genuine regression protection, because the tests re-implemented each guard locally and no test imported `src/App.tsx`.)* Closed by `cbab040`: `tests/adversarial/async-hammer.test.ts` was deleted and `tests/browser/concurrency.test.ts` now exercises the real application, with mutation evidence for every mechanism. Investigating it also surfaced a real defect in BUG-001, which was repaired and deployed. See VER-054.
-- **KNOWN-003:** **`CAMPAIGN_COMPLETED` has no production dispatcher.** The event exists in the `GameEvent` vocabulary and `applyGameEvent` handles it, but nothing in `src/` ever emits it, so `state.campaignCompleted` cannot become true through play. The end-state gate added in `e940788` therefore relies on its territory-coverage fallback in practice. How a campaign completes remains an open game-design decision.
+- **KNOWN-003:** **SUPERSEDED AS A V2 PRODUCT GAP / RETAINED AS LEGACY DESCRIPTION.** The v1 `CAMPAIGN_COMPLETED` event still has no production dispatcher. V2 explicitly retains `campaignCompleted` only for compatibility and replaces terminal completion semantics with deterministic, revisable Snapshot eligibility. Do not “repair” v2 by adding a terminal completion dispatcher.
 - **KNOWN-004:** **RESOLVED.** *(Was: `/api/transcribe` enforced no free-plan eligibility check — it used `ATLAS_TRANSCRIBE_MODEL_ID` unchecked while `TRANSCRIBE_MODEL_CANDIDATES` sat declared and never referenced, a gap in the zero-dollar guarantee.)* Closed by `a787285`: the route now refuses an ineligible or unknown id with a typed `not-configured` before `env.AI.run` is reachable, with zero binding calls proven by a call-counting binding, and the registry is the single authority. See VER-058 and DEC-031.
 - **KNOWN-005:** **RESOLVED, and its stated consequence was WRONG.** The dead-code observation was correct: `saved.onboardingCompleted ?? isCompletedLocally ?? (saved.turns.length > 0)` could never reach its third operand, because the first two are booleans after schema normalization and `false ?? x` is `false`. But revisions 15 and 16 also asserted that "a campaign imported on a second device or browser will therefore re-show onboarding", and that was never true — the render gate carried its own `turns.length === 0` term, so a campaign with turns always skipped onboarding. Case C in `tests/browser/onboarding-continuity.test.ts` proves it against real IndexedDB. The actual defect was **state normalization**: load and render carried the same rule separately and disagreed, so a legacy or turns-bearing campaign rendered correctly as past onboarding while `onboardingCompleted` was written back false forever. Closed by `a787285` with one authoritative `hasCompletedOnboarding` predicate shared by both. Classification: **STATE-NORMALIZATION DEFECT ONLY, REPAIRED** — not the user-path regression previously claimed. See VER-059.
 - **KNOWN-006:** **Physical Android device install and verification is unexecuted.** No reachable device hardware (UNV-003). `docs/MASTER_BUILD_PLAN.md` requires this in Phase 4, so Phase 4 cannot be called complete.
@@ -245,7 +280,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **UNV-019:** Raw execution evidence for the original live Workers AI bakeoff. The run emitted `console.log` only and committed no artifact, so its request/neuron/timing/privacy-canary figures are REPORTED historical results. See `docs/PROVIDER_BAKEOFF.md`. The provider *selection* is separately confirmed by source and by the live `/api/health` response, and is not in doubt.
 - **UNV-020:** **RESOLVED.** *(Was: remote CI and deployment behaviour of the `e940788` chain was unobserved, since it had never been pushed.)* Now directly observed across three releases: PR CI before production (runs `34169263408`, `34171654836`, `34173031003`), main CI after each merge (`34171916491`, `34173319642`), automatic Workers Builds deployment landing 29-48s after each push to `main`, live application-content verification by bundle identity, and unauthenticated protected-route probes returning 401 on all three inference routes. Retained as a resolved ID rather than deleted, so the promotion stays auditable.
 - **UNV-022:** **RESOLVED — reproduced, then repaired.** *(Was, at revision 15: an inspection-level risk that `submitEncounter` guards on closure-read `isSubmitting` around a synchronous encounter dispatch, NOT reproduced and explicitly not called a defect.)* PND-014 tested it against the real application and the risk was real, though the two encounter types differed and are recorded separately in VER-056. **Boss Fight was a genuine defect**: one submission answered two stages, awarded ordinary answer XP twice, wrote two turn records and started two enrichment requests. **Mystery Door progression was already safe** because `DOOR_ANSWERED` bails out with no active run, but it still issued two `/api/turn` enrichment requests for one crossing, which is duplicate quota spend. Both are closed by the `encounterInFlight` microtask-boundary lock in `b087451`, with mutation evidence.
-- **UNV-024:** **Acoustic barge-in is not implemented.** A player can interrupt the Cartographer with the Interrupt control, and the conversation survives it; what does NOT work is simply speaking over the Cartographer with no touch. Deliberately deferred rather than attempted: doing it safely requires echo handling so `speechSynthesis` output cannot retrigger the loop through the microphone, which is a research problem and not a small change. Recorded so the gap is visible rather than assumed.
+- **UNV-024:** **SUPERSEDED FOR V2 / HISTORICAL PRODUCTION GAP.** Acoustic barge-in was not implemented in the continuous spoken-output v1 experience. V2 removes assistant TTS/full-duplex voice entirely, so acoustic barge-in is no longer a v2 requirement or release blocker. STT cancellation/background behavior remains protected separately.
 - **UNV-023:** **An existing Atlas file cannot be imported before first-run onboarding.** Fresh onboarding hides the main navigation, so a brand-new browser or device cannot reach the Me-screen Import control until onboarding is completed. Observed while proving KNOWN-005 and deliberately NOT repaired: no acceptance criterion and no build-plan item requires importing before first run, so building an onboarding import path here would have been inventing a requirement. It is recorded because it plausibly bites during the actual handoff — a new phone, or cleared site data, means completing onboarding before restoring a campaign. Resolve it as a Phase 6 friction observation with a real person, not by speculation. **Evidence updated at revision 18:** the PND-004 journey deleted and re-imported inside one session WITHOUT hitting this, because `localStorage.atlas_onboarding_completed` survives a campaign delete, so navigation and the Me-screen import stayed reachable throughout. UNV-023 therefore concerns a genuinely fresh profile — a new device, a new browser, or cleared site data — and not the delete-then-restore path. It remains open and unrepaired.
 - **UNV-021:** The actual Greyson session. Phase 6 is "Give it to Greyson"; the onboarding implementation is not the phase. No handoff has occurred and no product friction has been observed.
 
@@ -262,13 +297,13 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **PND-002:** Closed. Provider boundary, context compiler, evidence provenance, structured-output validation, bounded repair, typed failure states, and live Workers AI bakeoff completed with measured winner `@cf/qwen/qwen3-30b-a3b-fp8`.
 - **PND-008:** Closed. Live Workers AI bakeoff executed and documented in `docs/PROVIDER_BAKEOFF.md`.
 - **PND-009:** Decide whether the browser provider journey and the Worker runtime probe join CI (they need Chrome and a workerd runtime respectively), alongside the existing PND-007 decision.
-- **PND-003:** Phase 4 voice state machine, local agency commands, synthesis, `/api/transcribe` endpoint, `ATLAS_ACCESS_SECRET` Worker secret + client credential gate, production deployment to Cloudflare Workers, and Cloudflare Workers Builds Git integration to `westkitty/AtlasOfOne` (`main`) verified; physical Android hardware check remains unverified pending reachable device (UNV-003). Phase 4 status: PARTIAL.
+- **PND-003:** **HISTORICAL PHASE-4 RECORD / SUPERSEDED FOR V2 VOICE.** Production v1 implemented voice state, local agency commands, browser synthesis, `/api/transcribe`, access gate and deployment. V2 intentionally removes synthesis/output voice while preserving bounded STT input. Physical-device evidence remains tracked independently by UNV-003/UNV-009.
 - **PND-004:** **CLOSED / VERIFIED.** The single long-session retraction → export → delete → import → finalization proof has been run end to end as one continuous browser session (VER-061), and building it exposed and closed a real product gap: retraction had no player-reachable path. With the regression-protection gap already closed (KNOWN-002, VER-054), **Phase 5 is VERIFIED COMPLETE.**
 - **PND-010:** **Open.** The Phase 6 onboarding IMPLEMENTATION is complete and browser-verified (5-step sequence, 0 XP, 0 unlocks, agency controls preview, dual persistence via IndexedDB + localStorage), and the production access secret is rotated into the macOS Keychain and the Worker secret. Phase 6 itself is "Give it to Greyson" and is NOT complete: it closes only through the actual handoff and observed product friction (UNV-021). The backward-compatible bypass for pre-existing campaigns does work and is now proven end to end (VER-059); the revision-15 claim that it did not was wrong and is corrected under KNOWN-005.
 - **PND-011:** Closed. Real regression protection for BUG-001 through BUG-004 exists in `tests/browser/concurrency.test.ts`, driving the real application rather than a component-test double. The investigation also found and repaired a live BUG-001 defect. See VER-054.
 - **PND-012:** Closed. `e940788` was reviewed through PR #1, CI-gated before release, merged as `9e00c6d`, and deployed automatically by Workers Builds. KNOWN-001 is resolved.
 - **PND-014:** Closed. `tests/browser/encounter-concurrency.test.ts` (5 checks) proves both encounter types against the real application. The Boss Fight defect reproduced and was repaired; the Mystery Door's deterministic progression was already protected by the engine, and its duplicate enrichment requests were repaired at the same boundary. The repair is deliberately NOT the `submitInFlight` shape the revision-15 note anticipated — see VER-056 and DEC-030 for why the encounter lifecycle needs a different release point.
-- **PND-013:** **Partially closed.** KNOWN-004 and KNOWN-005 are resolved in `a787285` (VER-058, VER-059). What remains is KNOWN-003, the `CAMPAIGN_COMPLETED` dispatcher gap, which is a product decision about how a campaign ends rather than a mechanical repair and is deliberately not being taken without direction.
+- **PND-013:** **CLOSED FOR THE REPAIR WORK; REMAINDER SUPERSEDED BY V2.** KNOWN-004/005 were repaired. The old `CAMPAIGN_COMPLETED` dispatcher remainder is no longer a v2 design question because Snapshot eligibility replaces terminal completion; see KNOWN-003 and INV-026.
 - **PND-005:** Intentionally deferred. Detailed canonical turnaround source `sheets/aerron_turnaround_hires.png` is not committed/available in repo and trigger/role remains an unresolved design decision (Level 8 vs all territories charted vs final assessment). Leave pending until source asset and decision are supplied.
 
 ## 10. Active Decisions, Defaults, and Prohibitions
@@ -294,17 +329,21 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **DEC-019:** Inside a Boss Fight or Mystery Door the provider supplies reply wording only. The dispatched events remain fully deterministic and synchronous, so encounter outcomes stay outside model reach even in wording terms.
 - **DEC-020:** The live bakeoff is a separate opt-in suite (`npm run test:live`, `vitest.live.config.ts`) that skips cleanly without credentials. It enforces per-stage neuron budgets and holds a reserve back for the campaign proof, so benchmarking cannot consume the allocation the integration gate needs.
 - **DEC-021:** MediaRecorder audio capture uses webm/ogg/wav container, enforces a 2 MB ceiling, and discards audio chunks immediately after transmission. No audio or transcript text is ever persisted to server storage or logs.
-- **DEC-022:** Voice state machine is strictly deterministic with explicit cancellation and fallback to typing at all stages (`idle`, `requesting-permission`, `listening`, `transcribing`, `thinking`, `speaking`, `error`).
+- **DEC-022:** **HISTORICAL V1 VOICE DECISION / SUPERSEDED FOR V2 BY DEC-033.** The deployed v1 voice state machine included `thinking` and `speaking`; v2 removes output-speech lifecycle states while retaining deterministic STT cancellation/fallback.
 - **DEC-023:** Local voice commands (`PASS`, `PRIVATE`, `STOP`, `SERIOUS`, `HELP`, `SASS`) are intercepted client-side and dispatched directly to local UI state without server transmission, XP awards, or progression impact.
 - **DEC-024:** Access secret `ATLAS_ACCESS_SECRET` is stored as a Cloudflare Worker secret and locally in `localStorage` (`atlas_access_secret`). It is never stored in `CampaignState`, IndexedDB, or campaign export JSON files. The player enters the code manually; there is no fragment-based invitation link, and none has ever existed in this repository.
 - **DEC-025:** Structural visibility for DERIVED records — Insights and Contradictions — is decided by evidence provenance (`evidenceIds`), never by reading their prose. A derived record is a reading of evidence and is exactly as private as the evidence beneath it, and a claim can be entirely about a private dimension without ever naming it. `createEvidenceVisibility` in `src/cartographer/context.ts` is the single definition, shared by the per-turn context and the finalize context so the two cannot drift apart. A derived record with no evidence ids is withheld rather than assumed safe. Introduced in `e940788`.
-- **DEC-026:** The Final Atlas Assessment is an end-state artifact and is gated on `campaignReachedEndState` in `src/game/engine.ts`: `campaignCompleted` if set, otherwise every territory carried to `charted`/`deeply-charted` by evidence coverage. The helper only reads existing engine authority; it invents no threshold, awards nothing, and does not change how `CAMPAIGN_COMPLETED` is earned. The fallback criterion carries the gate in practice because nothing currently dispatches `CAMPAIGN_COMPLETED` (KNOWN-003). Introduced in `e940788`.
-- **DEC-032:** Atlas opens dormant on every launch and renders no application tree until a deliberate engagement, and Talk is a continuous turn-taking conversation rather than push-to-talk per answer. Both are accepted product direction from real first-impression observation, not polish. Two consequences are load-bearing: the cold open gates on `!awake || !hydrated`, so the hydration race of VER-053 is closed by construction rather than by careful waiting; and conversation lifecycle lives in a ref plus a generation token, never in React state, because a loop that restarts itself is exactly where a stale closure would reopen a microphone (DEC-029).
+- **DEC-026:** **HISTORICAL V1 FINAL-ASSESSMENT DECISION / SUPERSEDED FOR V2 BY DEC-035.** The legacy Final Assessment remains compatibility/history data, but it no longer defines the target product's terminal state.
+- **DEC-032:** **PARTIALLY RETAINED, PARTIALLY SUPERSEDED.** The dormant cold-open/hydration gate remains protected. The continuous spoken Talk loop is superseded for v2 by STT-only editable input with no automatic microphone reopen (DEC-033).
 - **DEC-031:** Every Workers AI route resolves its model id through the registry that owns it and refuses anything that registry does not vouch for, before any binding call exists. `/api/turn` and `/api/finalize` use `findCandidate`; `/api/transcribe` uses `transcribeModelIsEligible`. An UNKNOWN id is refused exactly as firmly as a known paid one, because the zero-dollar rule is about what Atlas may spend and an id that cannot be priced cannot be vouched for. No route may keep its own allow-list; adding or retiring a model is one edit in `src/cartographer/models.ts`. `/api/health` follows the same principle for reporting: `transcribeModel` names the model Atlas would actually execute, or `null`.
 - **DEC-030:** The encounter submission boundary excludes a same-task duplicate with `encounterInFlight`, a ref claimed synchronously and **released on the microtask boundary**, not in `finally`. This differs from DEC-029 on purpose. Encounter state application is synchronous and its provider enrichment is non-authoritative and fire-and-forget, so a lock held until a response returned would block the next legitimate Boss stage for nothing; but a `finally` release runs synchronously inside the same task and would let the second click straight through. A microtask drains after the current task and before any later user event, which is exactly the window that needs covering. Proven by mutation in VER-056: the synchronous-release variant fails the same-task tests identically to having no lock at all.
 - **DEC-028:** Repository HEAD and deployed application content are tracked as separate identities. A documentation-only merge advances repository HEAD and produces a new Cloudflare deployment record while leaving the compiled bundle byte-identical, so a Git SHA alone never establishes what is running. The authority on deployed application behaviour is the live client bundle identity (currently `assets/index-fUzHTQZI.js`), corroborated by content inspection of that bundle. Section 2 is structured around this split, and no revision of this file may require it to contain the SHA of the merge that will contain it.
 - **DEC-029:** Mutual exclusion for asynchronous user actions uses a ref claimed synchronously before the first `await`, not React state. React state is read from the render closure and does not update until the next render, so two events in the same browser task both observe the stale value — proven against the real submit button in VER-054. `isSubmitting` remains, for presentation only. The encounter submission boundary needs the same exclusion but a different release point — see DEC-030.
 - **DEC-027:** A Final Assessment gets its own semantic validation stage rather than being forced through the `CartographerTurn` validator, whose shape is unrelated. `validateFinalAssessment` reuses the shared primitives (`PROGRESSION_CLAIMS`, `findAuthorityFields`) and restates the rules for this contract. As on the per-turn path, a semantic failure is refused and never repaired; the caller falls back to the deterministic local synthesis, so a refusal never costs the player their assessment. Introduced in `e940788`.
+
+- **DEC-033:** **V2 voice is STT-only.** Dictation may capture/transcribe one input and place editable text into the visual composer. Atlas replies remain text. There is no assistant TTS, output voice picker, spoken-reply state, automatic post-response listening loop, or acoustic-barge-in requirement.
+- **DEC-034:** **V2 integration is not a release.** All runtime feature packets merge into `integration/atlas-v2-journal-adventure-combat`; `main` remains untouched until the final release gate because Workers Builds couples `main` to deployment.
+- **DEC-035:** **Terminal Final Assessment semantics are retired for v2.** Existing FinalAssessment data is preserved/migrated as historical material, while the target product uses multiple dated revisable Atlas Snapshots with deterministic eligibility and no permanent “Greyson is complete” state.
 
 ## 11. Validation and Evidence Matrix
 
@@ -338,6 +377,13 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 | INV-018 | provider context is bounded | verified | 20/300/600-turn compile comparison; 100-turn pipeline run | Vitest | `8b06185`, rev 7 | 2026-09-07 | context budget changes |
 | INV-019 | repair bounded to one attempt | verified | provider.test.ts three-response script; semantic refusal test | Vitest | `8b06185`, rev 7 | 2026-09-07 | provider/validation changes |
 | INV-020 | zero-dollar enforcement | verified | paid-model refusal with zero binding calls; bundle inspection; neuron budget assertions | Vitest + bundle scan | `8b06185`, rev 7 | 2026-09-07 | model registry or pricing changes |
+| INV-021 | v2 no-TTS + editable STT/typing | verified on integration, not deployed | V01 source/bundle negative proof + real-browser STT lifecycle | CI/browser | `d21c234`, rev 26 | 2026-09-23 | voice/Journal input changes |
+| INV-022 | Journal-first and fictional-action firewall | authority-locked / implementation pending | master plan + capability invariant | source contract | rev 26 | 2026-09-23 | Journal/Adventure/Reflection implementation |
+| INV-023 | deterministic v2 game/combat/progression authority | authority-locked / implementation pending | master plan + existing firewall baseline | source contract + existing tests | rev 26 | 2026-09-23 | Adventure/Combat/event contract |
+| INV-024 | Greyson final authority over interpretations | authority-locked / implementation pending | master plan human-authority rules | source contract | rev 26 | 2026-09-23 | Reflection implementation |
+| INV-025 | v2 privacy/retraction provenance propagation | authority-locked / implementation pending | master plan + capability invariant | source contract | rev 26 | 2026-09-23 | M06/RF09/context changes |
+| INV-026 | multiple non-terminal Atlas Snapshots | authority-locked / implementation pending | master plan Snapshot law | source contract | rev 26 | 2026-09-23 | Snapshot implementation |
+| INV-027 | main remains release/deploy surface | verified operational rule | PR #12 draft + main/integration separation | GitHub state | `d21c234`, rev 26 | 2026-09-23 | release/deployment |
 | MODEL-001 | Qwen3 30B FP8 is the configured production model | verified | `DEFAULT_MODEL_ID` in source; unauthenticated production `/api/health` returns `@cf/qwen/qwen3-30b-a3b-fp8` | source + live HTTP probe | `4d128a2`, rev 15 | 2026-09-08 | model registry or deployment changes |
 | MODEL-002 | candidates honour `response_format` json_schema | reported | live probe reported that only Qwen3 30B adhered within the 700-token limit and the others truncated mid-JSON; no raw output was archived (UNV-019) | live probe in `tests/live/bakeoff.live.test.ts`, unarchived | `local-rev9`, rev 9 | 2026-09-07 | rerun with a durable artifact |
 | AI-001 | real Workers AI synthetic turns executed | reported | 212 requests (204 on Qwen3 30B), 6,163.77 neurons, 0 API errors — narrative only; the run emitted console output and committed no artifact (UNV-019). Repository-wide search finds these figures solely in `OPERATIONAL_STATE.md` and `docs/PROVIDER_BAKEOFF.md` | `npm run test:live`, unarchived | `local-rev9`, rev 9 | 2026-09-07 | any rerun should write a durable artifact |
@@ -391,6 +437,20 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **Repair class:** Rev 25 closes the Worldwalker unification release onto `main`: the cinematic entry/Talk baseline, physical overworld, journey persistence, lifecycle hardening, and deterministic browser proof are merged and deployed. Current verified production bundle: `assets/index-CI2VK5XI.js` from release head `6e720b2`. Open items deliberately left visible: KNOWN-003, KNOWN-006, PND-005, PND-009, PND-013 remainder, UNV-003, UNV-004, UNV-007, UNV-009, UNV-010, UNV-017, UNV-018, UNV-019, UNV-021, UNV-023, UNV-024 and UNK-002.
 
 ## 13. Compact Revision Log
+
+### Revision 26 — 2026-09-23
+
+- **Artifact/source identity:** active development branch `integration/atlas-v2-journal-adventure-combat`, verified code head `d21c234c6402145ffe6c5d977655625563028853`; draft integration PR #12; production `main` remains `1b5103333f09884bf87286787e29885fd53d447c` and does not contain the v2 runtime changes.
+- **State deltas:**
+  1. Adopted the v2 Journal-first / Worldwalker Adventure / deterministic Combat / Reflection-firewall / Atlas-Snapshot authority and separated staging truth from deployed production truth.
+  2. Removed assistant TTS from the v2 runtime while preserving optional bounded STT as editable input and the complete typing fallback.
+  3. Froze canonical synthetic v1 current/legacy exports before schema-v2 migration work.
+  4. Behavior-preservingly decomposed shared presentation, Journal-facing shell, legacy encounter presentation and Worldwalker orchestration out of the monolithic App surface without moving deterministic authority.
+  5. Added `docs/v2/CAPABILITY_INVARIANTS.md` so verified v1 behavior and requested v2 behavior are not confused.
+  6. Superseded continuous spoken-output/acoustic-barge-in and terminal Final-Assessment completion as v2 requirements while retaining their historical production record.
+- **Verification evidence:** combined integration CI `Atlas validation #82` / run `35889470764` on `d21c234`: **286/286 unit tests across 37 files**, production/PWA build PASS, **120 precache entries (589.78 KiB)**, **130/130 real-Chrome browser tests across 14 files**; focused Worldwalker **10**, encounter concurrency **5**, encounters **13**, STT-only voice **6**.
+- **Not implemented / not verified:** schema v2 and v1->v2 migration; blank Journal persistence; Reflection engine/UI; Knowledge Gap engine; Adventure runtime; Combat runtime; Adventure memory; Atlas Snapshot generation/history; physical mobile devices; Safari/iOS; any v2 production deployment.
+- **Deployment state:** no v2 runtime merge to `main`, no v2 deployment, no production secret/provider/config mutation.
 
 ### Revision 25 — 2026-09-18
 
@@ -690,15 +750,9 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **Validation not performed:** actual mobile/browser interaction, real reload, PWA installation/offline journey, visual sprite rendering in target browser, production deployment.
 
 
-## Pending v2 authority adoption — 2026-09-23
+## Superseded v2 authority-adoption checkpoint — 2026-09-23
 
-- **State:** `current-baseline / documentation-only / not merged`.
-- **Branch:** `docs/atlas-v2-authority-adoption`, based exactly on `87d57f3c341b363e078668895b9b691b56258cd7`.
-- **Purpose:** adopt the September 20 v2 Master Integration Plan and reconcile the canonical source-of-truth documents before any v2 implementation lane fans out.
-- **Authority files changed on this branch:** `AGENTS.md`, `docs/MASTER_INTEGRATION_PLAN.md`, `docs/PRODUCT_SPEC.md`, `docs/ARCHITECTURE.md`, `docs/GAME_SYSTEM.md`, `docs/MODEL_CONTRACT.md`, `docs/ACCEPTANCE.md`, and `docs/MASTER_BUILD_PLAN.md`.
-- **Product direction recorded:** Journal-first Atlas; Worldwalker as a living adventure world; deterministic Adventure/Combat authority; Reflection as the firewall between fictional behavior and self-knowledge; dated Atlas Snapshots replacing terminal Final Assessment semantics; TTS removed while optional speech-to-text input may remain.
-- **Runtime impact:** none yet. No production source, package manifest, Worker code, migration, persistence schema, runtime asset, or dependency is changed by the authority-adoption packet.
-- **Deployment impact:** none yet. `main` remains unchanged and therefore this packet has not triggered a Workers production deployment.
-- **Validation performed:** repository compare confirms the authority work is isolated to documentation/state surfaces. Runtime tests/build are not claimed because the MacBook remote execution bridge was offline during this continuation.
-- **Existing verified behavior:** remains governed by the prior verified entries above until implementation work changes it and new proof exists.
-- **Next required packet:** reconcile/verify any remaining stale public README or derived documentation, establish the v2 integration/autonomy ledger and baseline proof, then perform TTS-removal investigation before runtime mutation.
+- **State:** historical checkpoint, superseded by Revision 26.
+- Authority-adoption PR #11 merged to `main` at `1b5103333f09884bf87286787e29885fd53d447c` on 2026-09-23 04:51:47Z.
+- Runtime v2 work then moved to draft integration PR #12 and remains off `main`.
+- The former “documentation-only / not merged” wording is retained here only as corrected history; it is not current state.
