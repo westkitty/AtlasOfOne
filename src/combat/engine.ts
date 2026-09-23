@@ -79,6 +79,13 @@ export function validateCombatDefinition(definition: CombatDefinition): CombatDe
     throw new Error('CombatDefinition turnLimit must be a positive integer when present.');
   }
 
+  if (definition.openingPhase === 'enemy' && definition.openingReason !== 'ambush') {
+    throw new Error('Enemy opening phase requires an explicitly authored ambush reason.');
+  }
+  if ((definition.openingPhase ?? 'player') === 'player' && definition.openingReason !== undefined) {
+    throw new Error('Combat openingReason is only valid for an enemy ambush opening.');
+  }
+
   return definition;
 }
 
