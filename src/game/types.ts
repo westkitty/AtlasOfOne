@@ -1,4 +1,9 @@
+import type { AdventureAction, AdventureMemory, AdventureObservation, AdventureRun, AdventureSeed } from '../adventure/schema';
+import type { AtlasSnapshot } from '../atlas/schema';
 import type { FinalAssessment } from '../cartographer/finalize';
+import type { JournalEntry } from '../journal/schema';
+import type { KnowledgeGap } from '../knowledge/schema';
+import type { ReflectionRecord } from '../reflection/schema';
 
 export type TerritoryStatus =
   | 'fogged'
@@ -56,7 +61,7 @@ export interface BossRunState { id: string; bossId: string; territoryId: string;
 export interface DoorRunState { id: string; doorId: string; territoryIds: string[]; evidenceIds: string[]; dimensions: string[]; status: DoorRunStatus; openedAt: string; completedAt?: string; }
 
 export interface CampaignState {
-  schemaVersion: 1;
+  schemaVersion: 2;
   campaignId: string;
   player: PlayerState;
   settings: SettingsState;
@@ -86,6 +91,15 @@ export interface CampaignState {
   worldJourney: WorldJourneyState;
   finalAssessment?: FinalAssessment | null;
   onboardingCompleted?: boolean;
+  journalEntries: JournalEntry[];
+  knowledgeGaps: KnowledgeGap[];
+  adventureSeeds: AdventureSeed[];
+  adventureRuns: AdventureRun[];
+  adventureActions: AdventureAction[];
+  adventureObservations: AdventureObservation[];
+  reflections: ReflectionRecord[];
+  adventureMemories: AdventureMemory[];
+  atlasSnapshots: AtlasSnapshot[];
   updatedAt: string;
 }
 
