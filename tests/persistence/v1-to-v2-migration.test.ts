@@ -21,6 +21,8 @@ const V2_COLLECTIONS = [
   'atlasSnapshots'
 ] as const;
 
+const INERT_V2_COLLECTIONS = V2_COLLECTIONS.filter((field) => field !== 'atlasSnapshots');
+
 function asLegacyProjection(state: CampaignState) {
   const projected = { ...state } as Record<string, unknown>;
   for (const field of V2_COLLECTIONS) delete projected[field];
@@ -39,7 +41,8 @@ describe('deterministic schema-v1 -> schema-v2 migration (M02)', () => {
       expect(CURRENT_SCHEMA_VERSION).toBe(2);
       expect(migrated.schemaVersion).toBe(2);
       expect(asLegacyProjection(migrated)).toEqual(expectedV1);
-      for (const field of V2_COLLECTIONS) expect(migrated[field]).toEqual([]);
+      for (const field of INERT_V2_COLLECTIONS) expect(migrated[field]).toEqual([]);
+      expect(migrated.atlasSnapshots).toHaveLength(expectedV1.finalAssessment ? 1 : 0);
       expect(campaignStateSchemaV2.parse(migrated)).toEqual(migrated);
     }
   );
@@ -56,11 +59,18 @@ describe('deterministic schema-v1 -> schema-v2 migration (M02)', () => {
     for (const field of V2_COLLECTIONS) expect(fresh[field]).toEqual([]);
   });
 
-  it('preserves the historical FinalAssessment field for M03 rather than migrating it early', () => {
+  it('preserves the legacy FinalAssessment field while also creating one historical Snapshot', () => {
     const raw = fixture('canonical-current-v1.json');
     const migrated = migrateCampaign(raw);
 
     expect(migrated.finalAssessment?.id).toBe('assessment_fixture_v1');
-    expect(migrated.atlasSnapshots).toEqual([]);
+    expect(migrated.atlasSnapshots).toEqual([{
+      id: 'snapshot_legacy_assessment_fixture_v1',
+      createdAt: '2026-01-02T03:04:05.000Z',
+      evidenceIds: [],
+      insightIds: [],
+      contradictionIds: [],
+      synthesis: migrated.finalAssessment
+    }]);
   });
 });

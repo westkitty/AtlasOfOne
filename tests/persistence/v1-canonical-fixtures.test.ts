@@ -23,7 +23,14 @@ describe('canonical synthetic schema-v1 export fixtures', () => {
     expect(state.worldJourney.lastPosition).toEqual({ x: 12, y: 34, territoryId: 'identity' });
     expect(state.finalAssessment?.id).toBe('assessment_fixture_v1');
     expect(state.onboardingCompleted).toBe(true);
-    expect(state.atlasSnapshots).toEqual([]);
+    expect(state.atlasSnapshots).toEqual([{
+      id: 'snapshot_legacy_assessment_fixture_v1',
+      createdAt: '2026-01-02T03:04:05.000Z',
+      evidenceIds: [],
+      insightIds: [],
+      contradictionIds: [],
+      synthesis: state.finalAssessment
+    }]);
 
     expect(deserializeCampaign(serializeCampaign(state))).toEqual(state);
   });
