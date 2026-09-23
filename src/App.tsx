@@ -463,7 +463,7 @@ export default function App() {
     void beginListeningTurn(conversationId.current);
   };
 
-  const submitText =  const submitText = (text: string) => {
+  const submitText = (text: string) => {
     if (!text.trim() || state.sessionStatus === 'paused' || isSubmitting || submitInFlight.current) return;
     if (isOffline || provider.id === 'disabled') { commitTurn(createMockTurn(state, prompt, text), text, 'mock', prompt); return; }
     // Claimed synchronously, before the first await, so a second click in the
