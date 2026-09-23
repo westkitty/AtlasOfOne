@@ -238,7 +238,7 @@ describe('Atlas browser journey', () => {
       });
     });
     const before = JSON.parse(exported);
-    expect(before.schemaVersion).toBe(1);
+    expect(before.schemaVersion).toBe(2);
 
     const download = page.waitForEvent('download');
     await page.click('button:text("Export Atlas")');
