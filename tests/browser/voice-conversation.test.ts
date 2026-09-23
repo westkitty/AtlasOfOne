@@ -146,6 +146,8 @@ describe('STT-only dictation', () => {
     for (const text of [sourceText, bundleText]) {
       expect(text).not.toContain('speechSynthesis');
       expect(text).not.toContain('SpeechSynthesisUtterance');
+      expect(text).not.toContain('voice-select');
+      expect(text).not.toContain('voice-lab');
     }
   });
 
@@ -203,6 +205,30 @@ describe('STT-only dictation', () => {
       expect(await page.locator('[data-testid="mic-visualizer"]').count()).toBe(0);
       expect(await page.locator('[data-testid="mode-talk"]').isVisible()).toBe(true);
       expect(await page.locator('[data-testid="answer-input"]').isVisible()).toBe(true);
+    } finally {
+      await session.close();
+    }
+  }, 90_000);
+
+  it('cancels an active microphone capture when the page is backgrounded', async () => {
+    const session = await newDictationSession();
+    try {
+      const { page } = session;
+      await page.click('[data-testid="mode-talk"]');
+      await page.waitForFunction(() => document.querySelector('[data-testid="voice-status"]')?.className.includes('listening'));
+
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', {
+          configurable: true,
+          get: () => 'hidden'
+        });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await page.waitForFunction(() => document.querySelector('[data-testid="voice-status"]')?.textContent?.includes('Ready'));
+
+      expect(session.transcribeCount()).toBe(0);
+      expect(session.turnCount()).toBe(0);
+      expect(await page.locator('[data-testid="mic-visualizer"]').count()).toBe(0);
     } finally {
       await session.close();
     }
