@@ -2,223 +2,258 @@
 
 ## 1. Product identity
 
-**Atlas of One** is a mobile-first installable personality-cartography game. Its first campaign is **The Greyson Map**, built for Greyson (he/they). It should feel like an expedition through a living map rather than a questionnaire or clinical assessment.
+**Atlas of One** is a mobile-first, local-first journaling adventure game. Its first campaign is **The Greyson Map**.
 
-The Cartographer adapts conversation to what has already been learned, while the deterministic game system turns accepted substantive participation into visible progress. The product must preserve uncertainty and contradiction rather than flattening a person into a single type.
+Atlas is not fundamentally a personality questionnaire. Greyson can journal freely without first being asked a question. The world, adventures, encounters, memories, reflections, and Atlas records evolve around what he actually chooses to explore.
 
-## 2. Core experience
+The strongest product test is simple: **Greyson wants to come back.**
 
-The player moves among mapped territories, answers adaptive questions, receives Insight Cards, unlocks game abilities and fragments, resolves Boss Fights and Mystery Doors, fills a Vault, and eventually receives a final Atlas/character assessment. Conversation can be typed in v1 and later spoken through the voice state machine defined in the master plan.
+## 2. Canonical loop
 
-The experience should cover, at minimum, the domains explicitly required by the source material:
+```text
+JOURNAL
+-> Atlas notices interest / uncertainty / change / contradiction
+-> optional adventure seed
+-> explore Worldwalker
+-> encounter
+-> consequence
+-> optional reflection
+-> Greyson confirms / partially accepts / rejects / revises / marks private / leaves uncertain
+-> Atlas changes
+-> world remembers
+```
 
-- identity and temperament
-- values and moral architecture
-- politics, ideology, authority, legitimacy, state, democracy, economics, property, labor, justice, speech, institutions, borders, social liberty, equality, environment, technology, and change
-- relationships and social world
-- cognitive style and contradiction/revision
-- interests and ordinary preferences
-- motivation, aversions, fears, hopes, dreams, ideal future, and ambition
-- conflict, strengths, vulnerabilities, and open uncertainty
-- personality-framework estimates as estimates, not diagnoses or facts
+Every adventure must satisfy both of these:
 
-## 3. Interaction tone and agency
+- it is worth playing even if Atlas learns nothing useful about Greyson;
+- nothing becomes a durable claim about Greyson merely because he chose it in fiction.
 
-The Cartographer has selectable sass. Source-defined onboarding levels are **Low**, **Medium**, and **I Understand the Risks**. Sass never outranks consent or presentation state.
+## 3. Human authority
 
-These controls must always exist and must never be progression-gated:
+Greyson has final authority over claims about himself.
 
-- **PASS** — skip without penalty or forced explanation.
-- **PRIVATE** — mark the current topic/dimension private; it must not be intentionally revisited.
-- **STOP** — pause the encounter/session loop.
-- **SERIOUS** — enter quiet/respectful presentation immediately.
-- **HELP** — explain available controls and current game state.
-- **sass controls** — increase/decrease or select sass without requiring an unlock.
+Atlas may notice, ask, hypothesize, connect evidence, remember corrections, and show provenance. It must not diagnose, claim unsupported certainty, turn inference into fact, reward painful disclosure, reassert rejected interpretations as truth, or treat roleplay/combat behavior as psychological proof.
 
-The system must automatically shift into respectful/quiet presentation when the player signals seriousness. Quiet presentation suppresses celebratory effects even if progression occurs internally.
+Supported outcomes for interpretations:
 
-## 4. Game surfaces
+- **CONFIRM**
+- **PARTIAL**
+- **REJECT**
+- **UNCERTAIN**
+- **REVISE**
+- **PRIVATE**
 
-### Map
+Rejected and revised interpretations remain history-bearing without counting as accepted self-knowledge.
 
-- Greyson avatar support
-- fog-of-war presentation
-- territory nodes and paths
-- active territory and territory state
-- current quest
-- XP and level
-- map fragments
-- unlock/achievement presentation when not quiet
+## 4. Primary product surfaces
 
-### Talk / Encounter
+### World
 
-- Cartographer reply and next question
-- text answer input in this phase
-- future microphone/voice entry point
-- always-available protected controls
-- small contextual unlocked-move surface rather than a wall of buttons
+The living Worldwalker island. Greyson moves through territory geography, sanctuaries, discoveries, NPCs, routes, memories, visible encounters, Mystery Doors, Boss events, and pure-fun content.
 
-### Vault
+### Journal
 
-Starts sparse and fills with source-defined classes of artifacts:
+The primary self-discovery input surface.
 
-- Identity Fragment
-- Values Fragment
-- Political Fragment
-- Relationship Fragment
-- Interest Constellation
-- Cognitive Fragment
-- Fear Map
-- Future Postcard
-- Contradiction Ledger
-- achievements
-- Insight Cards
+Greyson can:
 
-### Me / Character
+- write immediately with no prompt;
+- optionally dictate speech-to-text into editable text;
+- save without answering a question;
+- ask Atlas to respond;
+- request a prompt only when he wants one;
+- mark an entry PRIVATE;
+- retract an entry while preserving history;
+- link entries to reflections, adventures, evidence, and memories;
+- choose **Explore this later** when something should become an adventure seed.
 
-- Greyson character/avatar area
-- XP, level, progress
-- settings and accessibility
-- voice/sass settings
-- export/import/delete controls
-- eventual complete character sheet
-- detailed turnaround art only after substantial progression
+Journal responses may acknowledge, reflect a theme, ask one optional follow-up, notice possible change/contradiction, suggest an existing memory, or decline to analyze when analysis is unnecessary.
 
-## 5. Progression
+### Atlas / Vault
 
-Progress is deterministic and owned by TypeScript.
+The inspectable record of what Atlas currently believes it knows, why, what Greyson confirmed or rejected, contradictions, memories, adventure history, revisions, and dated Atlas Snapshots.
 
-Source examples for XP rules:
+### Me
 
-- accepted answer: +5
-- meaningfully developed answer: +3
-- new evidence accepted: +2 each, capped by deterministic rules
-- behavioral example: +3
-- meaningful revision: +5
-- quest completion: fixed bonus
-- boss resolution: fixed bonus
+Settings, accessibility, input mode, local data controls, export/import/delete, progression, privacy explanation, and Snapshot history.
 
-Do **not** grant extra XP for painful disclosures or vulnerability.
+## 5. Permanent agency controls
 
-Territory progress is based on evidence coverage, not raw question count. Territory states are:
+These remain available independently of progression:
 
-`FOGGED → DISCOVERED → EXPLORING → CHARTED → DEEPLY CHARTED`.
+- **PASS**
+- **PRIVATE**
+- **STOP**
+- **SERIOUS**
+- **HELP**
+- sass controls
 
-## 6. Evidence and revision
+SERIOUS switches immediately to quiet/respectful presentation and suppresses celebratory presentation without deleting earned state.
 
-Evidence records must preserve provenance, basis, strength/confidence, relevant territories, counter-evidence, and status. Insights are presented as hypotheses the player can confirm, partly accept, reject, or ask to inspect.
+## 6. Worldwalker adventures
 
-Deleting/retracting an answer must be able to remove or invalidate derived evidence. Revisions remain visible in history. Contradictions are data, not errors to hide.
+Ordinary adventure shape:
 
-## 7. Privacy
+1. **Hook**
+2. **Approach**
+3. **Complication**
+4. **Encounter**
+5. **Choice / Consequence**
+6. **Optional Reflection**
 
-- Full campaign state lives locally in IndexedDB.
-- No server database is part of v1.
-- No actual Greyson answer/transcript may be committed to Git or used in synthetic tests.
-- No provider secret may ship to the browser bundle.
-- Real-provider inference, when added later, receives only the necessary context payload.
-- PRIVATE dimensions/topics are not intentionally surfaced again.
-- Export/import and delete foundations are required from the first persisted schema.
+Natural-language actions are supported. Adventures may be social, investigative, exploratory, absurd, ethical, creative, relational, puzzle-based, survival-oriented, combat-forward, or pure fun.
 
-## 7b. Opening presentation
+Pure-fun adventures are a required content type. A mature ordinary seed bank should keep at least 20% with no learning target.
 
-Atlas opens **dormant**. A fresh launch — new campaign, returning campaign or
-reload alike — begins in near-black cinematic space with no application chrome
-and **no branding, tagline or instruction**: no Map, Talk, Vault or Me, no
-navigation, cards, XP, controls, toasts or onboarding choices, and no name or
-prompt to touch anything. One extremely subtle atmospheric mark may remain,
-reading as dormant environmental presence rather than a logo, loader or button.
-The whole viewport is the activation surface.
+Withdrawal, escape, defeat, or strange choices should usually fail forward rather than produce a dead-end game-over state.
 
-Identity is **discovered by waking it**: on engagement the mark blooms, "Atlas of
-One" and "The Greyson Map" arrive with that illumination, and Atlas then hands
-over to onboarding or the existing campaign. The player learns what they woke
-after interacting with it, not before.
+## 7. Lightweight JRPG combat
 
-Engagement IS the canonical "Begin" step, so a first-run campaign moves straight
-from waking to the sass choice. Waking brightens decisively — a short
-illumination, not a slow fade — and is effectively instant under reduced motion.
-This state is session-level: it awards nothing, never enters CampaignState, and
-recurs on every launch.
+Combat is a storytelling verb, not a grind loop.
 
-## 8. Voice and accessibility requirements
+Universal actions:
 
-Voice is a first-class interaction mode, not a substitute for text. It uses
-`getUserMedia` + `MediaRecorder` → `/api/transcribe` → transcript, with browser
-`speechSynthesis` for output.
+- **ATTACK**
+- **TECHNIQUE**
+- **GUARD**
+- **ACT**
+- **LEAVE**
 
-**Talk is a continuous turn-taking conversation, not push-to-talk per answer.**
-One activation starts a spoken session: Atlas states the current question aloud,
-then listens on its own. The player finishes a turn by simply stopping talking;
-Atlas answers, establishes what it is asking next, and returns to listening with
-no further tap. The canonical loop is `LISTENING → TRANSCRIBING → THINKING →
-SPEAKING → LISTENING`, and `IDLE` is reserved for a conversation that is not
-running — cancelled, switched to Type, stopped, or failed.
+Combat must be short, deterministic, accessible, and varied primarily by objective + gimmick + fiction.
 
-Spoken-turn completion is detected locally from microphone amplitude; no audio is
-transmitted to decide when someone stopped speaking. "Done speaking" remains
-available as a fallback for noisy rooms, accessibility and long pauses. Silence
-before speech never submits an empty turn. While listening, an amplitude-reactive
-visualizer is the primary status indicator, and its reappearance without a tap is
-how the player knows the turn is theirs again.
+No loot treadmill, gacha, required grinding, equipment spreadsheet, random stat rolls, or large permanent skill tree belongs in this cycle.
 
-The application must remain usable by text if voice is unavailable. Voice states must be visibly captioned. Common voice commands should be recognized locally when voice is implemented.
+Combat actions create observations about what happened in the game. They are not evidence about Greyson until a later real-world reflection supports an interpretation.
 
-Accessibility requirements include semantic controls, keyboard access, visible focus, sufficiently large mobile touch targets, reduced-motion respect, readable contrast, transcript/caption availability, and preserving all critical controls in quiet mode.
+## 8. Deterministic progression
 
-## 9. Final assessment
+TypeScript owns:
 
-The final Atlas is generated from confirmed territory summaries, evidence ledger, Insight confirmations, contradictions, revision history, representative quotations, and open uncertainty — not raw transcript alone.
+- XP and level;
+- territory/map state;
+- quests and objectives;
+- achievements and unlocks;
+- world consequences;
+- combat HP, damage, turn order, objectives, outcomes, and rewards;
+- persistence and migrations;
+- privacy/retraction propagation;
+- Snapshot eligibility.
 
-It must include:
+The model cannot own any of these.
 
-- personality and temperament
-- values and moral architecture
-- political constellation and ideology
-- relationships and social world
-- cognitive style
-- interests
-- motivation and aversions
-- fears and hopes
-- ideal future and ambition
-- conflict
-- strengths and vulnerabilities
-- contradictions
-- personality-framework estimates
-- revision history
-- representative player words
-- open questions
-- character sheet
-- a final **Who is Greyson?** synthesis
+Do not award extra progression for painful disclosure, vulnerability, or trauma intensity.
 
-Browser print CSS should later support **Save as PDF** without a PDF backend.
+## 9. Evidence, contradiction, and revision
 
-## 10. PWA and resilience
+Evidence preserves:
 
-- Installable PWA foundation.
-- Cached application shell; map/Vault/journal-like local content should remain available offline once implemented.
-- Campaign state survives reload automatically.
-- Export/import round trips without losing state.
-- `schemaVersion` and migrations exist from day one.
-- Provider/quota failure later degrades Cartographer functionality without risking campaign data or surprise billing.
+- provenance;
+- explicit vs inferred basis;
+- strength/confidence;
+- territory links;
+- counter-evidence;
+- status;
+- revision history.
 
-## 11. Visual assets
+Contradictions are valid state, not errors to erase.
 
-Canonical source mapping is now explicit:
+A retracted or PRIVATE source must retire or withhold every derived item that depends exclusively on it, including evidence, insights, contradictions, knowledge gaps, adventure seeds, memories, and Snapshot eligibility.
 
-- **Aerron is Greyson's former asset/code name.** Aerron assets in `aerron_andrew_snes_pack_RENDERED.zip` are Greyson's canonical Atlas visuals.
-- The Andrew assets contained in the same mixed source pack are not Atlas/Greyson assets and must not be imported.
-- The five `rendered-prompts/aerron/game-ready-48x64/` transparent PNGs are the canonical sharp overworld set. The front view is the default avatar; the left view may be mirrored for the opposite direction; quarter-front, back, and quarter-back views are available for later map motion.
-- The detailed canonical progression art is `sheets/aerron_turnaround_hires.png`. Reserve it for Character/Vault/final-assessment progression rather than showing it immediately.
-- Duplicate raw renders, preview enlargements, and contact sheets are source/reference material, not required runtime payload.
-- Runtime filenames may use `Greyson`-facing paths while preserving provenance back to Aerron source names. Visual appearance must not be silently redrawn or changed.
+Propagation is provenance-based, never prose-search-based.
 
-The current Phase 2 runtime integrates the five exact 48×64 Aerron sprite bytes under `public/assets/greyson/map/`. The high-resolution turnaround is supplied and canonically identified but remains reserved until its progression reveal is implemented.
+## 10. Atlas Snapshots
 
-## 12. Source coverage gap and reversible bootstrap defaults
+Greyson never becomes permanently complete.
 
-The planning source requires “all territories” and “all levels,” explicitly defines the political territory dimensions, and references a Level 8 reveal, but it does not enumerate canonical names/details for every territory or every level in the material available to this pass. To keep implementation moving without pretending missing canon exists:
+The former terminal Final Assessment model is replaced by immutable, dated, revisable **Atlas Snapshots**.
 
-- Phase 1/2 uses source-derived functional territory labels based on required assessment/Vault domains.
-- Levels are numeric 1–8 with deterministic bootstrap thresholds.
-- These labels/thresholds are implementation defaults and must remain easy to replace when a fuller canonical campaign table is supplied.
+A Snapshot may include:
+
+- confirmed self-knowledge;
+- uncertainty;
+- contradictions;
+- recent changes;
+- representative Greyson words where provenance permits;
+- territory summaries;
+- relationships and social world;
+- values and moral architecture;
+- interests and ordinary preferences;
+- cognitive style;
+- motivations, hopes, fears, and aversions;
+- open questions;
+- relevant adventure history;
+- **What changed since the previous Snapshot?**
+
+Later evidence never rewrites an older Snapshot.
+
+## 11. Privacy and locality
+
+- Campaign and journal state are local-first in IndexedDB.
+- No server campaign database.
+- No analytics platform.
+- No account system.
+- No vector database.
+- No cloud journal store.
+- No real Greyson journal text, transcript, private campaign material, or personal evidence in Git fixtures, public repositories, LM Arena, Grok Build, AI Studio, or generic evaluation prompts.
+- Remote inference receives only the minimum eligible non-private bounded context for an explicitly invoked provider operation.
+- Quota exhaustion must degrade capability rather than silently create cost.
+
+## 12. Speech input and TTS lock
+
+Optional speech-to-text may remain:
+
+```text
+Tap mic
+-> listening
+-> local silence detection or Done
+-> transcribing
+-> editable transcript appears in Journal
+-> Greyson edits or submits
+-> Atlas responds in text
+```
+
+Text-to-speech is removed.
+
+There is no browser `speechSynthesis`, no assistant-spoken output, no voice picker, no TTS provider, and no microphone auto-restart tied to assistant speech.
+
+Reintroducing TTS requires a new explicit product decision.
+
+## 13. Accessibility
+
+Atlas must preserve:
+
+- semantic controls;
+- keyboard access;
+- visible focus;
+- sufficiently large touch targets;
+- reduced-motion support;
+- readable contrast;
+- non-color-only distinctions;
+- editable speech-to-text transcripts;
+- agency controls in every relevant mode;
+- optional timed combat input that never blocks accessibility.
+
+## 14. Canonical Greyson / Aerron assets
+
+- Aerron is Greyson's former asset/code name.
+- Only Aerron-side material from the mixed Aerron/Andrew source is canonical for Greyson.
+- Andrew-side assets are unrelated and must not enter Atlas.
+- Existing approved Greyson/Aerron visual identity is preserved.
+- No runtime AI image generation.
+- Candidate v4 assets must use stable IDs, provenance, hashes, and manifest-driven integration before replacing proven v3 runtime assets.
+
+## 15. Explicit non-goals in this integration cycle
+
+Do not introduce:
+
+- native mobile wrappers;
+- account/login systems;
+- cloud campaign sync databases;
+- analytics;
+- vector databases/embeddings;
+- multiplayer/social sharing;
+- paid TTS;
+- runtime AI character art;
+- 3D map replacement;
+- grind/loot/gacha systems;
+- a terminal "Greyson is complete" state.

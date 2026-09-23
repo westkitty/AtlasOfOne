@@ -1,48 +1,99 @@
 # Atlas of One
 
-Mobile-first PWA for adaptive, gamified personality cartography. The first campaign is **The Greyson Map**.
+**Atlas of One / The Greyson Map** is a mobile-first, local-first journaling adventure game built for Greyson.
 
-Atlas is a game with a strict boundary running through it. Campaign truth and progression are deterministic TypeScript state; a language model proposes wording and evidence only, and can never award XP, levels, unlocks, achievements, quests or territory completion. Campaign data is local-first in IndexedDB — there is no server database, no account system and no analytics.
+Atlas is not fundamentally a personality questionnaire. Greyson can journal freely, explore a living Worldwalker map, encounter stories and lightweight JRPG-style conflicts, and decide for himself what any of it means. Fictional actions are never automatically treated as evidence about him.
 
-## What exists today
+## Product loop
 
-- React 19 + TypeScript + Vite PWA with a four-screen mobile shell (Map, Talk, Vault, Me).
-- Deterministic campaign engine: XP, levels, evidence-coverage territory progression, quests, unlocks, map fragments, Boss Fights and Mystery Doors across all eight territories.
-- Permanent agency controls — `PASS`, `PRIVATE`, `STOP`, `SERIOUS`, `HELP` and sass — always available and never progression-gated.
-- Cartographer backed by **Cloudflare Workers AI** on the free plan, behind a typed failure boundary with a bounded context compiler, structured-output validation and a one-attempt repair limit. Configured model: `@cf/qwen/qwen3-30b-a3b-fp8`.
-- Voice path: `MediaRecorder` capture, an explicit voice state machine, client-side agency commands, `/api/transcribe` (`@cf/openai/whisper-tiny-en`), and browser speech synthesis. Text always remains a full alternative.
-- Local-first persistence with export, import and delete; a Final Atlas Assessment; and a five-step first-run onboarding.
-- Deployed as a Cloudflare Worker serving the PWA, with `/api/turn`, `/api/transcribe` and `/api/finalize` behind an access secret.
+```text
+JOURNAL
+-> notice interest / uncertainty / change / contradiction
+-> optional adventure
+-> explore Worldwalker
+-> encounter
+-> consequence
+-> optional reflection
+-> Greyson confirms / revises / rejects / leaves uncertain
+-> Atlas changes
+-> world remembers
+```
 
-Atlas is pre-v1 and has not been validated by a real player. Verification to date is automated tests plus desktop Chrome; no physical mobile device and no browser other than Chrome has been exercised.
+Adventures must still be worth playing when Atlas learns nothing useful.
 
-## Status
+## Core boundaries
 
-| | Commit | State |
-|---|---|---|
-| **Production** | `60ce565` | Deployed at `atlas-of-one.atlas-of-one.workers.dev` |
-| **Development candidate** | `e940788` | Locally verified — **not pushed, not deployed** |
+- **Greyson owns claims about Greyson.** Atlas may notice, ask, hypothesize, connect evidence, remember corrections, and show provenance; it does not diagnose or turn inference into fact.
+- **TypeScript owns game truth.** Progression, world state, combat outcomes, rewards, persistence, migrations, privacy, retraction, and Snapshot eligibility remain deterministic.
+- **Reflection is the firewall.** Adventure/combat behavior can create observations, but only later real-world reflection can support personal interpretation.
+- **Privacy is structural.** PRIVATE and retracted material is excluded from provider context and provenance-dependent derived state.
+- **Local-first means local state.** Journal and campaign data live in IndexedDB with local export/import/delete. There is no server campaign database, analytics platform, account system, cloud journal store, or vector database.
+- **Zero-surprise cost.** Quota exhaustion degrades AI functionality instead of silently creating cost.
 
-`e940788` hardens the Final Assessment trust boundary. It is not in production. Pushing `main` auto-deploys via Cloudflare Workers Builds, so a push is a deployment decision.
+## Experience
 
-`OPERATIONAL_STATE.md` is the evidence ledger and records what is verified, what is merely reported, and what is still open. Read it before trusting any completion claim, including one in a commit message.
+Primary surfaces are:
 
-## Commands
+- **World** — Worldwalker, discoveries, NPCs, sanctuaries, adventure markers, encounters, Mystery Doors, Boss events, memories, and pure-fun content.
+- **Journal** — free writing first; optional speech-to-text may place editable text into the composer.
+- **Atlas / Vault** — evidence, contradictions, revisions, memories, reflections, adventure history, and dated Atlas Snapshots.
+- **Me** — settings, accessibility, progression, privacy explanation, Snapshot history, and local data controls.
+
+Combat is deliberately lightweight:
+
+`ATTACK / TECHNIQUE / GUARD / ACT / LEAVE`
+
+No grinding, loot treadmill, gacha, or giant RPG optimization layer.
+
+## Text-to-speech
+
+Text-to-speech is removed from the current product.
+
+Optional speech-to-text input may remain, but Atlas replies visually in text. Reintroducing TTS requires a new explicit product decision.
+
+## Current repository state
+
+The proven Worldwalker-era application remains the runtime baseline on `main`.
+
+The v2 Journal/Adventure/Combat direction is being adopted through a controlled integration cycle. The controlling plan is:
+
+`docs/MASTER_INTEGRATION_PLAN.md`
+
+Read the source of truth before changing implementation:
+
+1. `AGENTS.md`
+2. `OPERATIONAL_STATE.md`
+3. `docs/MASTER_INTEGRATION_PLAN.md`
+4. specialist canonical docs under `docs/`
+
+`main` is a release surface because Cloudflare Workers Builds auto-deploys it. Feature and authority work belongs on branches until the relevant proof gate passes.
+
+## Existing architecture to preserve
+
+- React + TypeScript + Vite PWA
+- Cloudflare Worker boundary
+- IndexedDB local persistence
+- deterministic game/world engines
+- local export/import/delete
+- bounded provider context
+- canonical Greyson/Aerron visual identity
+- Worldwalker movement, sanctuaries, encounters, map state, and procedural audio foundation
+
+No runtime AI image generation.
+
+## Development commands
 
 ```bash
 npm install
-npm run dev
 npm test
 npm run build
-npm run test:browser   # real-browser journey; needs Chrome installed
+npm run test:browser
 ```
 
-`npm run test:live` is an opt-in Workers AI bakeoff that needs Cloudflare credentials, spends the free daily neuron allocation, and skips cleanly without them.
+Use synthetic data only. Never place real Greyson journal text, transcripts, private campaign material, or personal evidence into Git fixtures or external development/evaluation prompts.
 
-## Source of truth
+## Status and proof
 
-Read `AGENTS.md` and `OPERATIONAL_STATE.md`, then the documents in `docs/`, before changing architecture or gameplay rules.
+`OPERATIONAL_STATE.md` is the evidence ledger for what is actually verified, broken, unverified, pending, or deployed.
 
-## Privacy
-
-Do not commit real campaign answers, transcripts, access tokens, or provider secrets. Synthetic fixtures only. Private material is excluded structurally while an outgoing payload is built — it is never sent with an instruction to ignore it.
+A commit message saying "done" is not proof. Neither is an agent saying it.

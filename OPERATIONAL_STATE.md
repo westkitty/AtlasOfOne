@@ -688,3 +688,17 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **State deltas:** Accepted asset mapping propagated: Aerron is Greyson's former code name; five canonical Aerron game-ready sprites curated into runtime; Andrew assets explicitly excluded; old missing-asset unknown resolved.
 - **New evidence:** Actions run `34129810055` passed dependency install, 18 tests including two asset invariants, production Worker/client builds, and PWA generation with 11 precache entries.
 - **Validation not performed:** actual mobile/browser interaction, real reload, PWA installation/offline journey, visual sprite rendering in target browser, production deployment.
+
+
+## Pending v2 authority adoption — 2026-09-23
+
+- **State:** `current-baseline / documentation-only / not merged`.
+- **Branch:** `docs/atlas-v2-authority-adoption`, based exactly on `87d57f3c341b363e078668895b9b691b56258cd7`.
+- **Purpose:** adopt the September 20 v2 Master Integration Plan and reconcile the canonical source-of-truth documents before any v2 implementation lane fans out.
+- **Authority files changed on this branch:** `AGENTS.md`, `docs/MASTER_INTEGRATION_PLAN.md`, `docs/PRODUCT_SPEC.md`, `docs/ARCHITECTURE.md`, `docs/GAME_SYSTEM.md`, `docs/MODEL_CONTRACT.md`, `docs/ACCEPTANCE.md`, and `docs/MASTER_BUILD_PLAN.md`.
+- **Product direction recorded:** Journal-first Atlas; Worldwalker as a living adventure world; deterministic Adventure/Combat authority; Reflection as the firewall between fictional behavior and self-knowledge; dated Atlas Snapshots replacing terminal Final Assessment semantics; TTS removed while optional speech-to-text input may remain.
+- **Runtime impact:** none yet. No production source, package manifest, Worker code, migration, persistence schema, runtime asset, or dependency is changed by the authority-adoption packet.
+- **Deployment impact:** none yet. `main` remains unchanged and therefore this packet has not triggered a Workers production deployment.
+- **Validation performed:** repository compare confirms the authority work is isolated to documentation/state surfaces. Runtime tests/build are not claimed because the MacBook remote execution bridge was offline during this continuation.
+- **Existing verified behavior:** remains governed by the prior verified entries above until implementation work changes it and new proof exists.
+- **Next required packet:** reconcile/verify any remaining stale public README or derived documentation, establish the v2 integration/autonomy ledger and baseline proof, then perform TTS-removal investigation before runtime mutation.
