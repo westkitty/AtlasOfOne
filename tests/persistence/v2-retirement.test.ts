@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createInitialCampaign } from '../../src/game/engine';
 import type { CampaignState, EvidenceRecord, InsightRecord, ContradictionRecord } from '../../src/game/types';
@@ -5,6 +6,10 @@ import {
   createV2ProvenanceVisibility,
   retireIneligibleV2DerivedState
 } from '../../src/persistence/retirement';
+
+const canonicalAssessment = JSON.parse(
+  readFileSync(new URL('../fixtures/v1/canonical-current-v1.json', import.meta.url), 'utf8')
+).finalAssessment;
 
 const evidence = (overrides: Partial<EvidenceRecord> = {}): EvidenceRecord => ({
   id: 'ev_visible',
@@ -261,16 +266,7 @@ describe('M06 v2 provenance retirement and withholding', () => {
       evidenceIds: [],
       insightIds: [],
       contradictionIds: [],
-      synthesis: state.finalAssessment ?? {
-        id: 'assessment_fixture',
-        generatedAt: '2026-01-01T00:00:00.000Z',
-        title: 'Synthetic',
-        domains: [],
-        frameworks: [],
-        contradictions: [],
-        openQuestions: [],
-        whoIsGreyson: 'Synthetic.'
-      }
+      synthesis: canonicalAssessment
     }];
 
     const visibility = createV2ProvenanceVisibility(state);
@@ -289,16 +285,7 @@ describe('M06 v2 provenance retirement and withholding', () => {
       evidenceIds: ['ev_visible'],
       insightIds: ['insight_1'],
       contradictionIds: ['contradiction_1'],
-      synthesis: {
-        id: 'assessment_fixture',
-        generatedAt: '2026-01-01T00:00:00.000Z',
-        title: 'Synthetic',
-        domains: [],
-        frameworks: [],
-        contradictions: [],
-        openQuestions: [],
-        whoIsGreyson: 'Synthetic.'
-      }
+      synthesis: canonicalAssessment
     }];
 
     expect(createV2ProvenanceVisibility(state).atlasSnapshotIsEligible('snapshot_1')).toBe(true);
