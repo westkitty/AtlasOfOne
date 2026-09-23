@@ -33,9 +33,9 @@ This ledger is derived execution state for the Atlas v2 integration cycle. It do
 | F08 | MERGED | foundation | 1c0b749 | docs/v2-execution-contracts | GPT-5.6 Sol | GitHub Actions + GPT-5.6 Sol review | NO | proof-receipt + merge-queue contract; CI #90 | docs/v2/proof/F08.md | none | F09,all later packets |
 | F09 | MERGED | foundation | 1c0b749 | docs/v2-execution-contracts | GPT-5.6 Sol | GitHub Actions + GPT-5.6 Sol review | NO | ownership matrix + lane stop rules; CI #90 | docs/v2/proof/F09.md | none | D05,D06,D07 |
 | D05 | MERGED | decomposition | d21c234 | docs/v2-domain-interface-freeze | GPT-5.6 Sol | adversarial semantic review + GitHub Actions | YES only on unresolved contract conflict | reviewed domain interfaces; CI #91; upstream integration #82 | docs/v2/proof/D05.md | none | D06,D07,M01,P00,AS00 |
-| D06 | IN_REVIEW | decomposition | 798e3b1 | docs/v2-event-authority-contract | GPT-5.6 Sol | adversarial contract review + GitHub Actions | YES only on unresolved authority conflict | event/mutation authority contract + firewall plan; PR #23 | docs/v2/proof/D06.md | CI pending | D07,authority-sensitive lanes |
+| D06 | MERGED | decomposition | 798e3b1 | docs/v2-event-authority-contract | GPT-5.6 Sol | adversarial contract review + GitHub Actions | YES only on unresolved authority conflict | event/mutation authority contract; final CI #97; prior firewall 7/7 | docs/v2/proof/D06.md | none | D07,authority-sensitive lanes |
 | D07 | IN_REVIEW | decomposition | 798e3b1 | docs/v2-ledger-enforcement | GPT-5.6 Sol | GitHub Actions + scope review | NO | ledger/hot-zone enforcement; PR pending | docs/v2/proof/D07.md | CI pending | parallel lane enforcement |
-| M01 | IN_REVIEW | migration | 798e3b1 | feat/v2-schema-surface | GPT-5.6 Sol | independent schema review + GitHub Actions | YES only on unresolved schema conflict | inert schema-v2 surface; PR #24 | pending | CI pending | M02,M06,J00,N00,S00 |
+| M01 | MERGED | migration | 798e3b1 | feat/v2-schema-surface | GPT-5.6 Sol | diff-scope review + GitHub Actions | YES only on unresolved schema conflict | schema-v2 6/6; 292 unit; build; 130 browser; final CI #98 | docs/v2/proof/M01.md | none | M02,M06,J00,RF00,K00,N00,S00 |
 
 ## Shared-file hot zone
 
