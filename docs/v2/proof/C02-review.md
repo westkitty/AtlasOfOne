@@ -61,3 +61,9 @@ No browser proof is required before C13/C14 because C02 has no player-visible pa
 ## Next dependency state
 
 C02 is complete and locally integrated. C03, C04, C05, C06, C07, C08 and C10 remain independently READY. C09 remains blocked on C08. C13 still waits on C03-C10 (C02 is now satisfied).
+
+## Amendment — 2026-09-22 defeated-player actor eligibility
+
+A later independent review found that the original C02 fixtures checked a living enemy target but not a living player actor. A failing regression proved that a player at 0 HP could still ATTACK. This was repaired in `7cb337f13f3ead3901b8dfed5c466d804e086218` by adding a `player-defeated` fail-closed guard plus regression coverage.
+
+See [`C02-defeated-player-repair.md`](C02-defeated-player-repair.md) for the failure proof, repair, and updated **494/494** broad-unit validation. The original C02 findings remain valid except that actor-liveness is now an explicit required invariant.
