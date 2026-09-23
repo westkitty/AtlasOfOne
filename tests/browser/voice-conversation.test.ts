@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -17,6 +17,14 @@ import { serveDist } from './server';
 const DIST = join(process.cwd(), 'dist', 'client');
 const PHONE = { width: 390, height: 844 };
 const MODEL_ID = '@cf/qwen/qwen3-30b-a3b-fp8';
+
+function collectFiles(dir: string, extensions: readonly string[]): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) return collectFiles(full, extensions);
+    return extensions.some((ext) => entry.name.endsWith(ext)) ? [full] : [];
+  });
+}
 
 const providerTurn = (reply: string) => ({
   reply,
@@ -127,6 +135,20 @@ afterAll(async () => {
 });
 
 describe('STT-only dictation', () => {
+  it('contains no assistant-TTS runtime API in production source or built JavaScript', () => {
+    const sourceText = collectFiles(join(process.cwd(), 'src'), ['.ts', '.tsx', '.js', '.jsx'])
+      .map((file) => readFileSync(file, 'utf8'))
+      .join('\n');
+    const bundleText = collectFiles(DIST, ['.js', '.mjs', '.cjs'])
+      .map((file) => readFileSync(file, 'utf8'))
+      .join('\n');
+
+    for (const text of [sourceText, bundleText]) {
+      expect(text).not.toContain('speechSynthesis');
+      expect(text).not.toContain('SpeechSynthesisUtterance');
+    }
+  });
+
   it('captures one turn and returns editable text without submitting it', async () => {
     const session = await newDictationSession();
     try {
