@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { EncounterPanel } from './app/EncounterPanel';
 import { AgencyControls, AgencySheet, PrimaryActionBar, ProgressDisplay } from './app/PresentationControls';
+import { JournalComposer } from './journal/JournalComposer';
 import { JournalPanel } from './journal/JournalPanel';
+import { appendJournalEntry, createJournalEntry } from './journal/domain';
 import { eventsFromTurn } from './cartographer/apply';
 import { createRemoteProvider, requestFinalAssessment, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
@@ -207,6 +209,11 @@ export default function App() {
    * island stays visible while the Cartographer is talking.
    */
   const [talking, setTalking] = useState(false);
+  /** Blank, player-initiated Journal. It is separate from the legacy Cartographer prompt path. */
+  const [journalOpen, setJournalOpen] = useState(false);
+  const [journalDraft, setJournalDraft] = useState('');
+  /** Synchronous exclusion for same-task double taps on local Journal save. */
+  const journalSaveInFlight = useRef(false);
   /** Vault and the character record are places you visit, reached from one menu. */
   const [menuOpen, setMenuOpen] = useState(false);
   /** The conversation panel scrolls; an opened sheet must not open off-screen. */
@@ -738,7 +745,7 @@ export default function App() {
   } = useWorldInteraction({
     state,
     hydrated,
-    talking,
+    talking: talking || journalOpen,
     encounterActive: Boolean(encounter),
     menuOpen,
     worldVisible: screen === 'world',
@@ -746,6 +753,32 @@ export default function App() {
     setTalking,
     setReply
   });
+
+  const saveJournalEntry = () => {
+    if (!journalDraft.trim() || journalSaveInFlight.current) return;
+    journalSaveInFlight.current = true;
+
+    const createdAt = new Date().toISOString();
+    const entry = createJournalEntry({
+      id: `journal_${crypto.randomUUID()}`,
+      createdAt,
+      text: journalDraft,
+      inputMode: 'typed'
+    });
+
+    setState((current) => ({
+      ...current,
+      journalEntries: appendJournalEntry(current.journalEntries, entry),
+      updatedAt: createdAt
+    }));
+    setJournalDraft('');
+    setJournalOpen(false);
+    setMessage('Journal added to your local Atlas.');
+
+    // The state mutation is synchronous; hold only through this browser task so
+    // two dispatches against the same render closure cannot duplicate the entry.
+    queueMicrotask(() => { journalSaveInFlight.current = false; });
+  };
 
   // The six permanent controls. They are rendered identically for ordinary
   // encounters, Boss Fights and Mystery Doors, and never depend on progression.
@@ -879,16 +912,29 @@ export default function App() {
           <span className="hud-track"><b style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></span>
         </span>
       </div>
-      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => { playMenuSound('open'); setMenuOpen(true); }}>
+      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} disabled={journalOpen} onClick={() => { playMenuSound('open'); setMenuOpen(true); }}>
         <span aria-hidden="true">☰</span>
       </button>
       {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
     </div>
 
-    {!talking && !encounter && <button className="world-enter" data-testid="enter-encounter" onClick={() => { setTalking(true); setReply(''); }}>
-      <span>{activeInterior ? 'Consult Cartographer' : state.turns.length === 0 ? 'Begin' : 'Continue'}</span>
-    </button>}
-    {!talking && encounter && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
+    {!talking && !encounter && !journalOpen && <>
+      <button
+        className="world-enter world-journal"
+        data-testid="open-journal"
+        onClick={() => setJournalOpen(true)}
+      >
+        <span>Journal</span>
+      </button>
+      <button
+        className="world-consult"
+        data-testid="enter-encounter"
+        onClick={() => { setTalking(true); setReply(''); }}
+      >
+        <span>{activeInterior ? 'Consult Cartographer' : state.turns.length === 0 ? 'Ask Cartographer' : 'Continue Cartographer'}</span>
+      </button>
+    </>}
+    {!talking && encounter && !journalOpen && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
       <span>Resume {encounter.kind === 'door' ? encounter.title : encounter.heading}</span>
     </button>}
 
@@ -1580,6 +1626,15 @@ export default function App() {
     ) : (
       <>
         {renderWorld()}
+        {journalOpen && (
+          <JournalComposer
+            value={journalDraft}
+            savedCount={state.journalEntries.length}
+            onChange={setJournalDraft}
+            onSave={saveJournalEntry}
+            onClose={() => setJournalOpen(false)}
+          />
+        )}
         {talking && (encounter ? renderEncounter() : renderConversation())}
 
         {/* Milestones land on the world, briefly, without blocking anything. */}
