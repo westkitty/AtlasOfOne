@@ -199,6 +199,7 @@ interface ReflectionRecord {
   decision?: ReflectionDecision;
   epistemicStatus: ReflectionEpistemicStatus;
   privacy: 'normal' | 'private';
+  recordStatus: 'active' | 'retracted';
   createdAt: string;
 }
 ```
@@ -212,7 +213,8 @@ Decision rules:
 - `uncertain` resolves it to `uncertain` and has zero confirmed-evidence authority;
 - `revise` records that Greyson supplied a replacement/amendment; RF05 owns the provenance update and the revised response may become explicit player-stated evidence only through deterministic conversion;
 - `private` sets `privacy: 'private'`, closes the topic under RF09/M06 rules, and does **not** falsely imply rejection, uncertainty, or confirmation;
-- privacy remains orthogonal so an already-confirmed/partial/revised historical record can later be withheld without destroying its epistemic history.
+- privacy remains orthogonal so an already-confirmed/partial/revised historical record can later be withheld without destroying its epistemic history;
+- retraction is not a seventh initial decision: it is a later lifecycle action recorded as `recordStatus: 'retracted'`; the record remains in history while its authority and exclusive derived state retire.
 
 No AdventureObservation may transition directly into confirmed evidence without a Reflection response or another explicit real-world source.
 
