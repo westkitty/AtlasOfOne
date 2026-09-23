@@ -25,7 +25,12 @@ export function JournalComposer({
     <section
       className="journal-composer-overlay"
       data-testid="journal-composer"
+      role="dialog"
+      aria-modal="true"
       aria-labelledby="journal-composer-title"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onClose();
+      }}
     >
       <button
         type="button"
