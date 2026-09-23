@@ -312,6 +312,45 @@ describe('M06 v2 provenance retirement and withholding', () => {
     expect(createV2ProvenanceVisibility(state).reflectionIsEligible('reflection_pattern')).toBe(false);
   });
 
+  it('keeps mixed-support memory as history but withholds its stored summary', () => {
+    const state = baseState();
+    state.journalEntries = [
+      {
+        id: 'journal_visible',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        text: 'Visible synthetic source.',
+        inputMode: 'typed',
+        privacy: 'normal',
+        status: 'active',
+        linkedReflectionIds: [],
+        linkedAdventureIds: []
+      },
+      {
+        id: 'journal_private',
+        createdAt: '2026-01-01T00:00:01.000Z',
+        text: 'PRIVATE_MIXED_CANARY',
+        inputMode: 'typed',
+        privacy: 'private',
+        status: 'active',
+        linkedReflectionIds: [],
+        linkedAdventureIds: []
+      }
+    ];
+    state.adventureMemories = [{
+      id: 'memory_mixed',
+      type: 'event',
+      summary: 'Summary may combine visible and private material.',
+      triggerTerms: ['synthetic'],
+      sourceIds: ['journal_visible', 'journal_private'],
+      privacy: 'normal',
+      status: 'active'
+    }];
+
+    const retired = retireIneligibleV2DerivedState(state);
+    expect(retired.adventureMemories[0].status).toBe('active');
+    expect(createV2ProvenanceVisibility(retired).adventureMemoryIsEligible('memory_mixed')).toBe(false);
+  });
+
   it('retires an AdventureMemory with missing or ambiguous provenance rather than guessing', () => {
     const state = baseState();
     state.adventureMemories = [{
