@@ -484,7 +484,7 @@ export default function App() {
   const canGoDeeper = Boolean(state.unlocks.find((item) => item.id === 'go-deeper')?.unlockedAt);
   const canReroll = Boolean(state.unlocks.find((item) => item.id === 'reroll')?.unlockedAt);
 
-  const invokeGoDeeper =  const invokeGoDeeper = () => {
+  const invokeGoDeeper = () => {
     if (!canGoDeeper || state.sessionStatus === 'paused') return;
     setPromptOverride({ kind: 'deeper', prompt: deeperPrompt(basePrompt) });
     setMoreOpen(false);
