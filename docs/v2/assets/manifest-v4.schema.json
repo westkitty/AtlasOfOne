@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "atlas-v4-runtime-manifest",
+  "title": "Atlas v4 runtime asset manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "assetPackVersion",
+    "base",
+    "families",
+    "files"
+  ],
+  "properties": {
+    "assetPackVersion": {
+      "const": "atlas-v4"
+    },
+    "base": {
+      "const": "/assets/atlas/v4/"
+    },
+    "families": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "runtimeFamily",
+          "role",
+          "dimensionClass",
+          "states",
+          "sourceRefs",
+          "generationMethod",
+          "provenanceRecord",
+          "background",
+          "styleAnchorIds",
+          "negativeConstraints",
+          "requiredQa"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "runtimeFamily": {
+            "enum": [
+              "greyson",
+              "creature",
+              "npc",
+              "elite",
+              "boss",
+              "backdrop",
+              "vfx",
+              "ui",
+              "vault",
+              "world",
+              "audio"
+            ]
+          },
+          "territory": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dimensionClass": {
+            "enum": [
+              "greyson-world",
+              "greyson-combat",
+              "character-world",
+              "portrait",
+              "creature-ordinary",
+              "creature-elite",
+              "creature-boss",
+              "ui-icon",
+              "world-marker",
+              "vfx-small",
+              "vfx-large",
+              "vault-relic",
+              "combat-backdrop",
+              "world-layer",
+              "audio-cue"
+            ]
+          },
+          "states": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "src"
+              ],
+              "properties": {
+                "src": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "frames": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "fps": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "loop": {
+                  "type": "boolean"
+                },
+                "still": {
+                  "type": "string"
+                },
+                "anchor": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "generationMethod": {
+            "enum": [
+              "restored-source-art",
+              "original-ai-art",
+              "human-authored",
+              "procedural",
+              "external-licensed"
+            ]
+          },
+          "promptArchive": {
+            "type": "string"
+          },
+          "provenanceRecord": {
+            "type": "string",
+            "minLength": 1
+          },
+          "background": {
+            "enum": [
+              "transparent",
+              "opaque",
+              "mixed"
+            ]
+          },
+          "styleAnchorIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "negativeConstraints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiredQa": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bytes",
+          "sha256",
+          "size"
+        ],
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "size": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "integer",
+                "minimum": 1
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "mode": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
