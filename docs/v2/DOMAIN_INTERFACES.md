@@ -75,6 +75,14 @@ Rules:
 
 ### 2.3 AdventureSeed
 
+The initial frozen Adventure kind registry is intentionally small:
+
+```ts
+type AdventureKind = 'investigation' | 'social-dilemma' | 'pure-fun';
+```
+
+This is the Phase 2 template set explicitly required by the master plan. Adding a new kind later is a bounded contract extension, not free-form provider output.
+
 ```ts
 interface AdventureSeed {
   id: string;
@@ -86,8 +94,6 @@ interface AdventureSeed {
   status: 'available' | 'started' | 'retired';
 }
 ```
-
-`AdventureKind` is an Adventure-lane registry type, not provider-free text. The plan requires initial investigation, social-dilemma, and pure-fun templates, but D05 does not invent or freeze their exact registry IDs as an exhaustive permanent union. A00/content-contract work owns that registry behind this stable type.
 
 Rules:
 
@@ -254,13 +260,15 @@ Rules:
 ### 2.9 AtlasSnapshot
 
 ```ts
+type AtlasSnapshotSynthesis = FinalAssessment;
+
 interface AtlasSnapshot {
   id: string;
   createdAt: string;
   evidenceIds: string[];
   insightIds: string[];
   contradictionIds: string[];
-  synthesis: FinalAssessmentLikeShape;
+  synthesis: AtlasSnapshotSynthesis;
   previousSnapshotId?: string;
 }
 ```
@@ -273,7 +281,8 @@ Rules:
 - eligibility is deterministic;
 - synthesis uses provenance-visible eligible material only;
 - M03 must preserve an existing v1 `FinalAssessment` by converting it into the first historical snapshot-shaped record rather than discarding it;
-- the first schema-v2 implementation may use the existing validated FinalAssessment-compatible synthesis shape until the Snapshot provider proposal receives its own versioned contract.
+- for M01/M03, `AtlasSnapshotSynthesis` is the existing validated `FinalAssessment` type from `src/cartographer/finalize.ts`; this is a compatibility bridge for historical migration, not permission to keep terminal/final product semantics;
+- S/P-lane Snapshot work may replace that bridge with an explicitly versioned synthesis contract, but must preserve historical snapshots without rewriting them.
 
 ---
 
