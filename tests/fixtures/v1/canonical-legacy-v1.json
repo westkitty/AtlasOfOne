@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 1,
+  "campaignId": "campaign_fixture_legacy_v1",
+  "player": {
+    "id": "synthetic-player",
+    "displayName": "Synthetic Player",
+    "pronouns": "they/them"
+  },
+  "settings": {
+    "sass": "low",
+    "reducedMotion": true,
+    "voiceMode": "text"
+  },
+  "xp": 5,
+  "level": 1,
+  "territories": [
+    {
+      "id": "identity",
+      "label": "Identity",
+      "status": "charted",
+      "requiredDimensions": [
+        "self-description",
+        "temperament",
+        "strengths",
+        "vulnerabilities"
+      ],
+      "coveredDimensions": [
+        "self-description"
+      ],
+      "evidenceIds": [
+        "ev_identity_1"
+      ]
+    },
+    {
+      "id": "values",
+      "label": "Values",
+      "status": "discovered",
+      "requiredDimensions": [
+        "moral architecture",
+        "loyalty",
+        "fairness",
+        "autonomy"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "politics",
+      "label": "The Republic of Synthetic Player",
+      "status": "fogged",
+      "requiredDimensions": [
+        "authority",
+        "legitimacy",
+        "state",
+        "democracy",
+        "economics",
+        "property",
+        "labor",
+        "justice",
+        "speech",
+        "institutions",
+        "borders",
+        "social liberty",
+        "equality",
+        "environment",
+        "technology",
+        "change"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "relationships",
+      "label": "Relationships",
+      "status": "fogged",
+      "requiredDimensions": [
+        "attachment",
+        "trust",
+        "conflict",
+        "social world"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "interests",
+      "label": "Interests",
+      "status": "fogged",
+      "requiredDimensions": [
+        "interests",
+        "ordinary preferences",
+        "curiosity",
+        "motivation"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "cognition",
+      "label": "Cognition",
+      "status": "fogged",
+      "requiredDimensions": [
+        "decision style",
+        "uncertainty",
+        "contradiction",
+        "revision"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "fears",
+      "label": "Fear Map",
+      "status": "fogged",
+      "requiredDimensions": [
+        "aversions",
+        "fears",
+        "risk",
+        "boundaries"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "future",
+      "label": "Future",
+      "status": "fogged",
+      "requiredDimensions": [
+        "hopes",
+        "dreams",
+        "ideal future",
+        "ambition"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    }
+  ],
+  "quests": [
+    {
+      "id": "first-coordinates",
+      "label": "Find the first coordinates",
+      "description": "Synthetic fixture quest.",
+      "progress": 3,
+      "target": 3,
+      "xpBonus": 15,
+      "status": "complete"
+    },
+    {
+      "id": "chart-first-fragment",
+      "label": "Chart a fragment",
+      "description": "Synthetic fixture quest.",
+      "progress": 1,
+      "target": 1,
+      "xpBonus": 25,
+      "status": "complete"
+    }
+  ],
+  "achievements": [
+    {
+      "id": "first-mark",
+      "label": "First Mark on the Map",
+      "description": "Synthetic fixture achievement.",
+      "unlockedAt": "2026-01-02T03:04:05.000Z"
+    },
+    {
+      "id": "revision-is-data",
+      "label": "Revision Is Data",
+      "description": "Synthetic fixture achievement."
+    }
+  ],
+  "unlocks": [
+    {
+      "id": "go-deeper",
+      "label": "Go Deeper",
+      "description": "Synthetic fixture unlock.",
+      "levelRequired": 2,
+      "unlockedAt": "2026-01-02T03:04:05.000Z"
+    },
+    {
+      "id": "reroll",
+      "label": "Reroll",
+      "description": "Synthetic fixture unlock.",
+      "levelRequired": 3,
+      "unlockedAt": "2026-01-02T03:04:05.000Z"
+    }
+  ],
+  "activeTerritory": "identity",
+  "activeQuest": null,
+  "turns": [
+    {
+      "id": "turn_fixture_1",
+      "createdAt": "2026-01-02T03:04:05.000Z",
+      "territoryId": "identity",
+      "dimension": "self-description",
+      "question": "Synthetic question?",
+      "answer": "Synthetic answer used only for migration testing.",
+      "substantive": true,
+      "behavioralExample": false,
+      "revision": false,
+      "retracted": false
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev_identity_1",
+      "dimension": "self-description",
+      "claim": "Synthetic player stated a fixture-only position.",
+      "sourceTurnIds": [
+        "turn_fixture_1"
+      ],
+      "basis": "explicit",
+      "strength": 2,
+      "territories": [
+        "identity"
+      ],
+      "counterEvidenceIds": [],
+      "status": "active"
+    }
+  ],
+  "insights": [],
+  "contradictions": [],
+  "mapFragments": [],
+  "privateTopics": [],
+  "presentation": "normal",
+  "sessionStatus": "active",
+  "campaignCompleted": false,
+  "presentationQueue": [],
+  "campaignHistory": [],
+  "updatedAt": "2026-01-02T03:04:05.000Z"
+}
