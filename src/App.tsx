@@ -11,7 +11,7 @@ import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefi
 import { applyGameEvents, campaignReachedEndState, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
 import type { CampaignState, GameEvent, PresentationNotice, SassLevel, TerritoryStatus } from './game/types';
 import { WorldMap } from './world/WorldMap';
-import { neighboursOf, regionFor, routeBetween } from './world/geography';
+import { useWorldInteraction } from './world/useWorldInteraction';
 import { sanctuaryFor } from './world/sanctuaries';
 import { playMenuSound, playStinger } from './world/audio';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
@@ -205,42 +205,16 @@ export default function App() {
    * island stays visible while the Cartographer is talking.
    */
   const [talking, setTalking] = useState(false);
-  /** Waystone / trail lore marker opened for inspection */
-  const [activeWaystone, setActiveWaystone] = useState<{ id: string; label: string; inscription?: string } | null>(null);
-  /** Walkable landmark interior sanctuary currently entered */
-  const [activeInterior, setActiveInterior] = useState<string | null>(null);
-  /** 16-bit JRPG region arrival announcement banner */
-  const [arrivalNotice, setArrivalNotice] = useState<{
-    territoryId: string;
-    label: string;
-    sanctuary: string;
-    glyph: string;
-  } | null>(null);
   /** Vault and the character record are places you visit, reached from one menu. */
   const [menuOpen, setMenuOpen] = useState(false);
-  /** True while Greyson is actually crossing the island, so he can walk. */
-  const [travelling, setTravelling] = useState(false);
-  /** The region a journey departed from, so travel follows the trail between them. */
-  const [travelFrom, setTravelFrom] = useState<string | null>(null);
   /** The conversation panel scrolls; an opened sheet must not open off-screen. */
   const agencySheetRef = useRef<HTMLDivElement | null>(null);
-  /**
-   * Transient reaction to a committed turn: how much XP the engine just granted
-   * and where the mark landed. Derived by observing state that has ALREADY been
-   * committed, never by predicting it, so this cannot become a second source of
-   * progression truth.
-   */
-  const [pulse, setPulse] = useState<{ xp: number; territoryId: string; key: number } | null>(null);
   const [isImpact, setIsImpact] = useState(false);
   const triggerImpact = () => {
     if (state.settings.reducedMotion) return;
     setIsImpact(true);
     window.setTimeout(() => setIsImpact(false), 140);
   };
-  const turnSnapshot = useRef<{ xp: number; turns: number } | null>(null);
-  /** Which way Greyson faces as he crosses the map; presentation only. */
-  const [facing, setFacing] = useState<'front' | 'back' | 'left' | 'right'>('front');
-  const previousTerritory = useRef<string | null>(null);
   /**
    * The Final Atlas is an end-state artifact. Deciding availability here keeps
    * it on the engine's deterministic authority rather than on a feeling about
@@ -308,22 +282,6 @@ export default function App() {
   useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 6000); return () => window.clearTimeout(timer); }, [message]);
 
   /**
-   * World reaction to a committed answer.
-   *
-   * Fires only on a single new turn, so hydrating a saved campaign with many
-   * turns never replays a reward the player already had. The XP figure is the
-   * engine's committed delta — read after the fact, never computed here.
-   */
-  useEffect(() => {
-    const previous = turnSnapshot.current;
-    turnSnapshot.current = { xp: state.xp, turns: state.turns.length };
-    if (!previous || !hydrated) return;
-    if (state.turns.length !== previous.turns + 1) return;
-    const landed = state.turns[state.turns.length - 1];
-    setPulse({ xp: state.xp - previous.xp, territoryId: landed?.territoryId ?? state.activeTerritory, key: Date.now() });
-  }, [state.turns.length, state.xp, state.activeTerritory, hydrated]);
-
-  /**
    * Milestones are shown in the world and then let go.
    *
    * The queue stays lossless — the engine still records every grant and nothing
@@ -348,12 +306,6 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [state.presentationQueue, state.presentation]);
 
-  useEffect(() => {
-    if (!pulse) return;
-    const timer = window.setTimeout(() => setPulse(null), 1200);
-    return () => window.clearTimeout(timer);
-  }, [pulse]);
-
   /**
    * A move restates the current question; it does not change which coordinate is
    * being mapped. Once the engine moves to a genuinely different question the
@@ -366,41 +318,6 @@ export default function App() {
     setPromptOverride(null);
     setRerollCount(0);
   }, [basePrompt.id]);
-
-  /**
-   * Greyson crosses the island rather than teleporting: he turns to face the way
-   * he is going and keeps walking until he arrives. Reduced motion still moves
-   * him — it just does not animate the journey.
-   */
-  useEffect(() => {
-    const from = previousTerritory.current;
-    previousTerritory.current = state.activeTerritory;
-    if (!from || from === state.activeTerritory) return;
-    setActiveInterior(null);
-    const reg = regionFor(state.activeTerritory);
-    const sanc = sanctuaryFor(state.activeTerritory);
-    setArrivalNotice({
-      territoryId: state.activeTerritory,
-      label: reg.label,
-      sanctuary: sanc.name,
-      glyph: sanc.glyph
-    });
-    playStinger('discover', state.presentation === 'quiet');
-    const noticeTimer = window.setTimeout(() => setArrivalNotice(null), 2800);
-
-    const start = regionFor(from).stand;
-    const end = regionFor(state.activeTerritory).stand;
-    if (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y)) setFacing(end.x >= start.x ? 'right' : 'left');
-    else setFacing(end.y < start.y ? 'back' : 'front');
-    if (state.settings.reducedMotion) return () => window.clearTimeout(noticeTimer);
-    setTravelFrom(from);
-    setTravelling(true);
-    const timer = window.setTimeout(() => { setTravelling(false); setTravelFrom(null); }, 2700);
-    return () => {
-      window.clearTimeout(noticeTimer);
-      window.clearTimeout(timer);
-    };
-  }, [state.activeTerritory, state.settings.reducedMotion, state.presentation]);
 
   // Transient surfaces close when the player moves between places.
   useEffect(() => { setMoreOpen(false); }, [screen, talking]);
@@ -794,21 +711,6 @@ export default function App() {
    * from real state and carries no XP: it describes the campaign, it does not
    * reward it.
    */
-  /**
-   * Where the player may legitimately go next.
-   *
-   * A neighbour is offered only if it still has an askable dimension, which is
-   * the engine's own viability rule read back — the map never invents a
-   * destination the campaign would refuse. Travelling awards nothing; it only
-   * changes where the next question comes from.
-   */
-  const reachableRegions = useMemo(() => neighboursOf(state.activeTerritory).filter((id) => {
-    const territory = state.territories.find((item) => item.id === id);
-    return Boolean(territory) && territory!.requiredDimensions.some(
-      (dimension) => !state.privateTopics.includes(dimension) && !territory!.coveredDimensions.includes(dimension)
-    );
-  }), [state.activeTerritory, state.territories, state.privateTopics]);
-
   const chartedCount = state.territories.filter((t) => t.status === 'charted' || t.status === 'deeply-charted').length;
   const objective = quest
     ? { eyebrow: 'CURRENT QUEST', label: quest.label, detail: quest.description, progress: quest.progress, target: quest.target }
@@ -816,6 +718,32 @@ export default function App() {
       ? { eyebrow: 'EXPEDITION COMPLETE', label: 'Every territory charted', detail: 'The Atlas is finished. The final assessment is available on your character record.', progress: state.territories.length, target: state.territories.length }
       : { eyebrow: 'STANDING OBJECTIVE', label: 'Chart the Atlas', detail: 'Recover a fragment from every territory on the map.', progress: chartedCount, target: state.territories.length };
   const quiet = state.presentation === 'quiet';
+  const {
+    activeWaystone,
+    dismissWaystone,
+    activeInterior,
+    setActiveInterior,
+    arrivalNotice,
+    travelling,
+    travelFrom,
+    pulse,
+    facing,
+    reachableRegions,
+    controlsDisabled: worldControlsDisabled,
+    onSelectRegion: handleWorldSelectRegion,
+    onPositionSettled: handleWorldPositionSettled,
+    onInteract: handleWorldInteract
+  } = useWorldInteraction({
+    state,
+    hydrated,
+    talking,
+    encounterActive: Boolean(encounter),
+    menuOpen,
+    worldVisible: screen === 'world',
+    dispatch,
+    setTalking,
+    setReply
+  });
 
   // The six permanent controls. They are rendered identically for ordinary
   // encounters, Boss Fights and Mystery Doors, and never depend on progression.
@@ -961,35 +889,10 @@ export default function App() {
       mark={pulse}
       reachable={reachableRegions}
       reducedMotion={state.settings.reducedMotion}
-      onSelectRegion={(territoryId) => {
-        if (territoryId === state.activeTerritory) return;
-        const from = state.activeTerritory;
-        dispatch(...(routeBetween(from, territoryId) ? [{ type: 'ROUTE_TRAVERSED', from, to: territoryId } as GameEvent] : []), { type: 'ACTIVE_TERRITORY_SET', territoryId });
-      }}
-      onPositionSettled={(position) => dispatch({ type: 'WORLD_POSITION_SET', ...position })}
-      onInteract={(target) => {
-        if (!target || target.type === 'landmark') {
-          const regionId = target?.id ?? state.activeTerritory;
-          dispatch(...(regionId !== state.activeTerritory ? [{ type: 'ACTIVE_TERRITORY_SET', territoryId: regionId } as GameEvent] : []), { type: 'LANDMARK_DISCOVERED', landmarkId: regionId, territoryId: regionId });
-          playStinger('dialogue', quiet);
-          setTalking(true);
-          setReply('');
-        } else if (target.type === 'door') {
-          playStinger('door', quiet);
-          dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'door', id: target.id, territoryId: state.activeTerritory }, { type: 'DOOR_OPENED', doorId: target.id });
-          setReply('');
-          setTalking(true);
-        } else if (target.type === 'boss') {
-          playStinger('boss', quiet);
-          dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'boss', id: target.id, territoryId: state.activeTerritory }, { type: 'BOSS_STARTED', bossId: target.id });
-          setReply('');
-          setTalking(true);
-        } else if (target.type === 'waystone') {
-          playStinger('discover', quiet);
-          setActiveWaystone({ id: target.id, label: target.label, inscription: target.inscription });
-        }
-      }}
-      controlsDisabled={talking || Boolean(encounter) || menuOpen || screen !== 'world' || Boolean(activeWaystone)}
+      onSelectRegion={handleWorldSelectRegion}
+      onPositionSettled={handleWorldPositionSettled}
+      onInteract={handleWorldInteract}
+      controlsDisabled={worldControlsDisabled}
       activeInterior={activeInterior}
       onInteriorChange={setActiveInterior}
     />
@@ -1025,7 +928,7 @@ export default function App() {
             type="button"
             className="primary waystone-dismiss"
             data-testid="waystone-dismiss"
-            onClick={() => setActiveWaystone(null)}
+            onClick={dismissWaystone}
           >
             Continue Journey
           </button>
