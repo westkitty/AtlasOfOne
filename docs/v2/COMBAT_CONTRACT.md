@@ -11,15 +11,17 @@ Combat exists to add tension, playfulness, pacing and story variety. It does not
 
 ---
 
-## 1. Permanent player commands
+## 1. Core player verbs
 
-The universal command wall is exactly:
+The universal **verb set** is exactly:
 
 1. **ATTACK**
 2. **TECHNIQUE**
 3. **GUARD**
 4. **ACT**
 5. **LEAVE**
+
+This freezes capability, not button chrome. The mobile UI may present ATTACK / TECHNIQUE / GUARD / ACT as the four primary combat controls and render LEAVE contextually, matching section 16.4. LEAVE must remain discoverable whenever the encounter permits an exit.
 
 Encounter-specific interactions belong under ACT or contextual Technique entries. They do not become new permanent top-level commands.
 
@@ -110,7 +112,7 @@ guardedDamage = ceil(rawDamage * 0.50);
 timedGuardDamage = ceil(rawDamage * 0.25);
 ```
 
-`ceil` is the integer rule so rounding never makes GUARD stronger than its stated reduction.
+`ceil` is a C00 implementation clarification for integer HP: it prevents rounding from making GUARD stronger than the stated 50%/75% reductions. Appendix I fixes the percentages but does not prescribe integer rounding.
 
 Damage never depends on a model response or random roll.
 
@@ -180,7 +182,7 @@ When a nonviolent route exists, deterministic ACT progress uses scenario conditi
 
 ## 6. LEAVE / fail-forward contract
 
-LEAVE is always visible as a player concept, even when an encounter definition explains that immediate physical exit is story-gated.
+LEAVE is always part of the player verb contract. Its control may be contextual on mobile, and immediate physical exit may still be story-gated by the encounter definition.
 
 Flee rules:
 
@@ -198,7 +200,7 @@ Withdrawal/defeat produces a defined fail-forward consequence such as:
 - story consequence;
 - retry-later state.
 
-No negative XP, self-knowledge penalty, or personality inference is attached to defeat/withdrawal.
+**C00 fail-forward choice:** defeat/withdrawal never subtracts XP or applies a self-knowledge penalty, and never creates a personality inference. The master plan explicitly forbids punishment-loop framing and requires defined fail-forward outcomes; C00 makes the progression consequence unambiguous.
 
 ---
 
