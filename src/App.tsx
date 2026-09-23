@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AgencyControls, AgencySheet, PrimaryActionBar, ProgressDisplay } from './app/PresentationControls';
 import { eventsFromTurn } from './cartographer/apply';
 import { createRemoteProvider, requestFinalAssessment, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
@@ -816,28 +817,32 @@ export default function App() {
       : { eyebrow: 'STANDING OBJECTIVE', label: 'Chart the Atlas', detail: 'Recover a fragment from every territory on the map.', progress: chartedCount, target: state.territories.length };
   const quiet = state.presentation === 'quiet';
 
-  // Level and XP shown as one unit so progress is legible on Map and Me.
-  const renderProgress = () => <div className="xp">
-    <div className="xp-head">
-      <span>XP {state.xp}</span>
-      <b className="level">L{state.level}</b>
-      <span className="xp-into">{atMaxLevel ? 'Highest level reached' : `${xp.current} / ${xp.required} to L${state.level + 1}`}</span>
-    </div>
-    <div className="xp-track"><i style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></div>
-  </div>;
-
   // The six permanent controls. They are rendered identically for ordinary
   // encounters, Boss Fights and Mystery Doors, and never depend on progression.
   // PRIVATE / STOP / SERIOUS carry a steadier "protective" style; PASS / HELP /
   // SASS are quieter utilities. All stay >=44px and always visible.
-  const renderAgency = (onPass: () => void, privateDimension: string) => <div className="agency" data-testid="agency" role="group" aria-label="Always-available controls">
-    <button className="agency-util" data-testid="agency-pass" onClick={onPass}>PASS</button>
-    <button className="agency-protect" data-testid="agency-private" onClick={()=>{dispatch({type:'PRIVATE_TOPIC_ADDED',topic:privateDimension});setReply('Private. I will not intentionally return to that dimension.');}}>PRIVATE</button>
-    <button className={`agency-protect${state.sessionStatus==='paused'?' is-active':''}`} data-testid="agency-stop" aria-pressed={state.sessionStatus==='paused'} onClick={()=>{const pausing=state.sessionStatus!=='paused';if(pausing)cancelVoice();dispatch({type:'SESSION_SET',status:pausing?'paused':'active'});}}>{state.sessionStatus==='paused'?'RESUME':'STOP'}</button>
-    <button className={`agency-protect${quiet?' is-active':''}`} data-testid="agency-serious" aria-pressed={quiet} onClick={()=>{dispatch({type:'PRESENTATION_SET',mode:'quiet'});setReply('Serious mode. Plain language; no fanfare.');}}>SERIOUS</button>
-    <button className="agency-util" data-testid="agency-help" onClick={()=>setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}>HELP</button>
-    <button className="agency-util" data-testid="agency-sass" onClick={()=>dispatch({type:'SASS_SET',sass:state.settings.sass==='low'?'medium':state.settings.sass==='medium'?'risks-understood':'low'})}>SASS</button>
-  </div>;
+  const renderAgency = (onPass: () => void, privateDimension: string) => (
+    <AgencyControls
+      paused={state.sessionStatus === 'paused'}
+      quiet={quiet}
+      onPass={onPass}
+      onPrivate={() => {
+        dispatch({ type: 'PRIVATE_TOPIC_ADDED', topic: privateDimension });
+        setReply('Private. I will not intentionally return to that dimension.');
+      }}
+      onStopToggle={() => {
+        const pausing = state.sessionStatus !== 'paused';
+        if (pausing) cancelVoice();
+        dispatch({ type: 'SESSION_SET', status: pausing ? 'paused' : 'active' });
+      }}
+      onSerious={() => {
+        dispatch({ type: 'PRESENTATION_SET', mode: 'quiet' });
+        setReply('Serious mode. Plain language; no fanfare.');
+      }}
+      onHelp={() => setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}
+      onSass={() => dispatch({ type: 'SASS_SET', sass: state.settings.sass === 'low' ? 'medium' : state.settings.sass === 'medium' ? 'risks-understood' : 'low' })}
+    />
+  );
 
   const renderEncounter = () => {
     if (!encounter) return null;
@@ -1036,21 +1041,34 @@ export default function App() {
    * stop impersonating the game. STOP is deliberately first so the control that
    * has to work fastest is the one the thumb reaches first.
    */
-  const renderAgencySheet = (privateDimension: string) => moreOpen && <div ref={agencySheetRef} className="more-sheet" data-testid="more-sheet" role="dialog" aria-label="Agency controls and moves" onKeyDown={(event)=>{ if(event.key==='Escape') setMoreOpen(false); }}>
-    <div className="more-head">
-      <span className="eyebrow">ALWAYS AVAILABLE</span>
-      <button className="more-close" data-testid="more-close" aria-label="Close controls" onClick={()=>setMoreOpen(false)}>×</button>
-    </div>
-    <div className="agency" data-testid="agency" role="group" aria-label="Always-available controls">
-      <button className={`agency-protect${state.sessionStatus==='paused'?' is-active':''}`} data-testid="agency-stop" aria-pressed={state.sessionStatus==='paused'} onClick={()=>{const pausing=state.sessionStatus!=='paused';if(pausing)cancelVoice();dispatch({type:'SESSION_SET',status:pausing?'paused':'active'});}}>{state.sessionStatus==='paused'?'RESUME':'STOP'}</button>
-      <button className="agency-protect" data-testid="agency-private" onClick={()=>{dispatch({type:'PRIVATE_TOPIC_ADDED',topic:privateDimension});setReply('Private. I will not intentionally return to that dimension.');setMoreOpen(false);}}>PRIVATE</button>
-      <button className={`agency-protect${quiet?' is-active':''}`} data-testid="agency-serious" aria-pressed={quiet} onClick={()=>{dispatch({type:'PRESENTATION_SET',mode:'quiet'});setReply('Serious mode. Plain language; no fanfare.');setMoreOpen(false);}}>SERIOUS</button>
-      <button className="agency-util" data-testid="agency-help" onClick={()=>setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}>HELP</button>
-      <button className="agency-util" data-testid="agency-sass" onClick={()=>dispatch({type:'SASS_SET',sass:state.settings.sass==='low'?'medium':state.settings.sass==='medium'?'risks-understood':'low'})}>SASS</button>
-      <button className="agency-util" data-testid="agency-status" onClick={()=>setMessage(`Level ${state.level}, ${state.xp} XP. ${activeTerritory.label}: ${activeTerritory.coveredDimensions.length} of ${activeTerritory.requiredDimensions.length} dimensions mapped. ${state.mapFragments.length} of ${state.territories.length} fragments recovered.`)}>STATUS</button>
-    </div>
-    <p className="more-note">Sass: {state.settings.sass}. None of these cost you progress.</p>
-  </div>;
+  const renderAgencySheet = (privateDimension: string) => (
+    <AgencySheet
+      open={moreOpen}
+      sheetRef={agencySheetRef}
+      paused={state.sessionStatus === 'paused'}
+      quiet={quiet}
+      sass={state.settings.sass}
+      onClose={() => setMoreOpen(false)}
+      onStopToggle={() => {
+        const pausing = state.sessionStatus !== 'paused';
+        if (pausing) cancelVoice();
+        dispatch({ type: 'SESSION_SET', status: pausing ? 'paused' : 'active' });
+      }}
+      onPrivate={() => {
+        dispatch({ type: 'PRIVATE_TOPIC_ADDED', topic: privateDimension });
+        setReply('Private. I will not intentionally return to that dimension.');
+        setMoreOpen(false);
+      }}
+      onSerious={() => {
+        dispatch({ type: 'PRESENTATION_SET', mode: 'quiet' });
+        setReply('Serious mode. Plain language; no fanfare.');
+        setMoreOpen(false);
+      }}
+      onHelp={() => setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}
+      onSass={() => dispatch({ type: 'SASS_SET', sass: state.settings.sass === 'low' ? 'medium' : state.settings.sass === 'medium' ? 'risks-understood' : 'low' })}
+      onStatus={() => setMessage(`Level ${state.level}, ${state.xp} XP. ${activeTerritory.label}: ${activeTerritory.coveredDimensions.length} of ${activeTerritory.requiredDimensions.length} dimensions mapped. ${state.mapFragments.length} of ${state.territories.length} fragments recovered.`)}
+    />
+  );
 
   /**
    * The primary action row is the GAME's surface: skip, whatever moves the
@@ -1075,13 +1093,14 @@ export default function App() {
       moves.push({ id: 'reroll', label: 'Reroll', hint: 'Ask this a different way', run: invokeReroll });
     }
     return <>
-      <div className="action-bar" data-testid="action-bar" role="group" aria-label="Encounter actions">
-        {state.sessionStatus === 'paused'
-          ? <button className="action action-resume" data-testid="action-resume" onClick={()=>dispatch({type:'SESSION_SET',status:'active'})}>Resume</button>
-          : <button className="action" data-testid="agency-pass" onClick={onPass}>Pass</button>}
-        {moves.slice(0, 2).map((move) => <button key={move.id} className="action action-move" data-testid={`move-${move.id}`} aria-label={`${move.label}: ${move.hint}`} onClick={move.run} disabled={state.sessionStatus==='paused'}>{move.label}</button>)}
-        <button className="action action-more" data-testid="action-more" aria-expanded={moreOpen} aria-haspopup="dialog" aria-label="More controls, including stop, private and serious" onClick={()=>setMoreOpen((open)=>!open)}>More</button>
-      </div>
+      <PrimaryActionBar
+        paused={state.sessionStatus === 'paused'}
+        moves={moves}
+        moreOpen={moreOpen}
+        onResume={() => dispatch({ type: 'SESSION_SET', status: 'active' })}
+        onPass={onPass}
+        onToggleMore={() => setMoreOpen((open) => !open)}
+      />
       {renderAgencySheet(privateDimension)}
     </>;
   };
@@ -1307,7 +1326,7 @@ export default function App() {
   const renderMe = () => <section className="screen">
     <div className="eyebrow">CHARACTER RECORD</div>
     <div className="profile"><div className="portrait"><img src={GREYSON_PORTRAIT} alt="Greyson character avatar" draggable={false}/></div><div><h1>Greyson</h1><p>{state.player.pronouns}</p></div></div>
-    {renderProgress()}
+    <ProgressDisplay xp={state.xp} level={state.level} atMaxLevel={atMaxLevel} current={xp.current} required={xp.required} percent={xpPercent} />
     <div className="stats">
       <div><b>{state.evidence.filter((e)=>e.status==='active').length}</b><small>Evidence</small></div>
       <div><b>{state.insights.filter((i)=>i.status==='confirmed').length}</b><small>Confirmed insights</small></div>
