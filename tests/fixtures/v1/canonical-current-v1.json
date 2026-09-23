@@ -1,0 +1,474 @@
+{
+  "schemaVersion": 1,
+  "campaignId": "campaign_fixture_current_v1",
+  "player": {
+    "id": "synthetic-player",
+    "displayName": "Synthetic Player",
+    "pronouns": "they/them"
+  },
+  "settings": {
+    "sass": "medium",
+    "reducedMotion": false,
+    "voiceMode": "talk"
+  },
+  "xp": 700,
+  "level": 8,
+  "territories": [
+    {
+      "id": "identity",
+      "label": "Identity",
+      "status": "charted",
+      "requiredDimensions": [
+        "self-description",
+        "temperament",
+        "strengths",
+        "vulnerabilities"
+      ],
+      "coveredDimensions": [
+        "self-description"
+      ],
+      "evidenceIds": [
+        "ev_identity_1"
+      ]
+    },
+    {
+      "id": "values",
+      "label": "Values",
+      "status": "discovered",
+      "requiredDimensions": [
+        "moral architecture",
+        "loyalty",
+        "fairness",
+        "autonomy"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "politics",
+      "label": "The Republic of Synthetic Player",
+      "status": "fogged",
+      "requiredDimensions": [
+        "authority",
+        "legitimacy",
+        "state",
+        "democracy",
+        "economics",
+        "property",
+        "labor",
+        "justice",
+        "speech",
+        "institutions",
+        "borders",
+        "social liberty",
+        "equality",
+        "environment",
+        "technology",
+        "change"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "relationships",
+      "label": "Relationships",
+      "status": "fogged",
+      "requiredDimensions": [
+        "attachment",
+        "trust",
+        "conflict",
+        "social world"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "interests",
+      "label": "Interests",
+      "status": "fogged",
+      "requiredDimensions": [
+        "interests",
+        "ordinary preferences",
+        "curiosity",
+        "motivation"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "cognition",
+      "label": "Cognition",
+      "status": "fogged",
+      "requiredDimensions": [
+        "decision style",
+        "uncertainty",
+        "contradiction",
+        "revision"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "fears",
+      "label": "Fear Map",
+      "status": "fogged",
+      "requiredDimensions": [
+        "aversions",
+        "fears",
+        "risk",
+        "boundaries"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "future",
+      "label": "Future",
+      "status": "fogged",
+      "requiredDimensions": [
+        "hopes",
+        "dreams",
+        "ideal future",
+        "ambition"
+      ],
+      "coveredDimensions": [],
+      "evidenceIds": []
+    }
+  ],
+  "quests": [
+    {
+      "id": "first-coordinates",
+      "label": "Find the first coordinates",
+      "description": "Synthetic fixture quest.",
+      "progress": 3,
+      "target": 3,
+      "xpBonus": 15,
+      "status": "complete"
+    },
+    {
+      "id": "chart-first-fragment",
+      "label": "Chart a fragment",
+      "description": "Synthetic fixture quest.",
+      "progress": 1,
+      "target": 1,
+      "xpBonus": 25,
+      "status": "complete"
+    }
+  ],
+  "achievements": [
+    {
+      "id": "first-mark",
+      "label": "First Mark on the Map",
+      "description": "Synthetic fixture achievement.",
+      "unlockedAt": "2026-01-02T03:04:05.000Z"
+    },
+    {
+      "id": "revision-is-data",
+      "label": "Revision Is Data",
+      "description": "Synthetic fixture achievement."
+    }
+  ],
+  "unlocks": [
+    {
+      "id": "go-deeper",
+      "label": "Go Deeper",
+      "description": "Synthetic fixture unlock.",
+      "levelRequired": 2,
+      "unlockedAt": "2026-01-02T03:04:05.000Z"
+    },
+    {
+      "id": "reroll",
+      "label": "Reroll",
+      "description": "Synthetic fixture unlock.",
+      "levelRequired": 3,
+      "unlockedAt": "2026-01-02T03:04:05.000Z"
+    }
+  ],
+  "activeTerritory": "identity",
+  "activeQuest": null,
+  "turns": [
+    {
+      "id": "turn_fixture_1",
+      "createdAt": "2026-01-02T03:04:05.000Z",
+      "territoryId": "identity",
+      "dimension": "self-description",
+      "question": "Synthetic question?",
+      "answer": "Synthetic answer used only for migration testing.",
+      "substantive": true,
+      "behavioralExample": false,
+      "revision": false,
+      "retracted": false
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev_identity_1",
+      "dimension": "self-description",
+      "claim": "Synthetic player stated a fixture-only position.",
+      "sourceTurnIds": [
+        "turn_fixture_1"
+      ],
+      "basis": "explicit",
+      "strength": 2,
+      "territories": [
+        "identity"
+      ],
+      "counterEvidenceIds": [],
+      "status": "active",
+      "origin": "player-stated",
+      "providerId": "fixture"
+    }
+  ],
+  "insights": [
+    {
+      "id": "insight_fixture_1",
+      "title": "Synthetic insight",
+      "summary": "Fixture-only insight.",
+      "evidenceIds": [
+        "ev_identity_1"
+      ],
+      "confidence": "low",
+      "status": "confirmed",
+      "createdAt": "2026-01-02T03:04:05.000Z"
+    }
+  ],
+  "contradictions": [
+    {
+      "id": "contradiction_fixture_1",
+      "claim": "Synthetic contradiction retained for migration testing.",
+      "evidenceIds": [
+        "ev_identity_1"
+      ],
+      "status": "open"
+    }
+  ],
+  "mapFragments": [
+    {
+      "id": "fragment_identity",
+      "territoryId": "identity",
+      "label": "Identity Fragment",
+      "unlockedAt": "2026-01-02T03:04:05.000Z"
+    }
+  ],
+  "bossRuns": [
+    {
+      "id": "bossrun_fixture_1",
+      "bossId": "boss-identity",
+      "territoryId": "identity",
+      "stages": [
+        {
+          "id": "bossstage_fixture_1",
+          "kind": "priority",
+          "dimensions": [
+            "self-description"
+          ],
+          "evidenceIds": [
+            "ev_identity_1"
+          ],
+          "outcome": "answered"
+        },
+        {
+          "id": "bossstage_fixture_2",
+          "kind": "tradeoff",
+          "dimensions": [
+            "temperament"
+          ],
+          "evidenceIds": [
+            "ev_identity_1"
+          ],
+          "outcome": "passed"
+        }
+      ],
+      "status": "withdrawn",
+      "startedAt": "2026-01-02T03:04:05.000Z"
+    }
+  ],
+  "activeBoss": null,
+  "doorRuns": [
+    {
+      "id": "doorrun_fixture_1",
+      "doorId": "door_fixture_identity_values",
+      "territoryIds": [
+        "identity",
+        "values"
+      ],
+      "evidenceIds": [
+        "ev_identity_1"
+      ],
+      "dimensions": [
+        "self-description",
+        "autonomy"
+      ],
+      "status": "complete",
+      "openedAt": "2026-01-02T03:04:05.000Z",
+      "completedAt": "2026-01-02T03:04:05.000Z"
+    }
+  ],
+  "activeDoor": null,
+  "privateTopics": [
+    "synthetic-private-dimension"
+  ],
+  "presentation": "quiet",
+  "sessionStatus": "active",
+  "campaignCompleted": false,
+  "presentationQueue": [
+    {
+      "id": "notice_fixture_1",
+      "kind": "fragment",
+      "title": "Synthetic notice",
+      "detail": "Fixture-only notice.",
+      "createdAt": "2026-01-02T03:04:05.000Z"
+    }
+  ],
+  "campaignHistory": [
+    {
+      "id": "event_fixture_1",
+      "type": "ANSWER_ACCEPTED",
+      "at": "2026-01-02T03:04:05.000Z",
+      "detail": "Synthetic history entry."
+    }
+  ],
+  "worldJourney": {
+    "visitedTerritoryIds": [
+      "identity",
+      "values"
+    ],
+    "discoveredLandmarkIds": [
+      "landmark_fixture_1"
+    ],
+    "lastPosition": {
+      "x": 12,
+      "y": 34,
+      "territoryId": "identity"
+    },
+    "recentArrivals": [
+      {
+        "territoryId": "identity",
+        "at": "2026-01-02T03:04:05.000Z"
+      }
+    ],
+    "traversedRoutes": [
+      "identity__values"
+    ],
+    "encounterLocations": [
+      {
+        "kind": "boss",
+        "id": "boss-identity",
+        "territoryId": "identity",
+        "at": "2026-01-02T03:04:05.000Z"
+      }
+    ]
+  },
+  "finalAssessment": {
+    "id": "assessment_fixture_v1",
+    "generatedAt": "2026-01-02T03:04:05.000Z",
+    "provider": "fixture",
+    "whoIsGreyson": "Synthetic historical assessment used only to prove migration preservation.",
+    "temperament": {
+      "title": "Personality and Temperament",
+      "summary": "Synthetic historical summary.",
+      "establishedEvidence": [
+        "Synthetic evidence."
+      ],
+      "supportedInferences": [],
+      "openQuestionsAndUncertainty": [
+        "Synthetic open question."
+      ]
+    },
+    "valuesAndMorals": {
+      "title": "Values and Moral Architecture",
+      "summary": "Synthetic historical summary.",
+      "establishedEvidence": [
+        "Synthetic evidence."
+      ],
+      "supportedInferences": [],
+      "openQuestionsAndUncertainty": [
+        "Synthetic open question."
+      ]
+    },
+    "politicalAndIdeology": {
+      "title": "Political Constellation and Ideology",
+      "summary": "Synthetic historical summary.",
+      "establishedEvidence": [
+        "Synthetic evidence."
+      ],
+      "supportedInferences": [],
+      "openQuestionsAndUncertainty": [
+        "Synthetic open question."
+      ]
+    },
+    "relationshipsAndSocial": {
+      "title": "Relationships and Social World",
+      "summary": "Synthetic historical summary.",
+      "establishedEvidence": [
+        "Synthetic evidence."
+      ],
+      "supportedInferences": [],
+      "openQuestionsAndUncertainty": [
+        "Synthetic open question."
+      ]
+    },
+    "cognitiveStyle": {
+      "title": "Cognitive Style and Revision",
+      "summary": "Synthetic historical summary.",
+      "establishedEvidence": [
+        "Synthetic evidence."
+      ],
+      "supportedInferences": [],
+      "openQuestionsAndUncertainty": [
+        "Synthetic open question."
+      ]
+    },
+    "interestsAndPreferences": {
+      "title": "Interests and Aesthetic Preferences",
+      "summary": "Synthetic historical summary.",
+      "establishedEvidence": [
+        "Synthetic evidence."
+      ],
+      "supportedInferences": [],
+      "openQuestionsAndUncertainty": [
+        "Synthetic open question."
+      ]
+    },
+    "fearsAndHopes": {
+      "title": "Fears and Hopes",
+      "summary": "Synthetic historical summary.",
+      "establishedEvidence": [
+        "Synthetic evidence."
+      ],
+      "supportedInferences": [],
+      "openQuestionsAndUncertainty": [
+        "Synthetic open question."
+      ]
+    },
+    "idealFutureAndAmbition": {
+      "title": "Ideal Future and Ambition",
+      "summary": "Synthetic historical summary.",
+      "establishedEvidence": [
+        "Synthetic evidence."
+      ],
+      "supportedInferences": [],
+      "openQuestionsAndUncertainty": [
+        "Synthetic open question."
+      ]
+    },
+    "contradictionsAndTensions": [
+      {
+        "tension": "Synthetic tension.",
+        "evidence": [
+          "Synthetic evidence."
+        ],
+        "status": "open"
+      }
+    ],
+    "frameworkEstimates": [],
+    "representativeQuotes": [
+      "Synthetic fixture quote."
+    ],
+    "openQuestions": [
+      "Synthetic fixture question."
+    ]
+  },
+  "onboardingCompleted": true,
+  "updatedAt": "2026-01-02T03:04:05.000Z"
+}
