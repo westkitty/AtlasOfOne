@@ -2,152 +2,278 @@
 
 ## Locked shape
 
-One React/TypeScript Vite PWA and one same-origin Cloudflare Worker application.
+One mobile-first React + TypeScript + Vite PWA with one same-origin Cloudflare Worker boundary.
 
 ```text
-Browser / installed PWA
-  ├─ React UI
-  ├─ deterministic game engine
-  ├─ Dexie / IndexedDB campaign database
-  ├─ Zod runtime schemas
-  ├─ context compiler (privacy filter + budget)
-  └─ PWA service worker
-          │
-          └─ same-origin /api/*
-               Cloudflare Worker
-               ├─ /api/health   (reports whether a provider is live)
-               ├─ /api/turn     (Workers AI inference; typed failures)
-               ├─ /api/transcribe (Workers AI speech recognition)
-               └─ /api/finalize (final assessment synthesis)
-                    │
-                    └─ env.AI → Workers AI (Free plan)
+Greyson
+  |
+  +--> Journal Input -----------------------------+
+  |                                               |
+  +--> World / Adventure Actions -----------------|----> Local authoritative state
+  |                                               |       |
+  +--> Combat Commands ---------------------------+       +--> deterministic game engine
+                                                          +--> deterministic combat engine
+                                                          +--> deterministic seed eligibility
+                                                          +--> deterministic privacy/provenance
+                                                          +--> IndexedDB persistence
+                                                         |
+                                                         v
+                                                 Bounded Context Compiler
+                                                         |
+                                                         v
+                                                 Model Proposal Boundary
+                                                         |
+                         +-------------------------------+-------------------------------+
+                         |                               |                               |
+                  journal response                adventure scene                reflection proposal
+                         |                               |                               |
+                         +-------------------------------+-------------------------------+
+                                                         |
+                                                 Typed validation only
+                                                         |
+                                                         v
+                                            candidate language / evidence
+                                                         |
+                                                         v
+                                         Greyson confirmation where required
+                                                         |
+                                                         v
+                                             Atlas / world consequences
 ```
 
-The Cloudflare Vite plugin is the integration point for Vite static assets and Worker code. `wrangler.jsonc` uses SPA not-found handling and routes `/api/*` through the Worker.
+The model is never a second game engine.
 
-## State ownership
+## Authority
 
-`CampaignState` is authoritative for gameplay. UI renders it. IndexedDB persists it. The Cartographer may return structured conversational/evidence proposals, but does not mutate or calculate game progression.
+### TypeScript owns
 
-Progression is derived only by deterministic functions in `src/game/`.
+- progression;
+- world state;
+- combat state and outcomes;
+- persistence and migrations;
+- privacy/retraction propagation;
+- seed eligibility;
+- Snapshot eligibility;
+- import/export/delete;
+- deterministic rewards and unlocks.
 
-## Browser persistence
+### Model may propose
 
-- Dexie database: one active campaign record plus room for future metadata.
-- Every committed state transition is persisted automatically after hydration.
-- `schemaVersion: 1` exists in campaign data.
-- `src/persistence/migrations.ts` owns future in-memory migration from older export/state shapes.
-- Import validates/migrates before replacing local state.
+- journal responses;
+- dialogue;
+- scene prose;
+- adventure scene candidates;
+- reflection wording;
+- hypotheses;
+- candidate evidence;
+- Snapshot prose.
 
-## Model boundary
+All model output crosses typed validation before any proposal can affect local state.
 
-The model contract contains language, proposed evidence, connections, quote candidates, summary patch, and achievement *candidates*. It contains no writable XP, level, unlock, achievement, quest-completion, or territory-threshold fields.
+## Domain structure
 
-The UI/game engine decides whether and how structured model proposals become deterministic events.
+Target module boundaries:
 
-## Provider boundary
-
-`src/cartographer/provider.ts` defines the boundary. It is deliberately small:
-Atlas needs a mock, a Workers AI implementation, and a disabled state, not a
-multi-provider framework. Provider selection never enters `src/game/`.
-
-```ts
-interface AIProvider {
-  readonly id: string;
-  turn(context: CartographerContext): Promise<ProviderResult>;
-}
+```text
+src/
+  journal/
+  reflection/
+  knowledge/
+  adventure/
+  combat/
+  atlas/
+  world/
+  cartographer/
+  game/
+  persistence/
+  voice/       # speech-to-text input only
 ```
 
-`ProviderResult` is either a validated `CartographerTurn` with usage, or a typed
-`ProviderFailure`. Implementations:
+`src/App.tsx` is orchestration, not the permanent home of every domain.
 
-- `disabledProvider` — no AI configured; the deterministic local script answers.
-- `createWorkersAiProvider` — Worker-side, over the native `env.AI` binding.
-- `createRemoteProvider` — browser-side, posting a compiled context to `/api/turn`.
+## Schema v2
 
-The browser client holds no credential and knows no model id; the model registry
-is Worker-side only, which the production bundles are checked against.
+The first durable Journal/Adventure integration raises the campaign schema to version 2.
 
-The selected production model lives in exactly one replaceable place:
-`DEFAULT_MODEL_ID` in `src/cartographer/models.ts`, overridable at runtime by the
-`ATLAS_MODEL_ID` Worker variable. See `docs/PROVIDER_BAKEOFF.md`.
+New first-class concepts include:
+
+- `JournalEntry`
+- `KnowledgeGap`
+- `AdventureSeed`
+- `AdventureRun`
+- `AdventureAction`
+- `AdventureObservation`
+- `ReflectionRecord`
+- `AdventureMemory`
+- `AtlasSnapshot`
+
+Migration preserves:
+
+- legacy turns;
+- existing evidence;
+- Boss/Mystery state;
+- worldJourney;
+- settings;
+- historical FinalAssessment content, migrated into snapshot history rather than discarded.
+
+## Local persistence
+
+IndexedDB remains authoritative local persistence.
+
+Requirements:
+
+- automatic save after authoritative state transitions;
+- deterministic migrations;
+- export/import/delete;
+- mid-adventure save/reload;
+- mid-combat save/reload;
+- provenance-based retirement of derived state after PRIVATE/retraction;
+- no server campaign database.
 
 ## Context compiler
 
-`src/cartographer/context.ts` builds the outgoing payload from authoritative
-local state. It never sends the transcript.
+Provider context remains bounded and mode-specific.
 
-**Privacy is structural.** A private dimension is filtered out *while the context
-object is being constructed*, so private content never exists inside the
-outgoing payload. Atlas does not send private material followed by an instruction
-to ignore it, because that is a request rather than a guarantee. Retracted
-material is excluded on the same grounds. Only the *labels* of retired dimensions
-travel, so the model knows what not to ask without being handed what it must not
-see.
+Typed modes include:
 
-**The payload is bounded.** `CONTEXT_BUDGET` caps the recent-turn window,
-relevant evidence, counter-evidence, revisions, contradictions, insights and
-recalled answer length. Selection priority is: current-turn necessities, then
-directly relevant evidence, then unresolved contradictions and revisions, then
-recent continuity, then compact summaries. A 600-turn campaign compiles to
-roughly the same payload as a 40-turn one, which is asserted by test rather than
-assumed. No embeddings or vector database are involved.
+- Journal
+- Reflection
+- Adventure
+- World interaction
+- Combat narration
+- Boss synthesis
+- Mystery Door
+- Snapshot
+- Pure fun
 
-## Zero-dollar enforcement
+Context assembly uses only eligible local state and fixed budgets. It must not grow without bound with campaign age.
 
-The `ai` binding costs nothing by existing. The Workers Free daily neuron
-allocation is the hard ceiling, and `estimateNeurons` derives per-model cost from
-Cloudflare's published rate so affordability is decided before a request is made.
-A model outside the free-plan registry is refused by the Worker *before* a
-request exists. Quota exhaustion is a non-retryable typed failure that degrades
-to the local script; it never escalates to a paid plan.
+PRIVATE and retracted material is excluded structurally while the payload is built. Only safe labels/retirement metadata may travel when needed to prevent re-prompting.
 
-## PWA
+No embeddings or vector database are required.
 
-`vite-plugin-pwa` generates the service worker and manifest. Phase 1 establishes install/offline-shell support; full device/install validation belongs to later phases.
+## Adventure memory
 
-## Voice architecture (Phase 4)
+Use local bounded memory layers:
 
-- **Capture**: Browser `MediaRecorder` capture requires explicit player activation, never auto-plays, and immediately discards audio chunks from memory after transcription or abort.
-- **State machine**: Deterministic state progression (`idle` -> `requesting-permission` -> `listening` -> `transcribing` -> `thinking` -> `speaking` -> `idle`) with cancel/fallback to typing at every stage.
-- **Agency command firewall**: Spoken controls (`PASS`, `PRIVATE`, `STOP`, `SERIOUS`, `HELP`, `SASS`) are intercepted and executed client-side. They never submit text to the model, never generate evidence, and never award XP or progression.
-- **Backend transcription**: Same-origin `POST /api/transcribe` converts audio buffers to text via `@cf/openai/whisper-tiny-en` in Cloudflare Workers AI with a 2 MB size ceiling and zero transcript/audio logging.
-- **Speech synthesis**: `window.speechSynthesis` speaks Cartographer replies in voice mode, cancellable on STOP, mode toggle, navigation, or unmount. Respects quiet presentation mode with subdued rate and volume.
+1. compact adventure summaries;
+2. triggered memory cards for relevant characters, places, events, relationships, promises, and objects.
 
-## Accessibility
+Retrieval is deterministic by entity/tag/recency/relevance rules, not cloud vector search.
 
-The behavior layer must use semantic buttons/forms, keyboard-accessible navigation, visible focus, reduced-motion media queries, readable text hierarchy, and no progression dependency for safety/agency controls.
+## Worker boundary
 
-## Security/privacy boundary
+The Worker remains same-origin and thin.
 
-- No actual campaign content in Git/test fixtures.
-- No secret in browser source or committed config.
-- No server transcript persistence. The Worker uses the compiled context for one
-  request and discards it with the request scope; nothing is logged.
-- Private and retracted material is removed before an outgoing payload exists,
-  on both `/api/turn` and `/api/finalize`. For DERIVED records — Insights and
-  Contradictions — visibility is decided by evidence provenance (`evidenceIds`)
-  and never by matching their prose against a topic name; `createEvidenceVisibility`
-  in `src/cartographer/context.ts` is the single shared definition. *(The finalize
-  half of this holds in the local candidate `e940788` and is NOT yet deployed —
-  see KNOWN-001 in `OPERATIONAL_STATE.md`.)*
-- No D1, KV, R2, analytics, or account/auth database.
-- An invite/access secret lives only as a Worker secret (`ATLAS_ACCESS_SECRET`) and local client credential in `localStorage`, strictly isolated from IndexedDB and campaign state export.
+Expected routes may include:
+
+- `/api/health`
+- `/api/turn` or mode-discriminated successor
+- `/api/transcribe`
+- compatibility path for former `/api/finalize`, reframed toward Snapshot synthesis
+
+Provider failure must never corrupt local state.
+
+No provider or model configuration belongs in `src/game/`.
+
+## Speech-to-text only
+
+Voice output is removed.
+
+Allowed:
+
+- `getUserMedia`
+- `MediaRecorder`
+- local amplitude/silence detection
+- microphone visualizer
+- `/api/transcribe`
+- editable transcript insertion
+- typed fallback
+- local agency-command interception where useful
+
+Forbidden in the current architecture:
+
+- `window.speechSynthesis`
+- `SpeechSynthesisUtterance`
+- voice picker UI
+- TTS provider/model/cache
+- assistant `speaking` lifecycle
+- automatic mic restart after assistant output
+
+Target microphone lifecycle:
+
+`idle -> requesting-permission -> listening -> transcribing -> idle/error`
+
+Provider "thinking" state belongs to request/UI state, not microphone state.
+
+## Combat architecture
+
+Combat is a deterministic sub-engine.
+
+It owns:
+
+- HP;
+- damage;
+- technique costs/cooldowns;
+- statuses;
+- turn order;
+- deterministic enemy intent;
+- objective progress;
+- resolution;
+- rewards;
+- persistence.
+
+The model may skin narration and ACT wording but cannot author authoritative HP changes, rewards, success flags, or turn order.
+
+Timed attack/guard hooks are optional and must have deterministic test seams.
+
+## World integration
+
+Worldwalker remains the physical game world.
+
+Adventure and consequence state may affect:
+
+- NPC availability;
+- routes;
+- props;
+- sanctuary state;
+- encounter visibility;
+- remembered promises;
+- recurring enemies;
+- future scene eligibility;
+- cosmetic world details.
+
+These effects are local and export/import cleanly.
+
+## Main branch and parallel development
+
+`main` is a release surface because Workers Builds auto-deploys it.
+
+Use:
+
+- one v2 integration branch;
+- lane-owned branches/worktrees;
+- frozen shared interfaces;
+- bounded work packets;
+- dependency-aware merges;
+- proof receipts;
+- independent review for high-risk changes.
+
+Hot-zone files such as `App.tsx`, shared game types/engine, migrations, cartographer schema boundaries, Worker entrypoints, package manifest, authority docs, and central generated manifests require controlled integration ownership.
 
 ## Zero-cost invariant
 
-Atlas of One must not *require* paid ChatGPT, paid Cloudflare Workers/Workers AI, paid OpenRouter, a paid domain, paid database, paid speech service, paid deployment, or paid analytics. A later quota exhaustion state must stop/degrade AI features instead of generating cost.
+Atlas must not require paid ChatGPT, paid Cloudflare Workers, paid Workers AI, paid OpenRouter, a paid database, paid speech service, paid deployment, paid analytics, or a paid domain.
 
-## Explicit non-goals for v1/bootstrap
+Quota exhaustion is allowed to stop/degrade AI functionality. It is not allowed to surprise us with an invoice.
 
-Do not add:
+## Security/privacy boundary
 
-- D1, KV, R2
-- authentication accounts/password reset
-- analytics/tracking
-- SSR or Next.js
-- native Android/iOS/Electron wrappers
-- 3D map
-- vector database/embeddings
-- multiplayer/social sharing
-- runtime-generated character art
+- No real Greyson content in Git or synthetic fixtures.
+- No secret in browser source or committed config.
+- No transcript logging.
+- No cloud journal persistence.
+- No D1/KV/R2 campaign store.
+- No analytics/account database.
+- No model authority over privacy or progression.
+- Access-secret behavior remains Worker-side and must be independently verified before release-impacting changes.
