@@ -51,8 +51,14 @@ describe('Combat core state/reducer (C01)', () => {
     });
   });
 
-  it('uses an explicitly authored enemy opening phase without randomness', () => {
-    expect(createCombatState(definition({ openingPhase: 'enemy' })).phase).toBe('enemy');
+  it('uses an explicitly authored and labelled ambush opening without randomness', () => {
+    expect(createCombatState(definition({
+      openingPhase: 'enemy',
+      openingReason: 'ambush'
+    })).phase).toBe('enemy');
+
+    expect(() => createCombatState(definition({ openingPhase: 'enemy' })))
+      .toThrow('requires an explicitly authored ambush reason');
   });
 
   it('advances lifecycle deterministically and increments round only after enemy phase', () => {
