@@ -75,13 +75,30 @@ Rules:
 
 ### 2.3 AdventureSeed
 
-The initial frozen Adventure kind registry is intentionally small:
+The frozen Adventure kind registry follows the full section 10.2 initial catalog. The three Phase 2 templates are the first implemented examples, not the complete allowed-kind type.
 
 ```ts
-type AdventureKind = 'investigation' | 'social-dilemma' | 'pure-fun';
+const ADVENTURE_KINDS = [
+  'social-dilemma',
+  'investigation',
+  'rescue-support',
+  'exploration-expedition',
+  'negotiation',
+  'absurd-comedy',
+  'ethical-conflict',
+  'creative-building',
+  'memory-echo',
+  'relationship-companion',
+  'mystery-puzzle',
+  'survival-escape',
+  'combat-forward',
+  'pure-fun'
+] as const;
+
+type AdventureKind = (typeof ADVENTURE_KINDS)[number];
 ```
 
-This is the Phase 2 template set explicitly required by the master plan. Adding a new kind later is a bounded contract extension, not free-form provider output.
+The stable IDs are machine forms of the fourteen section 10.2 labels. Phase 2 must initially implement at least investigation, social dilemma, and pure fun. A genuinely new fifteenth kind is a bounded contract extension; provider output may never invent a free-text kind.
 
 ```ts
 interface AdventureSeed {
