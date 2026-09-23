@@ -61,7 +61,10 @@ export function decideReflection(
     return reflectionRecordSchema.parse({
       ...record,
       decision,
-      response,
+      // Privacy is a visibility action. If Greyson already supplied a substantive
+      // Reflection response, preserve it rather than replacing history with the
+      // later "keep this private" action text.
+      response: record.response || response,
       privacy: 'private'
     });
   }
