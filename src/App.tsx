@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { EncounterPanel } from './app/EncounterPanel';
 import { AgencyControls, AgencySheet, PrimaryActionBar, ProgressDisplay } from './app/PresentationControls';
 import { JournalPanel } from './journal/JournalPanel';
 import { eventsFromTurn } from './cartographer/apply';
@@ -848,79 +849,51 @@ export default function App() {
   const renderEncounter = () => {
     if (!encounter) return null;
     const isBoss = encounter.kind === 'boss';
+    const stages = isBoss && bossRun
+      ? bossRun.stages.map((stage, index) => ({
+          id: stage.id,
+          index,
+          cleared: stage.outcome !== 'pending',
+          current: bossRun.stages.indexOf(bossStage!) === index
+        }))
+      : [];
+    const crossing: [string, string] | null = !isBoss && doorRun
+      ? [
+          territoryLabels[doorRun.territoryIds[0]] ?? doorRun.territoryIds[0],
+          territoryLabels[doorRun.territoryIds[1]] ?? doorRun.territoryIds[1]
+        ]
+      : null;
+
     return (
-      <section
-        className={`screen encounter-screen ${isBoss ? 'is-boss-arena' : 'is-door-chamber'}`}
-        data-testid={`encounter-${encounter.kind}`}
-      >
-        <div className="eyebrow">{isBoss ? 'BOSS FIGHT' : 'MYSTERY DOOR'}</div>
-        <header>
-          <div>
-            <h1 className="screen-title">{encounter.kind==='door' ? encounter.title : encounter.heading}</h1>
-            <p>{encounter.step}{encounter.kind==='boss' ? ' · your own mapped positions, put under load' : ' · optional to open, safe to close'}</p>
-          </div>
-          {quiet && <span className="chip">{state.presentation}</span>}
-          {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
-        </header>
-
-        {/* 16-Bit JRPG Combat / Threshold Arena Staging Frame */}
-        <div className="encounter-stage-frame" aria-hidden="true">
-          <div className="encounter-portrait">
-            <img
-              src={quiet || isBoss ? GREYSON_PORTRAITS.serious : (state.settings.sass === 'risks-understood' ? GREYSON_PORTRAITS.wry : GREYSON_PORTRAITS.neutral)}
-              alt="Greyson"
-              draggable={false}
-            />
-          </div>
-          <div className="encounter-stage-meta">
-            <span className="encounter-sigil-badge">
-              <i className="encounter-sigil-glyph">{isBoss ? '🔥' : '◈'}</i>
-              <strong>{isBoss ? 'Trial Monolith' : 'Threshold Portal'}</strong>
-            </span>
-            <span className="encounter-dimension-badge">{encounter.dimension}</span>
-          </div>
-        </div>
-
-        {encounter.kind==='boss' && bossRun && (
-          <ol className="stage-track" aria-label={`Boss Fight progress: ${encounter.step}`}>
-            {bossRun.stages.map((stage, index) => {
-              const current = bossRun.stages.indexOf(bossStage!) === index;
-              const cleared = stage.outcome !== 'pending';
-              return (
-                <li key={stage.id} className={cleared?'done':current?'now':'next'} aria-current={current?'step':undefined}>
-                  <span aria-hidden="true">{cleared?'✓':index+1}</span>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-        {encounter.kind==='door' && doorRun && (
-          <div className="crossing" aria-hidden="true">
-            <span>{territoryLabels[doorRun.territoryIds[0]] ?? doorRun.territoryIds[0]}</span>
-            <i>⟷</i>
-            <span>{territoryLabels[doorRun.territoryIds[1]] ?? doorRun.territoryIds[1]}</span>
-          </div>
-        )}
-        <article className={`card encounter ${encounter.kind}`}>
-          {reply && <p className="reply" role="status">{reply}</p>}
-          <h2>{encounter.question}</h2>
-          {encounter.evidenceClaims.length>0 && (
-            <>
-              <p className="evidence-caption">From evidence you already mapped</p>
-              <ul className="evidence-list">
-                {encounter.evidenceClaims.map((claim,index)=><li key={index}>{claim}</li>)}
-              </ul>
-            </>
-          )}
-          <small>Dimension: {encounter.dimension}</small>
-        </article>
-        {state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}
-        <label className="answer">Your position<textarea rows={4} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="encounter-input" /></label>
-        <button className="primary full" data-testid="encounter-submit" onClick={submitEncounter} disabled={!answer.trim()||state.sessionStatus==='paused'}>{encounter.kind==='boss'?'Hold this position':'Walk through'}</button>
-        <button className="full leave" data-testid="encounter-leave" onClick={leaveEncounter}>{encounter.kind==='boss'?'Step back for now':'Close the door for now'}</button>
-        <p className="safe-note">PASS clears {encounter.kind==='boss'?'a stage':'this crossing'} at no cost. Stepping back keeps every point you have earned.</p>
-        {renderAgency(()=>{dispatch(encounter.kind==='boss'?{type:'BOSS_STAGE_PASSED'}:{type:'DOOR_CLOSED'});setReply('Passed. No penalty, no cost.');setAnswer('');}, encounter.dimension)}
-      </section>
+      <EncounterPanel
+        kind={encounter.kind}
+        title={encounter.kind === 'door' ? encounter.title : encounter.heading}
+        step={encounter.step}
+        dimension={encounter.dimension}
+        question={encounter.question}
+        evidenceClaims={encounter.evidenceClaims}
+        quiet={quiet}
+        presentationLabel={state.presentation}
+        offline={isOffline}
+        portraitSrc={quiet || isBoss
+          ? GREYSON_PORTRAITS.serious
+          : state.settings.sass === 'risks-understood'
+            ? GREYSON_PORTRAITS.wry
+            : GREYSON_PORTRAITS.neutral}
+        stages={stages}
+        crossing={crossing}
+        reply={reply}
+        paused={state.sessionStatus === 'paused'}
+        answer={answer}
+        onAnswerChange={setAnswer}
+        onSubmit={submitEncounter}
+        onLeave={leaveEncounter}
+        agency={renderAgency(() => {
+          dispatch(encounter.kind === 'boss' ? { type: 'BOSS_STAGE_PASSED' } : { type: 'DOOR_CLOSED' });
+          setReply('Passed. No penalty, no cost.');
+          setAnswer('');
+        }, encounter.dimension)}
+      />
     );
   };
 
