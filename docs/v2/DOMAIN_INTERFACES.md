@@ -1,7 +1,7 @@
 # Atlas v2 Domain Interface Freeze
 
 **Packet:** D05  
-**Status:** candidate contract pending independent review and merged-integration proof  
+**Status:** candidate contract; combined D02/D03/D04 integration proof passed; PR review pending  
 **Authority:** `docs/MASTER_INTEGRATION_PLAN.md`, current verified integration state, and the v2 capability invariant manifest
 
 This document freezes the shared semantic interfaces that independent v2 lanes may build against.
@@ -507,6 +507,6 @@ No lane may silently widen a public interface to keep moving.
 
 ## D05 verdict
 
-**CANDIDATE FREEZE — implementation-safe pending combined D02/D03/D04 integration CI and independent contract review.**
+**CANDIDATE FREEZE — combined D02/D03/D04 integration CI passed on `d21c234`; semantic contract review complete; PR/merge gate pending.**
 
-Once those gates pass, this document may become the public interface authority for M01 and the parallel Journal/Reflection/Adventure/Combat/Provider lanes.
+After PR review and merge, this document becomes the public interface authority for M01 and the parallel Journal/Reflection/Adventure/Combat/Provider lanes.
