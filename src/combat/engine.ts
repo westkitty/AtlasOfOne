@@ -45,6 +45,9 @@ function validateReward(reward: FixedCombatReward): void {
   if (reward.kind === 'xp' && reward.amount === undefined) {
     throw new Error(`Combat XP reward ${reward.id} requires a fixed amount.`);
   }
+  if (reward.kind === 'xp' && !nonNegativeInteger(reward.amount!)) {
+    throw new Error(`Combat XP reward ${reward.id} amount must be a non-negative integer.`);
+  }
 }
 
 /**
@@ -73,6 +76,17 @@ export function validateCombatDefinition(definition: CombatDefinition): CombatDe
   const player = players[0];
   if (player.maxHp !== DEFAULT_COMBAT_HP) {
     throw new Error(`C01 player maxHp must use the C00 baseline of ${DEFAULT_COMBAT_HP}.`);
+  }
+  if (player.startingHp !== undefined && player.startingHp !== DEFAULT_COMBAT_HP) {
+    throw new Error(`C01 player startingHp must use the C00 baseline of ${DEFAULT_COMBAT_HP}.`);
+  }
+  if (
+    player.techniqueCharges !== undefined
+    && player.techniqueCharges !== DEFAULT_TECHNIQUE_CHARGES
+  ) {
+    throw new Error(
+      `C01 player techniqueCharges must use the C00 baseline of ${DEFAULT_TECHNIQUE_CHARGES}.`
+    );
   }
 
   if (definition.turnLimit !== undefined && !positiveInteger(definition.turnLimit)) {
