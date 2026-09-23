@@ -212,6 +212,8 @@ export default function App() {
   /** Blank, player-initiated Journal. It is separate from the legacy Cartographer prompt path. */
   const [journalOpen, setJournalOpen] = useState(false);
   const [journalDraft, setJournalDraft] = useState('');
+  /** Synchronous exclusion for same-task double taps on local Journal save. */
+  const journalSaveInFlight = useRef(false);
   /** Vault and the character record are places you visit, reached from one menu. */
   const [menuOpen, setMenuOpen] = useState(false);
   /** The conversation panel scrolls; an opened sheet must not open off-screen. */
@@ -753,7 +755,9 @@ export default function App() {
   });
 
   const saveJournalEntry = () => {
-    if (!journalDraft.trim()) return;
+    if (!journalDraft.trim() || journalSaveInFlight.current) return;
+    journalSaveInFlight.current = true;
+
     const createdAt = new Date().toISOString();
     const entry = createJournalEntry({
       id: `journal_${crypto.randomUUID()}`,
@@ -770,6 +774,10 @@ export default function App() {
     setJournalDraft('');
     setJournalOpen(false);
     setMessage('Journal added to your local Atlas.');
+
+    // The state mutation is synchronous; hold only through this browser task so
+    // two dispatches against the same render closure cannot duplicate the entry.
+    queueMicrotask(() => { journalSaveInFlight.current = false; });
   };
 
   // The six permanent controls. They are rendered identically for ordinary
@@ -904,7 +912,7 @@ export default function App() {
           <span className="hud-track"><b style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></span>
         </span>
       </div>
-      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => { playMenuSound('open'); setMenuOpen(true); }}>
+      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} disabled={journalOpen} onClick={() => { playMenuSound('open'); setMenuOpen(true); }}>
         <span aria-hidden="true">☰</span>
       </button>
       {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
