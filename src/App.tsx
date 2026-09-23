@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AgencyControls, AgencySheet, PrimaryActionBar, ProgressDisplay } from './app/PresentationControls';
+import { JournalPanel } from './journal/JournalPanel';
 import { eventsFromTurn } from './cartographer/apply';
 import { createRemoteProvider, requestFinalAssessment, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
@@ -1113,105 +1114,47 @@ export default function App() {
    */
   const renderConversation = () => {
     const activeSanctuary = sanctuaryFor(activeTerritory.id);
-    return <div className="convo" data-testid="convo">
-    <button className="convo-close" data-testid="leave-encounter" aria-label="Back to the map" onClick={()=>{ if(voiceMode==='talk') cancelVoice(); setTalking(false); setMoreOpen(false); }}>
-      <span aria-hidden="true">▾</span>
-    </button>
-
-    <div className="convo-header">
-      <div className="convo-portrait" aria-hidden="true">
-        <img
-          src={quiet ? GREYSON_PORTRAITS.serious : (state.settings.sass === 'risks-understood' ? GREYSON_PORTRAITS.wry : (banners.length > 0 ? GREYSON_PORTRAITS.warm : GREYSON_PORTRAITS.neutral))}
-          alt="Greyson"
-          draggable={false}
-        />
-      </div>
-      <div className="convo-meta">
-        <div className="convo-sanctuary" data-testid="convo-sanctuary">
-          <span className="convo-sanctuary-glyph" aria-hidden="true">{activeSanctuary.glyph}</span>
-          <strong className="convo-sanctuary-name">{activeSanctuary.name}</strong>
-          <span className="convo-sanctuary-atmosphere">· {activeSanctuary.atmosphere}</span>
-        </div>
-        <p className="convo-speaker">The Cartographer{quiet && <span className="chip">{state.presentation}</span>}</p>
-        <small className="convo-dimension" data-testid="prompt-dimension">Evidence dimension: {prompt.dimension}{promptOverride ? ` · ${promptOverride.kind === 'deeper' ? 'going deeper' : 'reframed'}` : ''}</small>
-      </div>
-    </div>
-
-    {reply && <p className="convo-reply" role="status">{reply}</p>}
-    <h2 className="convo-question" data-testid="prompt-question">{prompt.question}</h2>
-    {state.sessionStatus==='paused' && <p className="convo-paused">Session paused. Your Atlas is safe.</p>}
-
-    {voiceMode==='type' ? (
-      <div className="composer">
-        <label className="answer">Your answer
-          <textarea rows={2} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="answer-input" placeholder="Say it however it comes out." />
-        </label>
-        <div className="composer-send">
-          <button className="link-btn" data-testid="mode-talk" onClick={()=>toggleVoiceMode('talk')}>Speak instead</button>
-          <button className="primary" data-testid="submit-answer" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'||isSubmitting}>{isSubmitting ? 'Mapping coordinate...' : 'Map this answer'}</button>
-        </div>
-      </div>
-    ) : (
-      <div className="voice-card" data-testid="voice-card">
-        <span className={`voice-badge ${voiceState}`} data-testid="voice-status">{voiceStateLabel(voiceState)}</span>
-        {voiceState === 'idle' && (
-          <button className="mic-btn" data-testid="mic-button" aria-label="Start dictation" onClick={startConversation} disabled={state.sessionStatus==='paused'}>
-            🎙
-          </button>
-        )}
-        {voiceState === 'listening' && (
-          <>
-            {/* Live recording feedback. Present whenever capture is live, so
-                silence still reads as "the microphone is on"; the bars grow with
-                measured amplitude when there is something to hear. */}
-            <div
-              className={`mic-visualizer${micMeterLive ? '' : ' is-static'}`}
-              data-testid="mic-visualizer"
-              data-level={Math.round(micLevel * 100)}
-              data-metering={micMeterLive ? 'live' : 'unavailable'}
-              role="img"
-              aria-label={micMeterLive ? 'Microphone is live and listening' : 'Microphone is recording'}
-            >
-              {[0.55, 0.8, 1, 0.8, 0.55].map((weight, index) => (
-                <span
-                  key={index}
-                  className="mic-bar"
-                  style={{ transform: `scaleY(${(0.18 + micLevel * weight * 0.82).toFixed(3)})` }}
-                />
-              ))}
-            </div>
-            <button className="mic-btn is-listening" data-testid="mic-stop" aria-label="Done speaking" onClick={() => void stopRecordingAndProcess()}>
-              ◼
-            </button>
-            <div className="voice-actions">
-              <button className="primary" data-testid="voice-submit-done" onClick={() => void stopRecordingAndProcess()}>Done speaking</button>
-              <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
-            </div>
-          </>
-        )}
-        {voiceState === 'requesting-permission' && (
-          <div className="voice-actions">
-            <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
-          </div>
-        )}
-        {voiceState === 'transcribing' && (
-          <div className="voice-actions">
-            <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
-          </div>
-        )}
-        {voiceState === 'error' && (
-          <div className="voice-actions">
-            <button className="primary" data-testid="voice-retry" onClick={startRecording}>Try again</button>
-            <button data-testid="voice-fallback-type" onClick={()=>toggleVoiceMode('type')}>Switch to typing</button>
-          </div>
-        )}
-        <button className="link-btn" data-testid="mode-type" onClick={()=>toggleVoiceMode('type')}>Type instead</button>
-      </div>
-    )}
-
-    {renderActionBar(()=>setReply('Passed. No penalty.'), prompt.dimension)}
-  </div>;
-};
+    return (
+      <JournalPanel
+        sanctuary={activeSanctuary}
+        portraitSrc={quiet
+          ? GREYSON_PORTRAITS.serious
+          : state.settings.sass === 'risks-understood'
+            ? GREYSON_PORTRAITS.wry
+            : banners.length > 0
+              ? GREYSON_PORTRAITS.warm
+              : GREYSON_PORTRAITS.neutral}
+        quiet={quiet}
+        presentationLabel={state.presentation}
+        dimension={prompt.dimension}
+        dimensionSuffix={promptOverride ? ` · ${promptOverride.kind === 'deeper' ? 'going deeper' : 'reframed'}` : ''}
+        reply={reply}
+        question={prompt.question}
+        paused={state.sessionStatus === 'paused'}
+        voiceMode={voiceMode}
+        voiceState={voiceState}
+        voiceStatusLabel={voiceStateLabel(voiceState)}
+        answer={answer}
+        isSubmitting={isSubmitting}
+        micMeterLive={micMeterLive}
+        micLevel={micLevel}
+        actions={renderActionBar(() => setReply('Passed. No penalty.'), prompt.dimension)}
+        onClose={() => {
+          if (voiceMode === 'talk') cancelVoice();
+          setTalking(false);
+          setMoreOpen(false);
+        }}
+        onAnswerChange={setAnswer}
+        onUseTalk={() => toggleVoiceMode('talk')}
+        onSubmit={submit}
+        onStartDictation={startConversation}
+        onStopDictation={() => void stopRecordingAndProcess()}
+        onCancelVoice={cancelVoice}
+        onRetryVoice={startRecording}
+        onUseType={() => toggleVoiceMode('type')}
+      />
+    );
+  };
 
   const fragmentCount = state.territories.filter((t)=>state.mapFragments.some((f)=>f.territoryId===t.id)).length;
   const unlockedAchievements = state.achievements.filter((a)=>a.unlockedAt);
