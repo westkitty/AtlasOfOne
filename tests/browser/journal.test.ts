@@ -51,6 +51,7 @@ beforeAll(async () => {
   await page.reload({ waitUntil: 'load' });
   await completeOnboardingIfPresent(page);
   await page.waitForSelector('[data-testid="world"]');
+  await expect.poll(async () => Boolean(await persistedState())).toBe(true);
 }, 120_000);
 
 afterAll(async () => {
