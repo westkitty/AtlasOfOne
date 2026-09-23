@@ -16,6 +16,7 @@ export type AttackIssueCode =
   | 'invalid-state'
   | 'invalid-phase'
   | 'invalid-timing-grade'
+  | 'player-defeated'
   | 'unknown-target'
   | 'target-not-enemy'
   | 'target-defeated'
@@ -54,6 +55,10 @@ export function resolveAttack(
   if (!validateCombatStateAgainstDefinition(definition, state).ok) return reject(state, targetId, 'invalid-state');
   if (state.phase !== 'player') return reject(state, targetId, 'invalid-phase');
   if (!TIMING_GRADE_SET.has(timing as string)) return reject(state, targetId, 'invalid-timing-grade');
+
+  const playerId = definition.combatants.find((combatant) => combatant.team === 'player')?.id;
+  const player = state.combatants.find((combatant) => combatant.id === playerId);
+  if (!player || player.currentHp <= 0) return reject(state, targetId, 'player-defeated');
 
   const definitionTarget = definition.combatants.find((combatant) => combatant.id === targetId);
   const stateTarget = state.combatants.find((combatant) => combatant.id === targetId);

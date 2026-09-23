@@ -93,6 +93,17 @@ describe('C02 deterministic ATTACK mechanics', () => {
       .toEqual({ state: defeated.state, accepted: false, targetId: 'enemy', issue: 'target-defeated' });
   });
 
+  it('rejects ATTACK when the player combatant is already defeated', () => {
+    const input = definition();
+    const initial = initialState(input);
+    const defeatedPlayer = reduceCombatState(input, initial, { type: 'DAMAGE', targetId: 'player', amount: 999 });
+    expect(defeatedPlayer.accepted).toBe(true);
+    expect(defeatedPlayer.state.combatants.find((combatant) => combatant.id === 'player')?.currentHp).toBe(0);
+
+    expect(resolveAttack(input, defeatedPlayer.state, 'enemy', 'base'))
+      .toEqual({ state: defeatedPlayer.state, accepted: false, targetId: 'enemy', issue: 'player-defeated' });
+  });
+
   it('rejects timing grades outside the frozen base/timed vocabulary at runtime', () => {
     const input = definition();
     const before = initialState(input);
