@@ -2,160 +2,321 @@
 
 ## Prime directive
 
-The game engine — never the Cartographer model — owns XP, levels, territory thresholds, unlocks, achievements, quests, map fragments, and campaign completion.
+TypeScript owns game truth. The model does not.
 
-## CampaignState
+Atlas is a journaling adventure game with deterministic progression, world state, encounters, combat, persistence, privacy, and Snapshot eligibility.
 
-The state includes:
+## Canonical product loop
 
-- `schemaVersion`
-- player and settings
-- XP and numeric level
-- territories and active territory
-- quests and active quest
-- achievements and unlocks
-- turns and evidence
-- insights and contradictions
-- map fragments
-- Boss Fight runs and the active Boss Fight
-- Mystery Door runs and the active Mystery Door
-- private topics/dimensions
-- normal/quiet presentation state
-- session active/paused state
-- deterministic campaign event history
-- pending presentation notices
+```text
+JOURNAL
+-> notice interest / uncertainty / change / contradiction
+-> optional AdventureSeed
+-> Worldwalker exploration
+-> story / puzzle / social / combat encounter
+-> deterministic consequence
+-> optional Reflection
+-> Greyson confirms / partially accepts / rejects / revises / marks private / leaves uncertain
+-> Atlas updates
+-> world remembers
+```
 
-## Event vocabulary
+## Core durable records
 
-Meaningful mutation occurs through typed events including:
+Schema v2 introduces first-class records for:
 
-- `ANSWER_ACCEPTED`
-- `EVIDENCE_ADDED`
-- `QUEST_PROGRESS`
-- `QUEST_COMPLETE`
-- `TERRITORY_ADVANCED`
-- `LEVEL_UP`
-- `ABILITY_UNLOCKED`
-- `ACHIEVEMENT_UNLOCKED`
-- `MAP_FRAGMENT_UNLOCKED`
-- `BOSS_STARTED`
-- `BOSS_STAGE_ANSWERED`
-- `BOSS_STAGE_PASSED`
-- `BOSS_WITHDRAWN`
-- `DOOR_OPENED`
-- `DOOR_ANSWERED`
-- `DOOR_CLOSED`
-- `INSIGHT_ADDED`
-- `INSIGHT_CONFIRMED`
-- `INSIGHT_REJECTED`
-- `ANSWER_RETRACTED`
-- `PRIVATE_TOPIC_ADDED`
-- `PRESENTATION_SET`
-- `SESSION_SET`
-- `SASS_SET`
-- `CAMPAIGN_COMPLETED`
+- `JournalEntry`
+- `KnowledgeGap`
+- `AdventureSeed`
+- `AdventureRun`
+- `AdventureAction`
+- `AdventureObservation`
+- `ReflectionRecord`
+- `AdventureMemory`
+- `AtlasSnapshot`
 
-The public model contract does not contain these events.
+Legacy turns, Boss/Mystery state, evidence, worldJourney, and settings remain valid provenance through migration.
 
-## XP bootstrap rules
+## Human authority
 
-Deterministic source-derived rules for this phase:
+Adventure or combat behavior alone never becomes self-knowledge.
 
-| Condition | XP |
-|---|---:|
-| accepted answer | +5 |
-| meaningful development | +3 |
-| accepted new evidence | +2 each, capped by engine rule |
-| behavioral example | +3 |
-| meaningful revision | +5 |
-| quest completion | fixed deterministic bonus |
-| boss resolution | fixed deterministic bonus |
+A fictional action may create an `AdventureObservation`.
 
-No additional XP is awarded because a disclosure is painful, traumatic, intimate, or vulnerable.
+Example:
 
-## Levels
+```text
+Observation: Greyson guarded the companion three turns in a row.
+NOT evidence: Greyson always prioritizes others over himself.
+```
 
-The available source references a Level 8 reveal but does not provide canonical level names/thresholds. Bootstrap uses numeric levels 1–8 and deterministic thresholds stored in `src/game/data.ts`. Those values are replaceable campaign data, not hard-coded UI assumptions.
+Only later real-world reflection can support a durable interpretation.
 
-Each level is computed from XP. A level can be crossed only once in history/presentation.
+Reflection outcomes:
 
-## Territories
+- CONFIRM
+- PARTIAL
+- REJECT
+- UNCERTAIN
+- REVISE
+- PRIVATE
 
-Territory states:
+Rejected interpretations remain remembered strongly enough not to be repeatedly reasserted.
 
-`fogged → discovered → exploring → charted → deeply-charted`
+## Journal
 
-Progression depends on **dimension coverage**, not turn count. Evidence records carry territory IDs and dimensions. Coverage ratio deterministically maps to territory state.
+Journal is the primary self-discovery input.
 
-The political territory is explicitly dimensioned by the source with authority, legitimacy, state, democracy, economics, property, labor, justice, speech, institutions, borders, social liberty, equality, environment, technology, and change.
+A saved journal entry does not require a preceding question.
 
-Other bootstrap territory labels are source-derived from required assessment/Vault domains and remain replaceable until fuller canonical campaign naming is supplied.
+Entries support:
 
-## Quests
+- typed input;
+- optional speech-to-text input;
+- privacy;
+- retraction;
+- linked reflections;
+- linked adventures;
+- provenance.
 
-Quests are deterministic state records with target counts/status/bonus. The first bootstrap quest is a synthetic onboarding survey task so the vertical slice can demonstrate quest progress and completion without private content.
+Participation may earn ordinary deterministic progress, but emotional intensity must never produce bonus rewards.
 
-## Unlocks
+## Knowledge Gap Engine
 
-Core agency controls are not unlocks. They are permanent commands.
+Gap types:
 
-Optional game moves may unlock by numeric level. Unlock reconciliation runs after deterministic events and de-duplicates by unlock ID.
+- unknown;
+- contradiction;
+- change;
+- underexplored;
+- curiosity.
 
-## Achievements
+Selection is deterministic.
 
-Achievements are computed from state predicates and de-duplicated. A model may emit an `achievementCandidate` string only as conversational metadata; that string cannot directly create an achievement.
+Scoring may consider:
 
-## Boss Fights
+- undercoverage;
+- age since last exploration;
+- explicit Greyson interest;
+- contradiction relevance;
+- recent journal salience;
+- theme diversity;
+- privacy eligibility;
+- recent-domain cooldown.
 
-A Boss Fight is a deterministic, territory-scoped synthesis encounter defined in `src/game/data.ts` and governed by `src/game/encounters.ts`.
+Do not rank trauma, pain, or vulnerability higher because they are dramatic.
 
-Availability is computed from campaign state alone: the move must be unlocked by level, the territory must already carry at least `minCoveredDimensions` evidenced non-private dimensions, and the boss must not already be resolved. The Cartographer has no say in whether a Boss Fight is offered.
+## Adventure engine
 
-The plan is three stages built only from dimensions the player has already evidenced:
+Adventure kinds include:
 
-| Stage | What it tests |
-|---|---|
-| `priority` | Which of two mapped commitments wins when they collide, and what decides it |
-| `tradeoff` | The concrete cost of keeping the commitment that won |
-| `contradiction` | Which mapped position holds when it is expensive to hold |
+- social dilemma;
+- investigation;
+- rescue/support;
+- exploration;
+- negotiation;
+- absurd comedy;
+- ethical conflict;
+- creative/building challenge;
+- memory echo;
+- relationship/companion scene;
+- mystery/puzzle;
+- survival/escape;
+- combat-forward story;
+- pure-fun wildcard.
 
-The engine owns stage progress, completion, the fixed XP reward, and the resulting achievement. The mock supplies stage wording only; stage skeletons persist as kind, dimensions and evidence ids, never as model-authored text.
+Ordinary structure:
 
-A Boss Fight must never trap the player. `PASS` resolves a stage at no XP cost, withdrawing preserves stage progress for later resumption, `STOP` blocks submission until the session resumes, and marking a stage's dimension `PRIVATE` retires that stage. Completion still occurs in quiet mode; only the celebration is suppressed.
+1. Hook
+2. Approach
+3. Complication
+4. Encounter
+5. Choice / Consequence
+6. Optional Reflection
 
-## Mystery Doors
+The engine owns lifecycle, eligibility, persistence, completion/withdrawal, consequences, and recurrence rules.
 
-A Mystery Door pairs two territories that each already hold enough active, non-private evidence for a cross-territory question to mean something. Doors surface connections, shared costs and contradictions between mapped regions rather than arbitrary extra questions.
+Natural-language actions enter through a bounded submission boundary. The model may explain impossible actions in-world but cannot silently mutate deterministic state to make them true.
 
-Eligibility, pairing, opening, completion and reward are all deterministic. Door identifiers are stable and order-independent (`door_<a>__<b>` with the territory ids sorted), so the same pairing keeps the same identity across sessions and exports.
+Completed adventures stay in history. The same seed cannot regenerate as though it never happened. Recurring themes require materially different forms and cooldown.
 
-Privacy rules are absolute:
+Greyson may permanently retire an unwanted exploration path.
 
-- a Door is never built from a private dimension;
-- a private topic is never required to open or complete a Door;
-- marking a topic private, or retracting the answer behind a Door's evidence, retires that unresolved Door.
+## Pure-fun law
 
-A Door may be left unopened indefinitely. Campaign completion never depends on one. Completing a Door awards a fixed XP reward and records a cross-territory Insight as a hypothesis, not a verdict.
+Some adventures intentionally have no learning target.
 
-## Insight Cards
+Pure-fun play is not failed analysis. It is required product behavior.
 
-Insights are hypotheses with evidence references and status. A player can:
+## Combat
 
-- confirm
-- partly accept (future enhancement)
-- reject
-- ask why/show evidence (future enhancement)
+Universal actions:
 
-Insight confirmation/rejection is history-bearing state.
+- ATTACK
+- TECHNIQUE
+- GUARD
+- ACT
+- LEAVE
 
-## Private topics
+Initial objective families:
 
-`PRIVATE` stores the active question dimension/topic in `privateTopics`. The mock question selector filters those dimensions out. Future model context compilation must do the same.
+- defeat;
+- survive N turns;
+- escape;
+- protect;
+- interrupt;
+- pacify/calm;
+- break/reach object;
+- hold position;
+- escort;
+- discover correct ACT interaction.
 
-## Serious/quiet state
+Initial gimmick families may include shielded, charging, counterattacking, enraged, healing, swarm, linked pair, stance-changing, mimic/disguise, unstable terrain, morale/fear, timed vulnerability, environmental hazard, ally in danger, or an enemy that should not be killed.
 
-`SERIOUS` switches presentation to `quiet` immediately. Progression may continue internally, but celebratory level/unlock/achievement presentation is not surfaced while quiet mode is active.
+Ordinary encounters should usually resolve in roughly 2–5 meaningful player turns.
 
-## Retraction
+### Deterministic combat authority
 
-Answer retraction marks the turn retracted and removes/invalidates evidence derived only from that turn. Derived territory coverage is then recomputed. Retraction must not silently erase the revision history event itself.
+The combat engine owns:
+
+- HP;
+- damage;
+- turn order;
+- technique costs/cooldowns;
+- statuses;
+- enemy intent;
+- objective progress;
+- outcome;
+- rewards;
+- persistence.
+
+The model may provide:
+
+- narration;
+- contextual description;
+- enemy flavor from approved content;
+- ACT wording;
+- consequence prose;
+- permitted encounter skin.
+
+The model may not author authoritative HP changes, rewards, success flags, or turn order.
+
+### Leave/fail-forward
+
+LEAVE is a first-class action where permitted.
+
+Escape, withdrawal, defeat, surrender, or pacification should usually create a different story state rather than a punishment loop.
+
+### No grind
+
+Forbidden:
+
+- random encounter spam;
+- required grinding;
+- farmable low-information fights for XP;
+- loot treadmill;
+- gacha;
+- escalating gear rarity;
+- large optimization trees.
+
+## Progression
+
+Progression remains deterministic.
+
+Existing XP/level/territory systems may continue while v2 evolves, but they must not become the emotional center of the product.
+
+Useful progress increasingly comes from:
+
+- charting regions through supported evidence;
+- completing adventures;
+- discoveries;
+- resolving reflections;
+- revising old beliefs;
+- cross-region connections;
+- story objectives;
+- fixed non-grindable combat/story milestones.
+
+No bonus for painful disclosure.
+
+## Evidence and provenance
+
+Evidence may derive from explicit real-world journal/reflection material under the evidence rules.
+
+Model inferences remain model-proposed.
+
+Adventure behavior alone cannot produce confirmed evidence.
+
+Retraction/PRIVATE propagation must retire every derived item that depends exclusively on the retired source.
+
+Contradictions remain explicit history-bearing state.
+
+## Adventure memory
+
+Memory records may describe:
+
+- characters;
+- places;
+- events;
+- relationships;
+- promises;
+- objects.
+
+Each memory has stable identity, provenance, privacy state, retirement state, and bounded retrieval rules.
+
+## Atlas Snapshots
+
+Snapshot eligibility is deterministic.
+
+Snapshots are immutable historical syntheses. New evidence creates a new Snapshot rather than rewriting the old one.
+
+There is no terminal "Greyson is complete" game state.
+
+Legacy `CAMPAIGN_COMPLETED` may remain only for compatibility while it is retired from new product semantics.
+
+## Bosses and Mystery Doors
+
+Existing deterministic Boss Fight and Mystery Door authority remains protected.
+
+They migrate into the new adventure grammar without surrendering:
+
+- eligibility;
+- availability;
+- rewards;
+- privacy;
+- PASS/PRIVATE/STOP behavior;
+- withdrawal safety;
+- deterministic completion authority.
+
+Bosses become multi-scene synthesis adventures.
+
+Mystery Doors become cross-region story events.
+
+Neither is mandatory and neither may trap the player.
+
+## World consequences
+
+Adventure outcomes may deterministically affect:
+
+- NPC availability;
+- route traces;
+- environmental state;
+- props;
+- dialogue;
+- promises;
+- recurring enemies;
+- future scene eligibility;
+- cosmetic world state.
+
+All consequence state persists locally and round-trips through export/import.
+
+## Accessibility mechanics
+
+Timed attack/guard input is optional.
+
+Rules:
+
+- generous timing;
+- base action still occurs on a miss;
+- reduced-motion mode does not depend on motion-only timing cues;
+- no frame-perfect mechanic;
+- deterministic test hooks replace wall-clock flakiness.
