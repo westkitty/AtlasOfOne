@@ -62,7 +62,6 @@ export interface AgencySheetProps {
   paused: boolean;
   quiet: boolean;
   sass: SassLevel;
-  statusText: string;
   onClose: () => void;
   onStopToggle: () => void;
   onPrivate: () => void;
