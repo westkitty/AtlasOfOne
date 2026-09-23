@@ -87,7 +87,7 @@ interface AdventureSeed {
 }
 ```
 
-`AdventureKind` is an Adventure-lane registry type, not provider-free text. The first required templates are `investigation`, `social-dilemma`, and `pure-fun`; D05 does not make that initial catalog an exhaustive permanent union.
+`AdventureKind` is an Adventure-lane registry type, not provider-free text. The plan requires initial investigation, social-dilemma, and pure-fun templates, but D05 does not invent or freeze their exact registry IDs as an exhaustive permanent union. A00/content-contract work owns that registry behind this stable type.
 
 Rules:
 
@@ -158,16 +158,37 @@ Rules:
 
 #### Authority resolution
 
-The master plan contains one narrow internal mismatch:
+The master plan contains two descriptions that look inconsistent only if one assumes every UI choice must be the same field:
 
-- **S01 — section 7.2 illustrative type:** `ReflectionRecord.status` lists `pending | confirmed | partial | rejected | uncertain`, while explicitly stating exact TypeScript naming may change but semantic contracts should not.
-- **S02 — section 13.2:** Reflection has six user outcomes: Confirm, Partial, Reject, Uncertain, Revise, Private.
+- **S01 — section 7.2 illustrative type:** the record carries epistemic states `pending | confirmed | partial | rejected | uncertain`, while explicitly saying exact TypeScript naming may change but semantic contracts should not.
+- **S02 — section 13.2:** the user-facing Reflection choices are Confirm, Partial, Reject, Uncertain, Revise, Private.
 - **S03 — section 3.1:** Greyson must be able to confirm, partially accept, reject, revise, retract, mark private, or leave uncertain.
-- **S04 — packet RF01:** UI acceptance explicitly requires Confirm / Partial / Reject / Uncertain / Revise / Private.
+- **S04 — RF05 and RF09:** revision provenance and Reflection privacy/retraction are separate implementation packets.
 
-**Resolution:** S02/S03/S04 govern the semantic outcome set. S01 is an incomplete illustrative union, not authority to delete two required outcomes. The persisted record therefore represents all six outcomes.
+**Resolution:** there is no need to collapse all six UI decisions into one status enum. The governing contract is three orthogonal facts:
+
+1. the explicit decision Greyson made;
+2. the epistemic state of the interpretation;
+3. whether the record is private.
+
+That preserves S01's five epistemic states while also preserving every S02/S03 user action and the independent privacy/provenance work required by S04.
 
 ```ts
+type ReflectionDecision =
+  | 'confirm'
+  | 'partial'
+  | 'reject'
+  | 'uncertain'
+  | 'revise'
+  | 'private';
+
+type ReflectionEpistemicStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'partial'
+  | 'rejected'
+  | 'uncertain';
+
 interface ReflectionRecord {
   id: string;
   sourceKind: 'journal' | 'adventure' | 'contradiction' | 'insight';
@@ -175,27 +196,23 @@ interface ReflectionRecord {
   question: string;
   response: string;
   interpretation?: string;
-  status:
-    | 'pending'
-    | 'confirmed'
-    | 'partial'
-    | 'rejected'
-    | 'uncertain'
-    | 'revised'
-    | 'private';
+  decision?: ReflectionDecision;
+  epistemicStatus: ReflectionEpistemicStatus;
+  privacy: 'normal' | 'private';
   createdAt: string;
 }
 ```
 
-Outcome rules:
+Decision rules:
 
-- `confirmed`: interpretation may become eligible for deterministic evidence conversion when the response itself supports it.
-- `partial`: preserve accepted and unaccepted nuance; do not silently promote the full interpretation.
-- `rejected`: remain history-bearing anti-repeat context; zero confirmed-evidence authority.
-- `uncertain`: remain unresolved; zero confirmed-evidence authority.
-- `revised`: deterministic RF05 logic must link/amend the older provenance rather than overwrite history.
-- `private`: retain locally but structurally exclude the record and exclusive derivatives from provider context.
-- `pending`: proposal exists but Greyson has not decided.
+- no `decision` means Greyson has not acted yet and `epistemicStatus` is `pending`;
+- `confirm` resolves the interpretation to `confirmed`;
+- `partial` resolves it to `partial` and deterministic conversion must preserve the rejected/unaccepted remainder;
+- `reject` resolves it to `rejected`, remains history-bearing anti-repeat context, and has zero confirmed-evidence authority;
+- `uncertain` resolves it to `uncertain` and has zero confirmed-evidence authority;
+- `revise` records that Greyson supplied a replacement/amendment; RF05 owns the provenance update and the revised response may become explicit player-stated evidence only through deterministic conversion;
+- `private` sets `privacy: 'private'`, closes the topic under RF09/M06 rules, and does **not** falsely imply rejection, uncertainty, or confirmation;
+- privacy remains orthogonal so an already-confirmed/partial/revised historical record can later be withheld without destroying its epistemic history.
 
 No AdventureObservation may transition directly into confirmed evidence without a Reflection response or another explicit real-world source.
 
