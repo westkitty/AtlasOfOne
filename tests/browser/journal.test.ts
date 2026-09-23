@@ -128,18 +128,45 @@ describe('v2 blank Journal user path (J02/J03)', () => {
     expect(turnRequests).toBe(beforeTurnRequests);
   });
 
+  it('same-task double save creates exactly one additional Journal entry', async () => {
+    const before = await persistedState();
+    const beforeXp = before.xp;
+    const beforeTurns = structuredClone(before.turns);
+    const beforeEvidence = structuredClone(before.evidence);
+    const beforeTurnRequests = turnRequests;
+
+    await page.click('[data-testid="open-journal"]');
+    await page.fill('[data-testid="journal-entry-input"]', 'Synthetic duplicate-save guard entry.');
+
+    await page.evaluate(() => {
+      const button = document.querySelector('[data-testid="journal-save"]') as HTMLButtonElement | null;
+      if (!button) throw new Error('Journal save button missing.');
+      button.click();
+      button.click();
+    });
+
+    await expect.poll(async () => (await persistedState())?.journalEntries?.length ?? 0).toBe(2);
+    const after = await persistedState();
+
+    expect(after.journalEntries.filter((entry: any) => entry.text === 'Synthetic duplicate-save guard entry.')).toHaveLength(1);
+    expect(after.xp).toBe(beforeXp);
+    expect(after.turns).toEqual(beforeTurns);
+    expect(after.evidence).toEqual(beforeEvidence);
+    expect(turnRequests).toBe(beforeTurnRequests);
+  });
+
   it('restores the saved Journal entry from IndexedDB after a full reload', async () => {
     await page.reload({ waitUntil: 'load' });
     await wakeAtlas(page);
     await page.waitForSelector('[data-testid="world"]');
 
     const restored = await persistedState();
-    expect(restored.journalEntries).toHaveLength(1);
+    expect(restored.journalEntries).toHaveLength(2);
     expect(restored.journalEntries[0].text).toBe(SYNTHETIC_JOURNAL);
 
     await page.click('[data-testid="open-journal"]');
     await page.waitForSelector('[data-testid="journal-composer"]');
-    expect(await page.textContent('[data-testid="journal-saved-count"]')).toContain('1 saved entry');
+    expect(await page.textContent('[data-testid="journal-saved-count"]')).toContain('2 saved entries');
   });
 
   it('closing preserves an unsaved local draft without creating durable state', async () => {
@@ -147,7 +174,7 @@ describe('v2 blank Journal user path (J02/J03)', () => {
     await page.click('[data-testid="journal-close"]');
     await page.locator('[data-testid="journal-composer"]').waitFor({ state: 'detached' });
 
-    expect((await persistedState()).journalEntries).toHaveLength(1);
+    expect((await persistedState()).journalEntries).toHaveLength(2);
 
     await page.click('[data-testid="open-journal"]');
     await page.waitForSelector('[data-testid="journal-composer"]');
