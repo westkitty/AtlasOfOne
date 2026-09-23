@@ -108,7 +108,25 @@ describe('Combat core state/reducer (C01)', () => {
     }))).toThrow('Duplicate combatant id');
 
     expect(() => validateCombatDefinition(definition({
+      combatants: [
+        { id: 'greyson', label: 'Greyson', side: 'player', maxHp: 100, startingHp: 50 },
+        { id: 'enemy_1', label: 'Synthetic Foe', side: 'enemy', maxHp: 48 }
+      ]
+    }))).toThrow('player startingHp must use the C00 baseline');
+
+    expect(() => validateCombatDefinition(definition({
+      combatants: [
+        { id: 'greyson', label: 'Greyson', side: 'player', maxHp: 100, techniqueCharges: 9 },
+        { id: 'enemy_1', label: 'Synthetic Foe', side: 'enemy', maxHp: 48 }
+      ]
+    }))).toThrow('player techniqueCharges must use the C00 baseline');
+
+    expect(() => validateCombatDefinition(definition({
       rewards: [{ id: 'xp_without_amount', kind: 'xp' }]
     }))).toThrow('requires a fixed amount');
+
+    expect(() => validateCombatDefinition(definition({
+      rewards: [{ id: 'fractional_xp', kind: 'xp', amount: 1.5 }]
+    }))).toThrow('amount must be a non-negative integer');
   });
 });
