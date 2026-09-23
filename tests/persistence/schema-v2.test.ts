@@ -10,18 +10,20 @@ import { reflectionRecordSchema } from '../../src/reflection/schema';
 const fixture = (name: string) =>
   JSON.parse(readFileSync(new URL(`../fixtures/v1/${name}`, import.meta.url), 'utf8'));
 
-describe('schema-v2 surface (M01)', () => {
-  it('keeps v1 as the live schema and leaves the canonical v1 parser valid', () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(1);
+describe('schema-v2 surface', () => {
+  it('activates v2 while preserving the canonical v1 parser as historical input authority', () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe(2);
 
     const currentV1 = campaignStateSchemaV1.parse(fixture('canonical-current-v1.json'));
     const legacyV1 = campaignStateSchemaV1.parse(fixture('canonical-legacy-v1.json'));
 
     expect(currentV1.schemaVersion).toBe(1);
     expect(legacyV1.schemaVersion).toBe(1);
+    expect(migrateCampaign(currentV1).schemaVersion).toBe(2);
+    expect(migrateCampaign(legacyV1).schemaVersion).toBe(2);
   });
 
-  it('defines v2 as a separate shape with inert empty defaults and preserves legacy fields', () => {
+  it('defines v2 with inert empty defaults and preserves legacy fields', () => {
     const v1 = campaignStateSchemaV1.parse(fixture('canonical-current-v1.json'));
     const v2 = campaignStateSchemaV2.parse({ ...v1, schemaVersion: 2 });
 
@@ -44,11 +46,10 @@ describe('schema-v2 surface (M01)', () => {
     expect(v2.finalAssessment).toEqual(v1.finalAssessment);
   });
 
-  it('does not activate v2 migration early', () => {
+  it('accepts already-migrated v2 state without semantic change', () => {
     const v1 = campaignStateSchemaV1.parse(fixture('canonical-current-v1.json'));
     const candidateV2 = campaignStateSchemaV2.parse({ ...v1, schemaVersion: 2 });
-
-    expect(() => migrateCampaign(candidateV2)).toThrow('Unsupported Atlas schemaVersion: 2');
+    expect(migrateCampaign(candidateV2)).toEqual(candidateV2);
   });
 
   it('freezes all fourteen initial Adventure kinds and refuses free-text additions', () => {
