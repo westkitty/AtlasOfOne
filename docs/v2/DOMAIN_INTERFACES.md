@@ -165,13 +165,14 @@ The master plan contains two descriptions that look inconsistent only if one ass
 - **S03 — section 3.1:** Greyson must be able to confirm, partially accept, reject, revise, retract, mark private, or leave uncertain.
 - **S04 — RF05 and RF09:** revision provenance and Reflection privacy/retraction are separate implementation packets.
 
-**Resolution:** there is no need to collapse all six UI decisions into one status enum. The governing contract is three orthogonal facts:
+**Resolution:** there is no need to collapse all six UI decisions into one status enum. The governing contract is four orthogonal axes:
 
 1. the explicit decision Greyson made;
 2. the epistemic state of the interpretation;
-3. whether the record is private.
+3. whether the record is private;
+4. whether the history-bearing record is active or later retracted.
 
-That preserves S01's five epistemic states while also preserving every S02/S03 user action and the independent privacy/provenance work required by S04.
+That preserves S01's five epistemic states while also preserving every S02/S03 user action and the independent privacy/provenance/retraction work required by S04.
 
 ```ts
 type ReflectionDecision =
@@ -191,7 +192,7 @@ type ReflectionEpistemicStatus =
 
 interface ReflectionRecord {
   id: string;
-  sourceKind: 'journal' | 'adventure' | 'contradiction' | 'insight';
+  sourceKind: 'journal' | 'adventure' | 'contradiction' | 'insight' | 'pattern' | 'snapshot';
   sourceIds: string[];
   question: string;
   response: string;
@@ -203,6 +204,16 @@ interface ReflectionRecord {
   createdAt: string;
 }
 ```
+
+Source rules:
+
+- `journal` points to JournalEntry IDs;
+- `adventure` points to AdventureObservation IDs, never raw fictional actions as self-evidence;
+- `contradiction` and `insight` point to the corresponding current records;
+- `pattern` may carry multiple confirmed provenance source IDs;
+- `snapshot` points to AtlasSnapshot IDs participating in a comparison.
+
+The added `pattern` and `snapshot` variants reconcile the illustrative section 7.2 union with the explicit Reflection sources promised by section 13.1.
 
 Decision rules:
 
