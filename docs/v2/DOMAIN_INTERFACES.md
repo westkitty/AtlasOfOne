@@ -295,9 +295,10 @@ atlasSnapshots: AtlasSnapshot[];
 
 Contract rules:
 
-- schema version becomes `2` when these durable fields enter the schema;
-- M01 changes shape only; it does not invent populated data;
-- M02 owns deterministic v1 -> v2 migration;
+- M01 defines a distinct v2 type/schema surface with these empty-default collections but does **not** mutate the semantics of `campaignStateSchemaV1`, flip the live `CURRENT_SCHEMA_VERSION`, or strand existing v1 IndexedDB/import data before a migration exists;
+- M02 owns the first deterministic v1 -> v2 migration and the coordinated activation of schema version `2`;
+- the v1 parser remains frozen as historical input authority for canonical M00 fixtures;
+- v2 migration starts from a validated v1 object/copy, never by destructively editing the only durable original;
 - M03 owns historical FinalAssessment -> Snapshot migration;
 - legacy `turns`, Boss/Mystery state, `worldJourney`, settings, and legacy `finalAssessment` compatibility remain preserved through the migration sequence;
 - later schema-v2 additions must remain explicit/defaulted and cannot silently reinterpret existing values.
