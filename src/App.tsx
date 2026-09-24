@@ -808,7 +808,9 @@ export default function App() {
   };
 
   const closeJournal = () => {
-    if (voiceState !== 'idle') cancelVoice();
+    // Always invalidate the capture generation. React state may still read
+    // "idle" during the same task that started permission/capture.
+    cancelVoice();
     setJournalOpen(false);
   };
 
