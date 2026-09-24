@@ -1,4 +1,5 @@
 import type { JournalEntry } from './schema';
+import type { VoiceState } from '../voice/types';
 
 export interface JournalComposerProps {
   value: string;
@@ -7,6 +8,14 @@ export interface JournalComposerProps {
   onSave: () => void;
   onClose: () => void;
   latestEntry?: JournalEntry;
+  dictationSupported: boolean;
+  dictationState: VoiceState;
+  dictationStatusLabel: string;
+  micMeterLive: boolean;
+  micLevel: number;
+  onStartDictation: () => void;
+  onStopDictation: () => void;
+  onCancelDictation: () => void;
   onMakeLatestPrivate: () => void;
   onRetractLatest: () => void;
 }
@@ -14,10 +23,9 @@ export interface JournalComposerProps {
 /**
  * Blank, player-initiated Journal surface.
  *
- * This is deliberately not a Cartographer question form. It accepts Greyson's
- * text without a preceding prompt. Save plus latest-entry PRIVATE/retract
- * intent stays local; provider responses, STT and history navigation belong to
- * later Journal packets.
+ * Dictation is optional input only. Its transcript lands in this same editable
+ * draft and never saves/submits itself. Provider responses, Reflection and
+ * Adventure linking belong to later packets.
  */
 export function JournalComposer({
   value,
@@ -26,9 +34,22 @@ export function JournalComposer({
   onSave,
   onClose,
   latestEntry,
+  dictationSupported,
+  dictationState,
+  dictationStatusLabel,
+  micMeterLive,
+  micLevel,
+  onStartDictation,
+  onStopDictation,
+  onCancelDictation,
   onMakeLatestPrivate,
   onRetractLatest
 }: JournalComposerProps) {
+  const dictationBusy =
+    dictationState === 'requesting-permission'
+    || dictationState === 'listening'
+    || dictationState === 'transcribing';
+
   return (
     <section
       className="journal-composer-overlay"
@@ -67,6 +88,61 @@ export function JournalComposer({
           placeholder="Start anywhere."
         />
       </label>
+
+      <section className="journal-dictation" data-testid="journal-dictation" aria-label="Journal dictation">
+        <div className="journal-dictation-copy">
+          <b>Dictate into this draft</b>
+          <span data-testid="journal-dictation-status" aria-live="polite">
+            {!dictationSupported && dictationState === 'idle'
+              ? 'Microphone dictation unavailable — typing still works.'
+              : dictationStatusLabel}
+          </span>
+        </div>
+
+        {(dictationState === 'idle' || dictationState === 'error') && (
+          <button
+            type="button"
+            data-testid="journal-dictate"
+            disabled={!dictationSupported}
+            onClick={onStartDictation}
+          >
+            {dictationState === 'error' ? 'Try dictation again' : 'Dictate'}
+          </button>
+        )}
+
+        {dictationState === 'listening' && (
+          <div className="journal-dictation-live">
+            <div
+              className={`mic-visualizer${micMeterLive ? '' : ' is-static'}`}
+              data-testid="journal-mic-visualizer"
+              data-level={Math.round(micLevel * 100)}
+              data-metering={micMeterLive ? 'live' : 'unavailable'}
+              role="img"
+              aria-label={micMeterLive ? 'Microphone is live and listening' : 'Microphone is recording'}
+            >
+              {[0.55, 0.8, 1, 0.8, 0.55].map((weight, index) => (
+                <span
+                  key={index}
+                  className="mic-bar"
+                  style={{ transform: `scaleY(${(0.18 + micLevel * weight * 0.82).toFixed(3)})` }}
+                />
+              ))}
+            </div>
+            <button type="button" className="primary" data-testid="journal-dictation-done" onClick={onStopDictation}>
+              Done speaking
+            </button>
+            <button type="button" data-testid="journal-dictation-cancel" onClick={onCancelDictation}>
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {(dictationState === 'requesting-permission' || dictationState === 'transcribing') && (
+          <button type="button" data-testid="journal-dictation-cancel" onClick={onCancelDictation}>
+            Cancel
+          </button>
+        )}
+      </section>
 
       {latestEntry && (
         <aside className="journal-latest-controls" data-testid="journal-latest-controls">
@@ -109,7 +185,7 @@ export function JournalComposer({
           type="button"
           className="primary"
           data-testid="journal-save"
-          disabled={!value.trim()}
+          disabled={!value.trim() || dictationBusy}
           onClick={onSave}
         >
           Save locally
