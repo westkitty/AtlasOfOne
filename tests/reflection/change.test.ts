@@ -42,14 +42,33 @@ describe('changed-mind/change-over-time candidate detection (RF07)', () => {
     )];
 
     expect(detectChangeOverTimeCandidate(state, reflection.id)).toEqual({
-      kind: 'explicit-revision',
+      kind: 'revision-review',
       reflectionId: 'reflection_change_fixture',
       sourceKind: 'journal',
       sourceIds: ['journal_change_fixture'],
-      priorClaim: 'I always avoid risk.',
+      priorInterpretation: 'I always avoid risk.',
+      priorAuthority: 'atlas-interpretation',
       replacementClaim: 'I avoid unnecessary risk, but I will take it when someone needs me.',
-      changedAt: '2026-01-03T04:05:06.000Z'
+      replacementAuthority: 'greyson-revision',
+      reflectionCreatedAt: '2026-01-03T04:05:06.000Z',
+      requiresChangeConfirmation: true
     });
+  });
+
+  it('never relabels Atlas\'s prior interpretation as Greyson\'s prior belief', () => {
+    const { state, reflection } = fixtureState('Atlas once guessed this.');
+    state.reflections = [decideReflection(reflection, 'revise', 'Greyson replaces it.')];
+
+    const candidate = detectChangeOverTimeCandidate(state, reflection.id);
+    expect(candidate).toMatchObject({
+      priorInterpretation: 'Atlas once guessed this.',
+      priorAuthority: 'atlas-interpretation',
+      replacementClaim: 'Greyson replaces it.',
+      replacementAuthority: 'greyson-revision',
+      requiresChangeConfirmation: true
+    });
+    expect(candidate).not.toHaveProperty('priorClaim');
+    expect(candidate).not.toHaveProperty('changedAt');
   });
 
   it('does not infer change from Confirm, Partial, Reject, Uncertain, Private, or pending state', () => {
