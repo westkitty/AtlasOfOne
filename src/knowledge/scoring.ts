@@ -80,7 +80,7 @@ export function scoreKnowledgeGap(
   const nowMs = parseInstant(input.now, 'now');
   const territoryById = new Map(input.territories.map((territory) => [territory.id, territory]));
 
-  const territories = gap.territoryIds.map((territoryId) => {
+  const territories = [...new Set(gap.territoryIds)].map((territoryId) => {
     const territory = territoryById.get(territoryId);
     if (!territory) throw new Error(`Unknown KnowledgeGap territory: ${territoryId}`);
     return territory;
