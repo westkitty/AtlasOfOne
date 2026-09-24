@@ -144,6 +144,40 @@ describe('J04 Journal STT input', () => {
     expect(turnCount).toBe(0);
   });
 
+  it('invalidates permission work when Journal closes before microphone acquisition finishes', async () => {
+    await page.click('[data-testid="open-journal"]');
+    await page.fill('[data-testid="journal-entry-input"]', 'Permission-race draft.');
+
+    await page.evaluate(() => {
+      const mediaDevices = navigator.mediaDevices as MediaDevices & { __atlasOriginalGetUserMedia?: typeof navigator.mediaDevices.getUserMedia };
+      mediaDevices.__atlasOriginalGetUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
+      mediaDevices.getUserMedia = (() =>
+        new Promise<MediaStream>((resolve) => {
+          window.setTimeout(() => {
+            resolve({ getTracks: () => [{ stop() {} }] } as unknown as MediaStream);
+          }, 250);
+        })) as typeof navigator.mediaDevices.getUserMedia;
+    });
+
+    const beforeTranscribe = transcribeCount;
+    await page.click('[data-testid="journal-dictate"]');
+    await page.click('[data-testid="journal-close"]');
+    await page.waitForTimeout(450);
+
+    await page.evaluate(() => {
+      const mediaDevices = navigator.mediaDevices as MediaDevices & { __atlasOriginalGetUserMedia?: typeof navigator.mediaDevices.getUserMedia };
+      if (mediaDevices.__atlasOriginalGetUserMedia) {
+        mediaDevices.getUserMedia = mediaDevices.__atlasOriginalGetUserMedia;
+        delete mediaDevices.__atlasOriginalGetUserMedia;
+      }
+    });
+
+    expect(transcribeCount).toBe(beforeTranscribe);
+    await page.click('[data-testid="open-journal"]');
+    expect(await page.inputValue('[data-testid="journal-entry-input"]')).toBe('Permission-race draft.');
+    expect(await page.locator('[data-testid="journal-mic-visualizer"]').count()).toBe(0);
+  });
+
   it('cancels Journal dictation on close so a stale transcript cannot land later', async () => {
     await page.click('[data-testid="open-journal"]');
     await page.fill('[data-testid="journal-entry-input"]', 'Keep this draft.');
