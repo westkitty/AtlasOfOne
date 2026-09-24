@@ -2,7 +2,7 @@
 
 This packet reconciles the master-plan voice subtasks with the already-merged V01 implementation and current integration evidence.
 
-It changes **no runtime code**.
+It changes no voice mechanics. It does correct one stale user-facing onboarding sentence that still promised speech synthesis after the runtime had already become STT-only.
 
 ## Governing v2 voice contract
 
@@ -41,7 +41,7 @@ Current integration revalidation: Atlas validation #129 on `b5a6e4b9510330292e3f
 - **V04 — Remove auto-listen restart dependency:** satisfied; no output-speech lifecycle exists and browser proof confirms no microphone reopen after Atlas text output.
 - **V05 — Preserve mic/STT path:** satisfied; capture, visualizer, silence/end controls, transcription and cancellation remain proven.
 - **V06 — Editable transcript:** satisfied; transcription is placed into the ordinary text editor, can be edited, and requires explicit submit.
-- **V07 — Retire TTS-only tests/docs:** satisfied for canonical/runtime requirements; TTS-only suites were removed and the master plan explicitly records TTS as removed. Historical proof records may still mention TTS as history.
+- **V07 — Retire TTS-only tests/docs:** TTS-only suites were removed and canonical authority records TTS as removed. This closure also repairs the one stale active onboarding sentence that still promised speech synthesis. Historical proof records may still mention TTS as history.
 - **V08 — Source/bundle negative proof:** satisfied continuously by `voice-conversation.test.ts` scanning production source and built JavaScript.
 
 ## Explicit unknowns
