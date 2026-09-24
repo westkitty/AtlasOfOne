@@ -1845,3 +1845,64 @@ html[data-reduced-motion="true"] .world-enter { animation: none; }
   }
 }
 
+
+
+/* ---- v2 Journal privacy controls (J05) ------------------------------- */
+.journal-latest-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+.journal-latest-controls > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.journal-latest-controls b {
+  color: var(--ink);
+  font-size: .78rem;
+}
+.journal-latest-controls span {
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.35;
+}
+.journal-latest-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+.journal-latest-actions button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #111b27;
+  color: var(--ink);
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 750;
+}
+.journal-latest-actions button:disabled {
+  opacity: .58;
+}
+
+@media (max-width: 390px) {
+  .journal-latest-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .journal-latest-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .journal-latest-actions button {
+    width: 100%;
+  }
+}
