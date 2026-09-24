@@ -29,6 +29,15 @@ async function persistedState() {
   });
 }
 
+async function waitForPersistedState(timeoutMs = 10_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await persistedState()) return;
+    await page.waitForTimeout(50);
+  }
+  throw new Error('Timed out waiting for the active Atlas campaign to persist.');
+}
+
 beforeAll(async () => {
   expect(existsSync(DIST), 'run npm run build first').toBe(true);
   host = await serveDist(DIST);
@@ -51,7 +60,7 @@ beforeAll(async () => {
   await page.reload({ waitUntil: 'load' });
   await completeOnboardingIfPresent(page);
   await page.waitForSelector('[data-testid="world"]');
-  await expect.poll(async () => Boolean(await persistedState())).toBe(true);
+  await waitForPersistedState();
 }, 120_000);
 
 afterAll(async () => {
