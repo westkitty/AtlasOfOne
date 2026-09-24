@@ -205,8 +205,9 @@ describe('v2 Reflection human-authority UI (RF01)', () => {
     expect(after.reflections[0].response).toBe('Replacement wording from Greyson.');
     expect(after.reflections[0].epistemicStatus).toBe('pending');
 
-    // The unresolved revision remains available for later RF05 handling.
-    await page.waitForSelector('[data-testid="open-reflection"]');
+    // RF05 can still process the pending revision record, but RF01 must not ask
+    // Greyson to decide the same Reflection again.
+    expect(await page.locator('[data-testid="open-reflection"]').count()).toBe(0);
   });
 
   it('marks a Reflection PRIVATE without changing XP, turns or evidence', async () => {
