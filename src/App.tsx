@@ -342,11 +342,6 @@ export default function App() {
   // Transient surfaces close when the player moves between places.
   useEffect(() => { setMoreOpen(false); }, [screen, talking]);
   useEffect(() => {
-    if (!reflectionOpen || activeReflection) return;
-    setReflectionOpen(false);
-    setReflectionDraft('');
-  }, [reflectionOpen, activeReflection]);
-  useEffect(() => {
     if (!moreOpen) return;
     agencySheetRef.current?.scrollIntoView({ behavior: state.settings.reducedMotion ? 'auto' : 'smooth', block: 'end' });
   }, [moreOpen, state.settings.reducedMotion]);
@@ -779,6 +774,11 @@ export default function App() {
       .sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))[0],
     [state.reflections, reflectionVisibility]
   );
+  useEffect(() => {
+    if (!reflectionOpen || activeReflection) return;
+    setReflectionOpen(false);
+    setReflectionDraft('');
+  }, [reflectionOpen, activeReflection]);
   const {
     activeWaystone,
     dismissWaystone,
