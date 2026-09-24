@@ -7,13 +7,13 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 26,
-  "last_updated": "2026-09-23",
+  "state_revision": 27,
+  "last_updated": "2026-09-24",
   "current_baseline": {
-    "identity": "integration-v2-staging@d21c234",
-    "state": "partially-verified",
-    "last_verified": "2026-09-23T16:39:29Z",
-    "note": "Active development baseline only. It is not deployed; main remains a separate release surface."
+    "identity": "integration-v2-staging@c14b4b7",
+    "state": "verified",
+    "last_verified": "2026-09-24T03:16:50Z",
+    "note": "Verified integration staging baseline only. It is not deployed; main remains the release surface."
   },
   "application_content_baseline": {
     "commit": "b5a3a2f",
@@ -31,10 +31,10 @@
     "note": "Historical predecessor to the Revision 25 production baseline; retained only for lineage."
   },
   "repository_head_at_write": {
-    "commit": "d21c234c6402145ffe6c5d977655625563028853",
+    "commit": "c14b4b7669958fef9a1324e22077afa7fbaf20f1",
     "branch": "integration/atlas-v2-journal-adventure-combat",
     "main_commit": "1b5103333f09884bf87286787e29885fd53d447c",
-    "note": "Integration staging code head before this state/proof reconciliation commit. The state commit will advance integration. v2 runtime work has not merged to main."
+    "note": "Verified integration head before this state/ledger reconciliation commit. V2 runtime work remains off main."
   },
   "scope_boundaries": [
     "Atlas v2 is a mobile-first, local-first React/TypeScript/Vite PWA for Greyson: Journal-first input, Worldwalker as the living game world, optional generated Adventures, lightweight deterministic JRPG-style Combat, Reflection as the firewall between fictional behavior and self-knowledge, and dated revisable Atlas Snapshots.",
@@ -47,12 +47,12 @@
   "linked_parent_state": null,
   "integration_candidate_baseline": {
     "branch": "integration/atlas-v2-journal-adventure-combat",
-    "commit": "d21c234c6402145ffe6c5d977655625563028853",
+    "commit": "c14b4b7669958fef9a1324e22077afa7fbaf20f1",
     "pull_request": 12,
     "draft": true,
-    "ci_run": "35889470764",
-    "unit": "286/286 across 37 files",
-    "browser": "130/130 across 14 files",
+    "ci_run": "35950277477",
+    "unit": "355/355 across 51 files",
+    "browser": "139/139 across 16 files",
     "build": "passed",
     "deployed": false
   }
@@ -67,23 +67,23 @@
 - **Primary root or artifact:** repository root.
 - **Target environment:** Current evergreen mobile browsers first; installable PWA; Cloudflare Worker deployment live.
 - **Canonical authority:** Current explicit user instructions, then repository source-of-truth documents distilled from supplied planning/source material and accepted asset mapping.
-- **Governed scope:** Revision 25 remains the last verified deployed v1 production runtime. The active v2 integration cycle has completed authority adoption, baseline proof, TTS removal/STT simplification, canonical v1 migration fixtures, protected-capability compilation, and behavior-preserving App decomposition through D04. D05 interface freeze is under review. Schema v2, Journal persistence, Reflection, Knowledge Gaps, Adventure runtime, Combat runtime, memory, Snapshots, full vertical-slice integration, mobile/non-Chrome proof, Greyson pilot, release candidate review and deployment remain incomplete. No percentage-complete claim is authoritative.
+- **Governed scope:** Revision 25 remains the last verified deployed production runtime. The active v2 integration branch now has verified schema-v2 activation and v1 migration through M07, historical FinalAssessment->Snapshot preservation, structural v2 provenance retirement, Journal domain/persistence/blank UI/typed save/privacy/retraction through J05, Reflection state-machine foundation RF00, Knowledge selectors K00, deterministic Combat foundation C01 plus ATTACK C02, and STT-only voice closure V01-V08. K01/K05 are in review. Adventures, Reflection UI/evidence conversion, remaining Knowledge scoring/seed flow, remaining Combat verbs/objectives/UI/persistence, Journal history/linking/provider acknowledgement, new Snapshot generation/history UI, full vertical-slice integration, physical mobile/non-Chrome proof, Greyson pilot, release candidate review and deployment remain incomplete. No percentage-complete claim is authoritative.
 
 - **Explicitly not governed:** Paid-model integration, real Greyson campaign content, 3D/native/account systems.
 
 ## 2. Current Baseline
 
-Atlas currently has four identities that must not be collapsed: authority/source state, v2 integration staging, deployed application content, and live deployment evidence.
+Atlas has four identities that must remain separate: authority/source state, v2 integration staging, deployed application content, and live deployment evidence.
 
 ### 2a. Active v2 development / integration state
 
 - **Repository:** `westkitty/AtlasOfOne`.
 - **Active development branch:** `integration/atlas-v2-journal-adventure-combat`.
-- **Verified code head:** `d21c234c6402145ffe6c5d977655625563028853`.
-- **Integration PR:** #12, still **DRAFT**. It is a staging/review surface, not release authority.
-- **Combined integration proof:** GitHub Actions `Atlas validation #82`, run `35889470764`: **286/286 unit tests across 37 files**, production/PWA build PASS, **130/130 real-Chrome browser tests across 14 files**.
-- D02 Journal shell, D03 encounter shell and D04 Worldwalker orchestration all coexist on this exact head.
-- **Current `main`:** `1b5103333f09884bf87286787e29885fd53d447c`, the merge of v2 authority-adoption PR #11. The v2 runtime implementation in the integration branch has **not** merged to `main`.
+- **Verified integration head:** `c14b4b7669958fef9a1324e22077afa7fbaf20f1`.
+- **Integration PR:** #12, still **DRAFT**. It remains staging/review, not release authority.
+- **Current-head proof:** GitHub Actions `Atlas validation #144`, run `35950277477`: **355/355 unit tests across 51 files**, production/PWA build PASS, **120 precache entries (603.84 KiB)**, **139/139 real-Chrome browser tests across 16 files**.
+- The current head includes schema-v2 activation/migration M02-M07, Journal J00-J05 except J04, Reflection RF00, Knowledge K00, deterministic Combat C01-C02, and closed STT-only voice compatibility V02-V08.
+- **Current `main`:** `1b5103333f09884bf87286787e29885fd53d447c`. None of this v2 runtime work has merged to `main`.
 
 ### 2b. Last verified deployed application-content baseline
 
@@ -91,31 +91,34 @@ Atlas currently has four identities that must not be collapsed: authority/source
 - **Implementation content:** `b5a3a2f`.
 - **Verified production bundle:** `assets/index-CI2VK5XI.js`.
 - **Cloudflare deployment:** `b93894a6-269d-4e93-8343-13dc33397e20`.
-- `main` later advanced to `1b51033` through the authority-adoption documentation merge. This continuation did **not** re-probe the live bundle after that docs merge, so Git HEAD is not being substituted for runtime evidence.
+- `main` later advanced to `1b51033` through authority-adoption documentation. This continuation has not re-probed the live bundle after that docs merge.
 - The v2 integration bundle is not deployed.
 
 ### 2c. Runtime and deployment evidence
 
-- Revision 25 verified live root and `/api/health` HTTP 200 and the production bundle identity above.
-- No v2 packet in this continuation changed Cloudflare configuration, secrets, provider selection, or production data.
-- No live Workers AI inference was required for V01/M00/D00-D04 validation.
-- Workers Builds remains coupled to `main`; therefore any future merge to `main` is a deployment action and remains prohibited until the final release gate.
+- No v2 packet in this integration cycle changed Cloudflare production configuration, secrets, provider selection, or production data.
+- Workers Builds remains coupled to `main`; any future merge to `main` is therefore a deployment action and remains prohibited until the final release gate.
+- Current integration CI proves source/build/Chrome behavior only. It is not production-deployment evidence.
 
 ### 2d. Shared facts
 
-- **Project state:** `partially-verified / v2-integration-in-progress`.
-- Authority is Journal-first; Worldwalker, deterministic Adventure/Combat, Reflection firewall, revisable Snapshots and explicit no-TTS are governing target behavior.
-- The integration runtime is now STT-only and behavior-preservingly decomposed, but schema v2, blank Journal persistence, Reflection, Knowledge Gaps, Adventure runtime, Combat runtime, memory and Snapshots are **not yet implemented**.
-- Existing v1 deterministic engine, persistence, privacy, Boss/Mystery, Worldwalker, offline/PWA and agency behavior remain protected by `docs/v2/CAPABILITY_INVARIANTS.md`.
+- **Project state:** `verified-integration-baseline / v2-in-progress`.
+- Authority remains Journal-first with Worldwalker, deterministic Adventure/Combat, Reflection firewall, revisable Snapshots, local-first persistence and no assistant TTS.
+- Schema v2 is now active on integration and canonical v1 fixtures migrate deterministically; historical FinalAssessment data is preserved as a first historical Snapshot without fabricated provenance.
+- Journal is now a real blank local-first input path: typed saves persist with no Turn/Evidence/XP/provider side effect, and the latest saved entry can be marked PRIVATE or retracted with M06 retirement propagation.
+- Combat currently has deterministic core state/lifecycle plus ATTACK only. No full Combat encounter UI exists yet.
+- Reflection currently has RF00 state semantics only. No Reflection UI/evidence conversion is complete.
+- Knowledge currently has K00 selectors; K01/K05 are in review, not merged.
+- Adventure runtime, memory recurrence, new Snapshot synthesis/history UI and the complete vertical slice remain unimplemented.
 - No percentage-complete claim is authoritative.
 
 ## 3. Artifact Contract
 
-The active v2 integration artifact contains the reconciled source-of-truth documents, the existing React/TypeScript/Vite/Cloudflare/Dexie/Zod/PWA/Vitest stack, deterministic v1 campaign/encounter authority, IndexedDB/export/import foundations, Worldwalker, canonical Greyson/Aerron assets, the Workers AI proposal boundary, **STT-only input with no assistant TTS**, canonical synthetic v1 migration fixtures, the protected-capability manifest, and behavior-preserving presentation/orchestration boundaries in `PresentationControls`, `JournalPanel`, `EncounterPanel` and `useWorldInteraction`.
+The active v2 integration artifact contains the reconciled authority documents; React/TypeScript/Vite/Cloudflare/Dexie/Zod/PWA/Vitest stack; deterministic v1 legacy game/encounter compatibility; active schema-v2 state with deterministic v1 migration; local IndexedDB/export/import/delete; historical FinalAssessment->Snapshot migration; structural provenance retirement; Worldwalker; canonical Greyson/Aerron assets; Workers AI proposal boundary; STT-only input with no assistant TTS; blank local-first Journal with typed save and latest-entry PRIVATE/retraction controls; Reflection state-machine foundations; Knowledge selectors; and deterministic Combat lifecycle plus ATTACK.
 
-Those extracted boundaries are not claims that Journal v2, Adventure, Combat, Reflection, Knowledge Gaps or Snapshots are implemented. They exist so those systems can be added without continuing to grow one monolithic `App.tsx`.
+These foundations do **not** mean the v2 product loop is complete. Missing major runtime work still includes Journal STT/history/linking/provider acknowledgement, Reflection UI/conversion/revision flows, most Knowledge scoring/seed logic, Adventure runtime, most Combat verbs/objectives/UI/persistence, Adventure memory recurrence, current Snapshot generation/history, and end-to-end vertical-slice integration.
 
-**No dependency was added by V01/M00/D00-D04.** Runtime dependencies remain `dexie`, `react`, `react-dom`, `zod`; dev dependencies are unchanged.
+No dependency has been added by the v2 packets through this baseline. Runtime dependencies remain `dexie`, `react`, `react-dom`, `zod`; dev dependencies are unchanged.
 
 The deployed production artifact remains tracked separately in section 2b.
 
@@ -258,6 +261,13 @@ The deployed production artifact remains tracked separately in section 2b.
 - **VER-066:** **TTS removed / STT-only verified on integration.** V01 removes synthesis, voice selection, Voice Lab and output-speech states; dictation produces editable text and never auto-submits/reopens. Feature CI #61 passed **284 unit / 130 browser** tests including source+built-bundle no-TTS scan and background cancellation; merged-integration CI #65 repeated the green proof. Receipt: `docs/v2/proof/V01.md`.
 - **VER-067:** **Canonical v1 migration inputs frozen.** M00 adds current and legacy synthetic schema-v1 exports plus importer tests. CI #62 passed **306 unit / 143 browser** tests; no real Greyson content is present. Receipt: `docs/v2/proof/M00.md`.
 - **VER-068:** **Behavior-preserving App decomposition D01-D04 verified together.** Presentation controls, Journal shell, encounter shell and Worldwalker orchestration were extracted without moving game/provider/persistence authority. Combined integration CI #82 on `d21c234` passed **286/286 unit tests across 37 files**, production/PWA build and **130/130 browser tests across 14 files**, including Worldwalker 10, encounter concurrency 5, encounters 13 and STT-only voice 6. Receipts: `docs/v2/proof/D01.md`, `D02.md`, `D03.md`, `D04.md`.
+- **VER-069:** **Schema-v2 migration foundation closed through M07.** M02 activates schema v2; canonical v1 current/legacy fixtures migrate deterministically; M03 preserves legacy FinalAssessment as one historical Snapshot without invented source IDs; M04/M05 preserve turns, Boss/Mystery state, worldJourney/settings and public transfer validation; M06 structurally retires/withholds v2 derived state from PRIVATE/retracted provenance; M07 proves v1->v2 import, persistence, export, delete, re-import and reload in unit + real Chrome. Current-head CI #144 remains green.
+- **VER-070:** **Journal is a real local-first primary input through J05.** J00 domain helpers preserve exact authored text and stable IDs; J01 reuses whole-CampaignState IndexedDB persistence; J02/J03 provide a one-action blank Journal and typed save with zero Turn/Evidence/XP/provider side effects; J05 marks the latest saved entry PRIVATE or retracted while preserving text/history and immediately applying M06 retirement. CI #144 includes Journal browser 7/7.
+- **VER-071:** **Reflection human-authority state foundation RF00 is merged.** Confirm/Partial/Reject/Uncertain map to explicit epistemic states; PRIVATE is orthogonal and preserves prior substantive response; REVISE returns to pending until provenance work; retraction preserves history and blocks further decisions on that record. No evidence conversion/UI is claimed.
+- **VER-072:** **Deterministic Combat foundation through C02 is merged.** C01 freezes authored CombatDefinition/CombatState/lifecycle and 100 HP / 2 Technique baseline; C02 ATTACK is deterministic 18 damage with optional injected +6 timing bonus, floors HP at zero, and cannot itself advance phase, resolve outcomes, grant rewards, mutate shared CampaignState or create evidence. CI #143/#144 remain green.
+- **VER-073:** **Knowledge foundation K00 is merged.** Stable selectors and deterministic ordering exist without scoring/privacy invention. K01/K05 are an open review packet and are not promoted here.
+- **VER-074:** **V2 voice compatibility packets V02-V08 are closed.** Browser assistant TTS remains absent; STT is bounded editable input; background cancellation/typing fallback/no-auto-reopen/no-TTS source+bundle proof remain green on post-migration integration.
+- **VER-075:** **Current v2 integration head is green.** Atlas validation #144 on `c14b4b7`: **51 unit files / 355 tests**, production/PWA build PASS, **120 precache entries (603.84 KiB)**, **16 browser files / 139 tests**. This is integration evidence, not production deployment evidence.
 
 ## 6. Known Not Working
 
@@ -349,6 +359,11 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **DEC-033:** **V2 voice is STT-only.** Dictation may capture/transcribe one input and place editable text into the visual composer. Atlas replies remain text. There is no assistant TTS, output voice picker, spoken-reply state, automatic post-response listening loop, or acoustic-barge-in requirement.
 - **DEC-034:** **V2 integration is not a release.** All runtime feature packets merge into `integration/atlas-v2-journal-adventure-combat`; `main` remains untouched until the final release gate because Workers Builds couples `main` to deployment.
 - **DEC-035:** **Terminal Final Assessment semantics are retired for v2.** Existing FinalAssessment data is preserved/migrated as historical material, while the target product uses multiple dated revisable Atlas Snapshots with deterministic eligibility and no permanent “Greyson is complete” state.
+
+- **DEC-036:** **Schema v2 is now the active integration persistence version.** Frozen schema-v1 remains historical input authority for migration; new integration campaigns are schema v2. Production remains unchanged until release.
+- **DEC-037:** **Legacy FinalAssessment provenance is not invented.** Migrated historical Snapshots preserve the exact legacy synthesis but use empty source-ID arrays when v1 did not record exact inputs; they remain durable history but do not silently gain future source authority.
+- **DEC-038:** **Journal local save is not analysis.** A Journal save writes only Journal state/updatedAt; it does not create Turn/Evidence/Insight, award XP, or call the provider. PRIVATE/retraction similarly preserve local text/history while structurally changing eligibility.
+- **DEC-039:** **Combat timing remains optional.** Deterministic ATTACK succeeds without timing; timing is an injected bounded bonus, never a mandatory reflex gate.
 
 ## 11. Validation and Evidence Matrix
 
@@ -442,6 +457,20 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - **Repair class:** Rev 25 closes the Worldwalker unification release onto `main`: the cinematic entry/Talk baseline, physical overworld, journey persistence, lifecycle hardening, and deterministic browser proof are merged and deployed. Current verified production bundle: `assets/index-CI2VK5XI.js` from release head `6e720b2`. Open items deliberately left visible: KNOWN-003, KNOWN-006, PND-005, PND-009, PND-013 remainder, UNV-003, UNV-004, UNV-007, UNV-009, UNV-010, UNV-017, UNV-018, UNV-019, UNV-021, UNV-023, UNV-024 and UNK-002.
 
 ## 13. Compact Revision Log
+
+### Revision 27 — 2026-09-24
+
+- **Artifact/source identity:** verified v2 integration head `c14b4b7669958fef9a1324e22077afa7fbaf20f1`; draft PR #12; production `main` remains `1b5103333f09884bf87286787e29885fd53d447c`.
+- **State deltas:**
+  1. Activated schema v2 on integration and closed migration compatibility M02-M07, including historical FinalAssessment->Snapshot preservation, v1/v2 transfer proof, structural provenance retirement and persistence torture.
+  2. Landed Journal foundations J00-J03 and J05: blank one-action Journal, exact-text typed save, IndexedDB/export persistence, no Turn/Evidence/XP/provider side effect, and latest-entry PRIVATE/retraction with transitive retirement.
+  3. Landed RF00 Reflection state semantics without yet claiming Reflection UI/evidence conversion.
+  4. Landed K00 deterministic Knowledge selectors; K01/K05 are in review only.
+  5. Landed C01 Combat state/lifecycle and C02 deterministic ATTACK while preserving the no-model-mechanics/no-mandatory-timing contract.
+  6. Closed voice compatibility V02-V08 and removed stale onboarding TTS promises.
+- **Verification evidence:** GitHub Actions `Atlas validation #144` / run `35950277477` on `c14b4b7`: **355/355 unit tests across 51 files**, production/PWA build PASS, **120 precache entries (603.84 KiB)**, **139/139 real-Chrome browser tests across 16 files**. Focused current-head tests include v2 retirement **10**, Combat core **6**, Combat ATTACK **5**, schema-v2 **6**, persistence torture **2**, Journal privacy **3**, Journal domain **5**, v1->v2 migration **5**, transfer **3**, migration preservation **3**, Journal browser **7**, browser persistence torture **2**.
+- **Not implemented / not verified:** Journal STT/history/linking/provider acknowledgement; Reflection UI/evidence conversion/revision/privacy cascades beyond RF00/M06; K02-K07 beyond K00 and in-review K01/K05; Adventure runtime; Combat beyond ATTACK; Combat UI/persistence; Adventure memory recurrence; current Snapshot eligibility/provider/history UI; physical mobile/Safari/iOS; production deployment.
+- **Deployment state:** no v2 runtime merge to `main`, no v2 deployment, no production secret/provider/config mutation.
 
 ### Revision 26 — 2026-09-23
 

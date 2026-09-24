@@ -34,8 +34,38 @@ This ledger is derived execution state for the Atlas v2 integration cycle. It do
 | F09 | MERGED | foundation | 1c0b749 | docs/v2-execution-contracts | GPT-5.6 Sol | GitHub Actions + GPT-5.6 Sol review | NO | ownership matrix + lane stop rules; CI #90 | docs/v2/proof/F09.md | none | D05,D06,D07 |
 | D05 | MERGED | decomposition | d21c234 | docs/v2-domain-interface-freeze | GPT-5.6 Sol | adversarial semantic review + GitHub Actions | YES only on unresolved contract conflict | reviewed domain interfaces; CI #91; upstream integration #82 | docs/v2/proof/D05.md | none | D06,D07,M01,P00,AS00 |
 | D06 | MERGED | decomposition | 798e3b1 | docs/v2-event-authority-contract | GPT-5.6 Sol | adversarial contract review + GitHub Actions | YES only on unresolved authority conflict | event/mutation authority contract; final CI #97; prior firewall 7/7 | docs/v2/proof/D06.md | none | D07,authority-sensitive lanes |
-| D07 | IN_REVIEW | decomposition | 798e3b1 | docs/v2-ledger-enforcement | GPT-5.6 Sol | GitHub Actions + scope review | NO | ledger/hot-zone enforcement; PR pending | docs/v2/proof/D07.md | CI pending | parallel lane enforcement |
+| D07 | MERGED | decomposition | 798e3b1 | docs/v2-ledger-enforcement | GPT-5.6 Sol | GitHub Actions + scope review | NO | ledger/hot-zone enforcement | docs/v2/proof/D07.md | none | parallel lane enforcement |
 | M01 | MERGED | migration | 798e3b1 | feat/v2-schema-surface | GPT-5.6 Sol | diff-scope review + GitHub Actions | YES only on unresolved schema conflict | schema-v2 6/6; 292 unit; build; 130 browser; final CI #98 | docs/v2/proof/M01.md | none | M02,M06,J00,RF00,K00,N00,S00 |
+| M02 | MERGED | migration | ca794c0 | feat/v2-migration | GPT-5.6 Sol | diff-scope review + GitHub Actions | YES only on unresolved migration conflict | v1->v2 activation; final CI #121 | docs/v2/proof/M02.md | none | M03,M04,M05,M07,J01 |
+| M03 | MERGED | migration | 58cd4a9 | feat/v2-final-assessment-snapshot-migration | GPT-5.6 Sol | provenance review + GitHub Actions | YES only on provenance ambiguity | legacy FinalAssessment->historical Snapshot; CI #119 | docs/v2/proof/M03.md | none | M07,S-lane |
+| M04 | MERGED | migration | 58cd4a9 | test/v2-migration-compatibility | GPT-5.6 Sol | migration parity review + GitHub Actions | NO | legacy turns/encounters/worldJourney/settings preservation | docs/v2/proof/M04.md | none | M07 |
+| M05 | MERGED | migration | 58cd4a9 | test/v2-migration-compatibility | GPT-5.6 Sol | transfer-boundary review + GitHub Actions | NO | schema-v2 export/import validation | docs/v2/proof/M05.md | none | J01,M07 |
+| M06 | MERGED | migration | 6802a34 | feat/v2-wave2-foundations-core | GPT-5.6 Sol | privacy/provenance review + GitHub Actions | YES on unresolved privacy ambiguity | structural v2 retirement/visibility hooks | docs/v2/proof/M06.md | none | K05,J05,RF09,M07 |
+| M07 | MERGED | migration | 47060a0 | test/v2-persistence-torture | GPT-5.6 Sol | persistence-scope review + GitHub Actions | NO | v1/v2 persistence torture; CI #142 integrated | docs/v2/proof/M07.md | none | migration lane closed |
+| J00 | MERGED | journal | ca794c0 | feat/v2-journal-domain | GPT-5.6 Sol | scope review + GitHub Actions | NO | Journal domain selectors/helpers | docs/v2/proof/J00.md | none | J01,J02,J07 |
+| J01 | MERGED | journal | b5a6e4b | feat/v2-journal-save-path-integrated | GPT-5.6 Sol | persistence review + GitHub Actions | NO | Journal persists in whole CampaignState | docs/v2/proof/J01.md | none | J03,J06 |
+| J02 | MERGED | journal | b5a6e4b | feat/v2-journal-save-path-integrated | GPT-5.6 Sol | browser/mobile review + GitHub Actions | NO | one-action blank Journal composer | docs/v2/proof/J02.md | none | J03,J04 |
+| J03 | MERGED | journal | b5a6e4b | feat/v2-journal-save-path-integrated | GPT-5.6 Sol | browser/concurrency review + GitHub Actions | NO | typed local save; no provider/progression | docs/v2/proof/J03.md | none | J04,J05,J06 |
+| J04 | READY | journal | c14b4b7 | pending | unassigned | pending | NO | STT into same Journal composer | pending | V05 merged; implementation not yet present | J09 |
+| J05 | MERGED | journal | f452a10 | feat/v2-journal-privacy-integrated | GPT-5.6 Sol | privacy/provenance review + GitHub Actions | YES only on privacy ambiguity | latest-entry PRIVATE/retract + M06 retirement; CI #144 integrated | docs/v2/proof/J05.md | none | J06,J07 |
+| J06 | READY | journal | c14b4b7 | pending | unassigned | pending | NO | date/history navigation | pending | J01/J05 merged | J07 |
+| J07 | READY | journal | c14b4b7 | pending | unassigned | pending | NO | link Journal to Reflection/Adventure | pending | J00/J05/D06 merged | RF/Adventure lanes |
+| J08 | READY | journal | c14b4b7 | pending | unassigned | pending | NO | optional Atlas prompt affordance | pending | J02 merged | J09 |
+| J09 | BLOCKED | journal | c14b4b7 | pending | unassigned | pending | NO | provider acknowledgement/prompt behavior | pending | depends J04/J07/J08/P-lane | vertical slice |
+| RF00 | MERGED | reflection | ca794c0 | feat/v2-reflection-state-machine | GPT-5.6 Sol | semantic review + GitHub Actions | YES only on authority ambiguity | Reflection state machine | docs/v2/proof/RF00.md | none | RF01,RF02,RF03 |
+| C00 | MERGED | combat | ca794c0 | docs/v2-combat-contract | GPT-5.6 Sol | adversarial contract review + GitHub Actions | YES only on combat-contract ambiguity | deterministic combat contract | docs/v2/proof/C00.md | none | C01 |
+| C01 | MERGED | combat | 6802a34 | feat/v2-wave2-foundations-core | GPT-5.6 Sol | game-authority review + GitHub Actions | YES only on mechanics ambiguity | CombatDefinition/State/lifecycle | docs/v2/proof/C01.md | none | C02-C10 |
+| C02 | MERGED | combat | 47060a0 | feat/v2-combat-attack | GPT-5.6 Sol | C00/D06 review + GitHub Actions | NO | deterministic ATTACK 18/+6 optional timing; CI #143/#144 | docs/v2/proof/C02.md | none | C03,C04,C07 |
+| K00 | MERGED | knowledge | 6802a34 | feat/v2-wave2-foundations-core | GPT-5.6 Sol | selector review + GitHub Actions | NO | deterministic Knowledge selectors | docs/v2/proof/K00.md | none | K01-K07 |
+| K01 | IN_REVIEW | knowledge | c14b4b7 | feat/v2-knowledge-scoring-privacy | GPT-5.6 Sol | static review + GitHub Actions pending | NO | undercoverage+age score | docs/v2/proof/K01.md | PR #38 CI #145 in progress | K02,K04 |
+| K05 | IN_REVIEW | knowledge | c14b4b7 | feat/v2-knowledge-scoring-privacy | GPT-5.6 Sol | M06 privacy review + GitHub Actions pending | YES only on privacy conflict | structural privacy/retraction eligibility | docs/v2/proof/K05.md | PR #38 CI #145 in progress | K06,K07 |
+| V02 | MERGED | voice | b5a6e4b | integration | GPT-5.6 Sol | current integration proof | NO | browser speech synthesis removed | docs/v2/proof/V02.md | none | voice closeout |
+| V03 | MERGED | voice | b5a6e4b | integration | GPT-5.6 Sol | current integration proof | NO | retired voice-output UI/state cleanup | docs/v2/proof/V03.md | none | voice closeout |
+| V04 | MERGED | voice | b5a6e4b | integration | GPT-5.6 Sol | current integration proof | NO | no spoken Cartographer output | docs/v2/proof/V04.md | none | voice closeout |
+| V05 | MERGED | voice | b5a6e4b | integration | GPT-5.6 Sol | current integration proof | NO | bounded STT input path preserved | docs/v2/proof/V05.md | none | J04 |
+| V06 | MERGED | voice | b5a6e4b | integration | GPT-5.6 Sol | current integration proof | NO | typing fallback complete | docs/v2/proof/V06.md | none | J04 |
+| V07 | MERGED | voice | f452a10 | integration | GPT-5.6 Sol | copy/source review + GitHub Actions | NO | stale onboarding TTS promise removed | docs/v2/proof/V07.md | none | voice closed |
+| V08 | MERGED | voice | b5a6e4b | integration | GPT-5.6 Sol | source/bundle negative proof | NO | no-TTS production bundle/source proof | docs/v2/proof/V08.md | none | voice closed |
 
 ## Shared-file hot zone
 
