@@ -1,4 +1,6 @@
 import type {
+  CombatAttackCommand,
+  CombatAttackResolution,
   CombatDefinition,
   CombatLifecycleEvent,
   CombatState,
@@ -9,6 +11,8 @@ import type {
 
 export const DEFAULT_COMBAT_HP = 100;
 export const DEFAULT_TECHNIQUE_CHARGES = 2;
+export const BASE_ATTACK_DAMAGE = 18;
+export const TIMED_ATTACK_BONUS = 6;
 
 const positiveInteger = (value: number) => Number.isInteger(value) && value > 0;
 const nonNegativeInteger = (value: number) => Number.isInteger(value) && value >= 0;
@@ -161,4 +165,55 @@ export function reduceCombatLifecycle(
     throw new Error(`END_ENEMY_PHASE requires enemy phase, got ${state.phase}.`);
   }
   return { ...state, phase: 'player', round: state.round + 1 };
+}
+
+
+/**
+ * Frozen C00 ATTACK formula before future deterministic status/gimmick
+ * modifiers. Missing/declined timing input always remains a valid base action.
+ */
+export function attackDamage(timedSuccess = false): number {
+  return BASE_ATTACK_DAMAGE + (timedSuccess ? TIMED_ATTACK_BONUS : 0);
+}
+
+/**
+ * Apply one deterministic player ATTACK without advancing phase or resolving
+ * objective/reward state. Later packets own objective checks, status/gimmick
+ * modifiers and turn orchestration.
+ */
+export function applyAttack(
+  state: CombatState,
+  command: CombatAttackCommand
+): CombatAttackResolution {
+  if (state.phase !== 'player') {
+    throw new Error(`ATTACK requires player phase, got ${state.phase}.`);
+  }
+
+  const actor = state.combatants.find((combatant) => combatant.id === command.actorId);
+  if (!actor) throw new Error(`Unknown ATTACK actor: ${command.actorId}`);
+  if (actor.side !== 'player') throw new Error(`ATTACK actor ${command.actorId} is not the player.`);
+  if (actor.hp <= 0) throw new Error(`ATTACK actor ${command.actorId} is defeated.`);
+
+  const target = state.combatants.find((combatant) => combatant.id === command.targetId);
+  if (!target) throw new Error(`Unknown ATTACK target: ${command.targetId}`);
+  if (target.side !== 'enemy') throw new Error(`ATTACK target ${command.targetId} is not an enemy.`);
+  if (target.hp <= 0) throw new Error(`ATTACK target ${command.targetId} is already defeated.`);
+
+  const timedSuccess = command.timedSuccess === true;
+  const damage = attackDamage(timedSuccess);
+  const nextHp = Math.max(0, target.hp - damage);
+
+  return {
+    state: {
+      ...state,
+      combatants: state.combatants.map((combatant) =>
+        combatant.id === target.id ? { ...combatant, hp: nextHp } : combatant
+      )
+    },
+    actorId: actor.id,
+    targetId: target.id,
+    damage,
+    timedSuccess,
+    targetDefeated: nextHp === 0
+  };
 }
