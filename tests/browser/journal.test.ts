@@ -189,4 +189,52 @@ describe('v2 blank Journal user path (J02/J03)', () => {
     await page.waitForSelector('[data-testid="journal-composer"]');
     expect(await page.inputValue('[data-testid="journal-entry-input"]')).toBe('Unsaved synthetic draft.');
   });
+
+  it('makes the latest entry PRIVATE then retracts it without provider/progression side effects', async () => {
+    const before = await persistedState();
+    const beforeTurnRequests = turnRequests;
+    const latestBefore = before.journalEntries[before.journalEntries.length - 1];
+
+    expect(await page.isVisible('[data-testid="journal-private-latest"]')).toBe(true);
+    expect(await page.isVisible('[data-testid="journal-retract-latest"]')).toBe(true);
+
+    await page.click('[data-testid="journal-private-latest"]');
+    await expect.poll(async () => {
+      const state = await persistedState();
+      return state.journalEntries[state.journalEntries.length - 1]?.privacy;
+    }).toBe('private');
+
+    const privateState = await persistedState();
+    const privateLatest = privateState.journalEntries[privateState.journalEntries.length - 1];
+    expect(privateLatest.text).toBe(latestBefore.text);
+    expect(privateLatest.status).toBe('active');
+    expect(privateState.xp).toBe(before.xp);
+    expect(privateState.turns).toEqual(before.turns);
+    expect(privateState.evidence).toEqual(before.evidence);
+    expect(privateState.insights).toEqual(before.insights);
+    expect(turnRequests).toBe(beforeTurnRequests);
+    expect(await page.textContent('[data-testid="journal-latest-status"]')).toContain('Private');
+    expect(await page.isDisabled('[data-testid="journal-private-latest"]')).toBe(true);
+
+    await page.click('[data-testid="journal-retract-latest"]');
+    await expect.poll(async () => {
+      const state = await persistedState();
+      return state.journalEntries[state.journalEntries.length - 1]?.status;
+    }).toBe('retracted');
+
+    const retractedState = await persistedState();
+    const retractedLatest = retractedState.journalEntries[retractedState.journalEntries.length - 1];
+    expect(retractedLatest.text).toBe(latestBefore.text);
+    expect(retractedLatest.privacy).toBe('private');
+    expect(retractedState.xp).toBe(before.xp);
+    expect(retractedState.turns).toEqual(before.turns);
+    expect(retractedState.evidence).toEqual(before.evidence);
+    expect(retractedState.insights).toEqual(before.insights);
+    expect(turnRequests).toBe(beforeTurnRequests);
+    expect(await page.textContent('[data-testid="journal-latest-status"]')).toContain('Retracted');
+    expect(await page.isDisabled('[data-testid="journal-retract-latest"]')).toBe(true);
+
+    // Privacy actions do not silently discard the unrelated unsaved draft.
+    expect(await page.inputValue('[data-testid="journal-entry-input"]')).toBe('Unsaved synthetic draft.');
+  });
 });
