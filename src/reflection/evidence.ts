@@ -1,3 +1,5 @@
+import type { CampaignState } from '../game/types';
+import { createV2ProvenanceVisibility } from '../persistence/retirement';
 import { reflectionRecordSchema, type ReflectionRecord } from './schema';
 
 export type ReflectionEvidenceClaimSource =
@@ -38,11 +40,19 @@ export interface ReflectionEvidenceProposal {
  * TurnRecord link, so shared conversion remains a later integration-owned step.
  */
 export function buildReflectionEvidenceProposal(
-  input: ReflectionRecord
+  state: CampaignState,
+  reflectionId: string
 ): ReflectionEvidenceProposal | null {
-  const record = reflectionRecordSchema.parse(input);
+  const input = state.reflections.find((record) => record.id === reflectionId);
+  if (!input) throw new Error(`Unknown ReflectionRecord id: ${reflectionId}`);
 
-  if (record.recordStatus !== 'active' || record.privacy !== 'normal') return null;
+  const record = reflectionRecordSchema.parse(input);
+  const visibility = createV2ProvenanceVisibility(state);
+
+  // M06 owns source eligibility. A normal/active Reflection whose Journal,
+  // AdventureObservation, Insight, Contradiction or Snapshot source has since
+  // become private/retracted/ineligible must fail closed here as well.
+  if (!visibility.reflectionIsEligible(record.id)) return null;
   if (!record.response.trim()) return null;
 
   if (record.decision === 'confirm' && record.epistemicStatus === 'confirmed') {
