@@ -86,6 +86,7 @@ describe('Journal links (J07)', () => {
       id: 'reflection_link_fixture'
     });
 
+    expect(twice).toBe(once);
     expect(twice.journalEntries[0].linkedReflectionIds).toEqual(['reflection_link_fixture']);
     expect(() => linkJournalEntry(state, 'journal_link_fixture', {
       kind: 'reflection',
