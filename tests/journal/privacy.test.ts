@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialCampaign } from '../../src/game/engine';
+import type { CampaignState } from '../../src/game/types';
 import { appendJournalEntry, createJournalEntry, journalEntryIsProviderEligible } from '../../src/journal/domain';
 import { privatizeJournalEntry, retractJournalEntryFromCampaign } from '../../src/journal/privacy';
 import { createV2ProvenanceVisibility } from '../../src/persistence/retirement';
 
-function sourcedState() {
+function sourcedState(): CampaignState {
   const initial = createInitialCampaign();
   const entry = createJournalEntry({
     id: 'journal_canary',
