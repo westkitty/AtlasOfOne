@@ -198,6 +198,19 @@ describe('v2 blank Journal user path (J02/J03)', () => {
     expect(await page.isVisible('[data-testid="journal-private-latest"]')).toBe(true);
     expect(await page.isVisible('[data-testid="journal-retract-latest"]')).toBe(true);
 
+    await page.setViewportSize(NARROW);
+    for (const id of ['journal-private-latest', 'journal-retract-latest']) {
+      const box = await page.locator(`[data-testid="${id}"]`).boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.height, `${id} height`).toBeGreaterThanOrEqual(44);
+      expect(box!.width, `${id} width`).toBeGreaterThanOrEqual(44);
+    }
+    const privacyOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    expect(privacyOverflow).toBeLessThanOrEqual(0);
+    await page.setViewportSize(PHONE);
+
     await page.click('[data-testid="journal-private-latest"]');
     await expect.poll(async () => {
       const state = await persistedState();
