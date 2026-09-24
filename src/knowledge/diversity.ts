@@ -108,6 +108,17 @@ export function rankKnowledgeGapsWithDiversity(
     if (a.exactRepeatCoolingDown !== b.exactRepeatCoolingDown) {
       return a.exactRepeatCoolingDown ? 1 : -1;
     }
+
+    // If every available candidate is cooling down, fall back to the strongest
+    // base priority rather than applying a second repetition punishment inside
+    // the cooled group. Cooldown is a reranking tool, not a dead-end.
+    if (a.exactRepeatCoolingDown && b.exactRepeatCoolingDown) {
+      if (a.basePriority !== b.basePriority) {
+        return b.basePriority - a.basePriority;
+      }
+      return left.id.localeCompare(right.id);
+    }
+
     if (a.effectivePriority !== b.effectivePriority) {
       return b.effectivePriority - a.effectivePriority;
     }
