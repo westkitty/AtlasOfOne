@@ -5,7 +5,7 @@ import { createJournalEntry } from '../../src/journal/domain';
 import { detectChangeOverTimeCandidate } from '../../src/reflection/change';
 import { createReflectionRecord, decideReflection, retractReflection } from '../../src/reflection/domain';
 
-function fixtureState(interpretation: string | undefined = 'I always avoid risk.') {
+function fixtureState(interpretation: string | null = 'I always avoid risk.') {
   const initial = createInitialCampaign();
   const journal = createJournalEntry({
     id: 'journal_change_fixture',
@@ -18,7 +18,7 @@ function fixtureState(interpretation: string | undefined = 'I always avoid risk.
     sourceKind: 'journal',
     sourceIds: [journal.id],
     question: 'Synthetic reflection?',
-    ...(interpretation === undefined ? {} : { interpretation }),
+    ...(interpretation === null ? {} : { interpretation }),
     createdAt: '2026-01-03T04:05:06.000Z'
   });
 
@@ -64,7 +64,7 @@ describe('changed-mind/change-over-time candidate detection (RF07)', () => {
   });
 
   it('fails closed when the old interpretation was never preserved', () => {
-    const { state, reflection } = fixtureState(undefined);
+    const { state, reflection } = fixtureState(null);
     state.reflections = [decideReflection(reflection, 'revise', 'Replacement wording.')];
 
     expect(detectChangeOverTimeCandidate(state, reflection.id)).toBeNull();
