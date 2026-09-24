@@ -1392,7 +1392,7 @@ export default function App() {
           <span className="eyebrow">STEP 2 OF 3</span>
           <h2>Interaction Mode</h2>
           <p className="onboarding-desc">
-            Choose how you would like to explore. You can switch freely between voice and typing anytime on the Talk screen.
+            Choose how you would like to explore. You can switch freely between microphone dictation and typing anytime.
           </p>
           <div className="onboarding-choices">
             <button
@@ -1403,7 +1403,7 @@ export default function App() {
               onClick={() => setOnboardingMode('talk')}
             >
               <strong>Talk</strong>
-              <span>Spoken conversation via microphone and speech synthesis.</span>
+              <span>Speak into the microphone; your words become editable text. Atlas replies stay on screen.</span>
             </button>
             <button
               type="button"
