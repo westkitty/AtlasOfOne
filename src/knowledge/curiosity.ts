@@ -87,7 +87,7 @@ export function buildJournalCuriosityGap(
 
   const duplicate = state.knowledgeGaps.find((gap) =>
     gap.kind === 'curiosity'
-    && gap.status !== 'retired'
+    && (gap.status === 'open' || gap.status === 'seeded')
     && sameSet(gap.territoryIds, territoryIds)
     && sameSet(gap.dimensionIds, dimensionIds)
     && sameSet(gap.sourceJournalEntryIds, [journal.id])
