@@ -83,3 +83,45 @@ export function appendJournalEntry(
   }
   return [...entries, parsed];
 }
+
+
+function updateJournalEntry(
+  entries: readonly JournalEntry[],
+  id: string,
+  update: (entry: JournalEntry) => JournalEntry
+): JournalEntry[] {
+  let found = false;
+  const next = entries.map((entry) => {
+    if (entry.id !== id) return entry;
+    found = true;
+    return journalEntrySchema.parse(update(entry));
+  });
+  if (!found) throw new Error(`Unknown JournalEntry id: ${id}`);
+  return next;
+}
+
+/**
+ * PRIVATE is orthogonal to retraction and interpretation. It preserves the
+ * complete local record while making the entry structurally provider-ineligible.
+ */
+export function markJournalEntryPrivate(
+  entries: readonly JournalEntry[],
+  id: string
+): JournalEntry[] {
+  return updateJournalEntry(entries, id, (entry) =>
+    entry.privacy === 'private' ? entry : { ...entry, privacy: 'private' }
+  );
+}
+
+/**
+ * Retraction is history-preserving. The record remains in the local Atlas with
+ * its original text, links, privacy state and timestamp; only authority changes.
+ */
+export function retractJournalEntry(
+  entries: readonly JournalEntry[],
+  id: string
+): JournalEntry[] {
+  return updateJournalEntry(entries, id, (entry) =>
+    entry.status === 'retracted' ? entry : { ...entry, status: 'retracted' }
+  );
+}

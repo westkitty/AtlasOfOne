@@ -3,7 +3,8 @@ import { EncounterPanel } from './app/EncounterPanel';
 import { AgencyControls, AgencySheet, PrimaryActionBar, ProgressDisplay } from './app/PresentationControls';
 import { JournalComposer } from './journal/JournalComposer';
 import { JournalPanel } from './journal/JournalPanel';
-import { appendJournalEntry, createJournalEntry } from './journal/domain';
+import { appendJournalEntry, createJournalEntry, selectJournalEntriesNewestFirst } from './journal/domain';
+import { privatizeJournalEntry, retractJournalEntryFromCampaign } from './journal/privacy';
 import { eventsFromTurn } from './cartographer/apply';
 import { createRemoteProvider, requestFinalAssessment, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
@@ -778,6 +779,22 @@ export default function App() {
     // The state mutation is synchronous; hold only through this browser task so
     // two dispatches against the same render closure cannot duplicate the entry.
     queueMicrotask(() => { journalSaveInFlight.current = false; });
+  };
+
+  const latestJournalEntry = selectJournalEntriesNewestFirst(state.journalEntries)[0];
+
+  const makeLatestJournalPrivate = () => {
+    if (!latestJournalEntry || latestJournalEntry.privacy === 'private' || latestJournalEntry.status === 'retracted') return;
+    const updatedAt = new Date().toISOString();
+    setState((current) => privatizeJournalEntry(current, latestJournalEntry.id, updatedAt));
+    setMessage('Latest Journal entry is private. Exclusive derived state was retired.');
+  };
+
+  const retractLatestJournalEntry = () => {
+    if (!latestJournalEntry || latestJournalEntry.status === 'retracted') return;
+    const updatedAt = new Date().toISOString();
+    setState((current) => retractJournalEntryFromCampaign(current, latestJournalEntry.id, updatedAt));
+    setMessage('Latest Journal entry retracted. Its history is kept; its authority is retired.');
   };
 
   // The six permanent controls. They are rendered identically for ordinary
@@ -1630,9 +1647,12 @@ export default function App() {
           <JournalComposer
             value={journalDraft}
             savedCount={state.journalEntries.length}
+            latestEntry={latestJournalEntry}
             onChange={setJournalDraft}
             onSave={saveJournalEntry}
             onClose={() => setJournalOpen(false)}
+            onMakeLatestPrivate={makeLatestJournalPrivate}
+            onRetractLatest={retractLatestJournalEntry}
           />
         )}
         {talking && (encounter ? renderEncounter() : renderConversation())}
