@@ -105,6 +105,21 @@ describe('Knowledge Gap undercoverage + age scoring (K01)', () => {
     expect(score.total).toBe(50);
   });
 
+  it('does not let duplicate territory IDs multiply their weight', () => {
+    const one = scoreKnowledgeGap(gap({ territoryIds: ['identity'] }), {
+      territories: [territory('identity', ['a', 'b'], ['a'])],
+      lastExploredAtByTerritory: { identity: '2026-09-08T12:00:00.000Z' },
+      now: NOW
+    });
+    const duplicated = scoreKnowledgeGap(gap({ territoryIds: ['identity', 'identity'] }), {
+      territories: [territory('identity', ['a', 'b'], ['a'])],
+      lastExploredAtByTerritory: { identity: '2026-09-08T12:00:00.000Z' },
+      now: NOW
+    });
+
+    expect(duplicated).toEqual(one);
+  });
+
   it('does not let kind or prose change the score for identical structural inputs', () => {
     const input = {
       territories: [territory('identity', ['a', 'b'], ['a'])],
