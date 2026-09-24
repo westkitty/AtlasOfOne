@@ -125,6 +125,23 @@ describe('explicit curiosity markers (K02)', () => {
     })).toThrow('KnowledgeGap id already exists');
   });
 
+  it('allows a new explicit marker after the prior curiosity is closed history', () => {
+    for (const status of ['resolved', 'retired'] as const) {
+      const state = fixtureState();
+      const oldGap = buildJournalCuriosityGap(state, marker());
+      state.knowledgeGaps = [{ ...oldGap, status }];
+
+      const renewed = buildJournalCuriosityGap(state, {
+        ...marker(),
+        id: `gap_curiosity_renewed_${status}`
+      });
+
+      expect(renewed.id).toBe(`gap_curiosity_renewed_${status}`);
+      expect(renewed.status).toBe('open');
+      expect(renewed.sourceJournalEntryIds).toEqual(['journal_curiosity_fixture']);
+    }
+  });
+
   it('requires explicit non-empty marker identity, target, and wording', () => {
     const state = fixtureState();
 
