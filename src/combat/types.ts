@@ -144,3 +144,23 @@ export type CombatLifecycleEvent =
   | { type: 'END_PLAYER_PHASE' }
   | { type: 'END_ENEMY_PHASE' }
   | { type: 'RESOLVE'; outcome: CombatOutcome };
+
+
+export interface CombatAttackCommand {
+  actorId: string;
+  targetId: string;
+  /**
+   * Injected input quality only. C14 owns the accessible timing UI; mechanics
+   * never read animation clocks or random state.
+   */
+  timedSuccess?: boolean;
+}
+
+export interface CombatAttackResolution {
+  state: CombatState;
+  actorId: string;
+  targetId: string;
+  damage: number;
+  timedSuccess: boolean;
+  targetDefeated: boolean;
+}
