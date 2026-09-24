@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialCampaign } from '../../src/game/engine';
+import { applyGameEvents, createInitialCampaign } from '../../src/game/engine';
 import type { CampaignState, EvidenceRecord, TurnRecord } from '../../src/game/types';
 import { buildContradictionRecord } from '../../src/reflection/contradictions';
 
@@ -90,12 +90,12 @@ describe('deterministic contradiction construction (RF06)', () => {
       evidenceIds: ['ev_a', 'ev_b']
     })).toThrow('Ineligible EvidenceRecord id');
 
-    expect(() => buildContradictionRecord({
-      ...state,
-      turns: state.turns.map((item) =>
-        item.id === 'turn_b' ? { ...item, retracted: true } : item
-      )
-    }, {
+    const retracted = applyGameEvents(state, [
+      { type: 'ANSWER_RETRACTED', turnId: 'turn_b' }
+    ]);
+    expect(retracted.turns.find((item) => item.id === 'turn_b')?.retracted).toBe(true);
+    expect(retracted.evidence.find((item) => item.id === 'ev_b')?.status).toBe('retracted');
+    expect(() => buildContradictionRecord(retracted, {
       id: 'c_retracted',
       claim: 'Synthetic relation.',
       evidenceIds: ['ev_a', 'ev_b']
