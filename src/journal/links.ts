@@ -33,27 +33,16 @@ export function linkJournalEntry(
     if (!run) throw new Error(`Unknown AdventureRun id: ${target.id}`);
   }
 
+  const alreadyLinked = target.kind === 'reflection'
+    ? entry.linkedReflectionIds.includes(target.id)
+    : entry.linkedAdventureIds.includes(target.id);
+  if (alreadyLinked) return state;
+
   const nextEntry: JournalEntry = journalEntrySchema.parse(
     target.kind === 'reflection'
-      ? {
-          ...entry,
-          linkedReflectionIds: entry.linkedReflectionIds.includes(target.id)
-            ? entry.linkedReflectionIds
-            : [...entry.linkedReflectionIds, target.id]
-        }
-      : {
-          ...entry,
-          linkedAdventureIds: entry.linkedAdventureIds.includes(target.id)
-            ? entry.linkedAdventureIds
-            : [...entry.linkedAdventureIds, target.id]
-        }
+      ? { ...entry, linkedReflectionIds: [...entry.linkedReflectionIds, target.id] }
+      : { ...entry, linkedAdventureIds: [...entry.linkedAdventureIds, target.id] }
   );
-
-  if (nextEntry === entry
-    || (nextEntry.linkedReflectionIds === entry.linkedReflectionIds
-      && nextEntry.linkedAdventureIds === entry.linkedAdventureIds)) {
-    return state;
-  }
 
   const journalEntries = state.journalEntries.slice();
   journalEntries[journalIndex] = nextEntry;
