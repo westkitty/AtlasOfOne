@@ -164,3 +164,18 @@ export interface CombatAttackResolution {
   timedSuccess: boolean;
   targetDefeated: boolean;
 }
+
+
+export interface CombatGuardCommand {
+  actorId: string;
+  /** Injected optional timing result. Missing/false remains a valid ordinary GUARD. */
+  timedSuccess?: boolean;
+}
+
+export interface CombatGuardResolution {
+  actorId: string;
+  rawDamage: number;
+  damageTaken: number;
+  damagePrevented: number;
+  timedSuccess: boolean;
+}

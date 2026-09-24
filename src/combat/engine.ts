@@ -1,6 +1,8 @@
 import type {
   CombatAttackCommand,
   CombatAttackResolution,
+  CombatGuardCommand,
+  CombatGuardResolution,
   CombatDefinition,
   CombatLifecycleEvent,
   CombatState,
@@ -13,6 +15,8 @@ export const DEFAULT_COMBAT_HP = 100;
 export const DEFAULT_TECHNIQUE_CHARGES = 2;
 export const BASE_ATTACK_DAMAGE = 18;
 export const TIMED_ATTACK_BONUS = 6;
+export const GUARD_REDUCTION = 0.50;
+export const PERFECT_GUARD_REDUCTION = 0.75;
 
 const positiveInteger = (value: number) => Number.isInteger(value) && value > 0;
 const nonNegativeInteger = (value: number) => Number.isInteger(value) && value >= 0;
@@ -215,5 +219,51 @@ export function applyAttack(
     damage,
     timedSuccess,
     targetDefeated: nextHp === 0
+  };
+}
+
+
+/**
+ * C00 GUARD formula.
+ *
+ * Incoming damage is deterministic integer damage authored by the encounter.
+ * Timing is optional: absent/false uses ordinary 50% reduction. A successful
+ * injected perfect-guard result uses 75%. Math.ceil prevents integer rounding
+ * from making the reduction stronger than the frozen percentage.
+ *
+ * C03 does not mutate CombatState or freeze status resolution order; C09/C10 own
+ * enemy-intent orchestration and status lifecycle.
+ */
+export function guardedIncomingDamage(rawDamage: number, timedSuccess = false): number {
+  if (!Number.isInteger(rawDamage) || rawDamage < 0) {
+    throw new Error('GUARD rawDamage must be a non-negative integer.');
+  }
+  const remainingFraction = timedSuccess ? 1 - PERFECT_GUARD_REDUCTION : 1 - GUARD_REDUCTION;
+  return Math.ceil(rawDamage * remainingFraction);
+}
+
+export function resolveGuardDamage(
+  state: CombatState,
+  command: CombatGuardCommand,
+  rawDamage: number
+): CombatGuardResolution {
+  if (state.phase === 'resolved') {
+    throw new Error('GUARD cannot resolve after combat is resolved.');
+  }
+
+  const actor = state.combatants.find((combatant) => combatant.id === command.actorId);
+  if (!actor) throw new Error('Unknown GUARD actor: ' + command.actorId);
+  if (actor.side !== 'player') throw new Error('GUARD actor ' + command.actorId + ' is not the player.');
+  if (actor.hp <= 0) throw new Error('GUARD actor ' + command.actorId + ' is defeated.');
+
+  const timedSuccess = command.timedSuccess === true;
+  const damageTaken = guardedIncomingDamage(rawDamage, timedSuccess);
+
+  return {
+    actorId: actor.id,
+    rawDamage,
+    damageTaken,
+    damagePrevented: rawDamage - damageTaken,
+    timedSuccess
   };
 }
