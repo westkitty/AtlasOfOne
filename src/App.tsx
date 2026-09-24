@@ -28,6 +28,7 @@ import { transitionVoiceState, voiceStateLabel } from './voice/state';
 import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
 
 type Screen = 'world'|'vault'|'me';
+type DictationTarget = 'cartographer' | 'journal';
 /** The character record shows the restored 96x96 portrait from the art pack. */
 const GREYSON_PORTRAIT = '/assets/atlas/v3/greyson/portrait-neutral.png';
 const GREYSON_PORTRAITS = {
@@ -213,6 +214,7 @@ export default function App() {
   /** Blank, player-initiated Journal. It is separate from the legacy Cartographer prompt path. */
   const [journalOpen, setJournalOpen] = useState(false);
   const [journalDraft, setJournalDraft] = useState('');
+  const [journalDraftInputMode, setJournalDraftInputMode] = useState<'typed' | 'speech-to-text'>('typed');
   /** Synchronous exclusion for same-task double taps on local Journal save. */
   const journalSaveInFlight = useRef(false);
   /** Vault and the character record are places you visit, reached from one menu. */
@@ -388,7 +390,7 @@ export default function App() {
   /** Start one speech-to-text capture. Atlas responses remain visual text only. */
   const startConversation = () => {
     conversationId.current += 1;
-    void beginListeningTurn(conversationId.current);
+    void beginListeningTurn(conversationId.current, 'cartographer');
   };
 
   const submitText = (text: string) => {
@@ -454,8 +456,11 @@ export default function App() {
    * audio is transmitted to decide when someone stopped. Silence before speech
    * never submits — Atlas just keeps listening.
    */
-  const beginListeningTurn = async (generation = conversationId.current) => {
-    if (state.sessionStatus === 'paused' || isSubmitting) return;
+  const beginListeningTurn = async (
+    generation = conversationId.current,
+    target: DictationTarget = 'cartographer'
+  ) => {
+    if ((target === 'cartographer' && state.sessionStatus === 'paused') || isSubmitting) return;
     if (generation !== conversationId.current) return;
     pendingCaptureCancelled.current = false;
     setVoiceState('requesting-permission');
@@ -472,7 +477,7 @@ export default function App() {
       const closeTurn = () => {
         if (closed || generation !== conversationId.current) return;
         closed = true;
-        void stopRecordingAndProcess(capture, generation);
+        void stopRecordingAndProcess(capture, generation, target);
       };
 
       if (capture.levelMonitoringAvailable) {
@@ -498,7 +503,13 @@ export default function App() {
   /** Manual entry point kept for retry and for the visible recording affordance. */
   const startRecording = async () => {
     conversationId.current += 1;
-    await beginListeningTurn(conversationId.current);
+    await beginListeningTurn(conversationId.current, 'cartographer');
+  };
+
+  const startJournalDictation = () => {
+    if (!journalOpen || !isAudioCaptureSupported() || isOffline) return;
+    conversationId.current += 1;
+    void beginListeningTurn(conversationId.current, 'journal');
   };
 
   /**
@@ -508,7 +519,11 @@ export default function App() {
    * end-of-turn cannot race a re-render, and `generation` is checked at every
    * await boundary so an obsolete cycle can never submit or resume.
    */
-  const stopRecordingAndProcess = async (explicit?: ActiveAudioCapture, generation = conversationId.current) => {
+  const stopRecordingAndProcess = async (
+    explicit?: ActiveAudioCapture,
+    generation = conversationId.current,
+    target: DictationTarget = 'cartographer'
+  ) => {
     const capture = explicit ?? activeCapture;
     if (!capture) return;
     setActiveCapture(null);
@@ -534,6 +549,16 @@ export default function App() {
         setVoiceState('idle');
         return;
       }
+      if (target === 'journal') {
+        setJournalDraft((current) => {
+          if (!current) return text;
+          return `${current}${/\s$/.test(current) ? '' : ' '}${text}`;
+        });
+        setJournalDraftInputMode('speech-to-text');
+        setVoiceState('idle');
+        return;
+      }
+
       const command = parseVoiceCommand(text);
       if (command) {
         // Local commands never reach the Cartographer and never award progress.
@@ -764,7 +789,7 @@ export default function App() {
       id: `journal_${crypto.randomUUID()}`,
       createdAt,
       text: journalDraft,
-      inputMode: 'typed'
+      inputMode: journalDraftInputMode
     });
 
     setState((current) => ({
@@ -773,12 +798,20 @@ export default function App() {
       updatedAt: createdAt
     }));
     setJournalDraft('');
+    setJournalDraftInputMode('typed');
     setJournalOpen(false);
     setMessage('Journal added to your local Atlas.');
 
     // The state mutation is synchronous; hold only through this browser task so
     // two dispatches against the same render closure cannot duplicate the entry.
     queueMicrotask(() => { journalSaveInFlight.current = false; });
+  };
+
+  const closeJournal = () => {
+    // Always invalidate the capture generation. React state may still read
+    // "idle" during the same task that started permission/capture.
+    cancelVoice();
+    setJournalOpen(false);
   };
 
   const latestJournalEntry = selectJournalEntriesNewestFirst(state.journalEntries)[0];
@@ -1087,7 +1120,7 @@ export default function App() {
         onUseTalk={() => toggleVoiceMode('talk')}
         onSubmit={submit}
         onStartDictation={startConversation}
-        onStopDictation={() => void stopRecordingAndProcess()}
+        onStopDictation={() => void stopRecordingAndProcess(undefined, conversationId.current, 'cartographer')}
         onCancelVoice={cancelVoice}
         onRetryVoice={startRecording}
         onUseType={() => toggleVoiceMode('type')}
@@ -1648,9 +1681,20 @@ export default function App() {
             value={journalDraft}
             savedCount={state.journalEntries.length}
             latestEntry={latestJournalEntry}
-            onChange={setJournalDraft}
+            dictationSupported={isAudioCaptureSupported() && !isOffline}
+            dictationState={voiceState}
+            dictationStatusLabel={voiceStateLabel(voiceState)}
+            micMeterLive={micMeterLive}
+            micLevel={micLevel}
+            onChange={(value) => {
+              setJournalDraft(value);
+              if (!value) setJournalDraftInputMode('typed');
+            }}
             onSave={saveJournalEntry}
-            onClose={() => setJournalOpen(false)}
+            onClose={closeJournal}
+            onStartDictation={startJournalDictation}
+            onStopDictation={() => void stopRecordingAndProcess(undefined, conversationId.current, 'journal')}
+            onCancelDictation={cancelVoice}
             onMakeLatestPrivate={makeLatestJournalPrivate}
             onRetractLatest={retractLatestJournalEntry}
           />
