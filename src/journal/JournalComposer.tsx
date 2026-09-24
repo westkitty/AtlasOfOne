@@ -15,8 +15,8 @@ export interface JournalComposerProps {
  * Blank, player-initiated Journal surface.
  *
  * This is deliberately not a Cartographer question form. It accepts Greyson's
- * text without a preceding prompt and emits only local save/close intent.
- * Provider responses, privacy controls, STT and history navigation belong to
+ * text without a preceding prompt. Save plus latest-entry PRIVATE/retract
+ * intent stays local; provider responses, STT and history navigation belong to
  * later Journal packets.
  */
 export function JournalComposer({
