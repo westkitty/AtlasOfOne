@@ -305,16 +305,15 @@ describe('SNES Overworld Verbs', () => {
       expect(metrics.text.trim(), `${testId} text is intact, not truncated`).toBe(expectedText);
     };
 
-    // Primary pill: whichever of Begin/Continue is currently active (this
-    // suite has already answered several turns by this point, so it reads
-    // "Continue" here — the exact word the bug report reproduced) shares its
-    // CSS with "Begin", so exercising either exercises both. The Enter
-    // Sanctuary chip must show the complete sanctuary name alongside it.
+    // The v2 Journal-first shell demotes the legacy prompt path to an explicit
+    // Cartographer secondary action. Before any turn it reads "Ask Cartographer";
+    // after turns it reads "Continue Cartographer". Both must render fully in
+    // the same narrow middle lane. The sanctuary chip remains alongside it.
     await page.locator('[data-testid="place-identity"]').click();
     await page.waitForTimeout(400);
     await page.waitForSelector('[data-testid="enter-sanctuary"]');
     const primaryLabel = (await page.locator('[data-testid="enter-encounter"] span').textContent())?.trim();
-    expect(['Begin', 'Continue']).toContain(primaryLabel);
+    expect(['Ask Cartographer', 'Continue Cartographer']).toContain(primaryLabel);
     await assertFullyRendered('enter-encounter', primaryLabel!);
     await assertFullyRendered('enter-sanctuary', 'Enter Origin Grove Shrine');
 
