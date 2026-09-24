@@ -176,6 +176,9 @@ describe('J04 Journal STT input', () => {
     await page.click('[data-testid="open-journal"]');
     expect(await page.inputValue('[data-testid="journal-entry-input"]')).toBe('Permission-race draft.');
     expect(await page.locator('[data-testid="journal-mic-visualizer"]').count()).toBe(0);
+
+    // Leave the shared browser fixture in its map state for the next test.
+    await page.click('[data-testid="journal-close"]');
   });
 
   it('cancels Journal dictation on close so a stale transcript cannot land later', async () => {
