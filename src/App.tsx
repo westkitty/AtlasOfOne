@@ -773,6 +773,7 @@ export default function App() {
         record.recordStatus === 'active'
         && record.privacy === 'normal'
         && record.epistemicStatus === 'pending'
+        && record.decision === undefined
         && reflectionVisibility.reflectionIsEligible(record.id)
       )
       .sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))[0],
