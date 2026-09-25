@@ -103,7 +103,8 @@ describe('A07 deriveAdventureConsequences', () => {
 
 describe('A07 applyAdventureConsequences', () => {
   it('appends memory cards only, idempotently, gated by N04', () => {
-    const state = completedRun();
+    // The slice now applies consequences at completion; start without cards to test the append itself.
+    const state = { ...completedRun(), adventureMemories: [] };
     const consequences = deriveAdventureConsequences(state, 'run_1');
     const next = applyAdventureConsequences(state, consequences);
     const { adventureMemories, ...rest } = next;

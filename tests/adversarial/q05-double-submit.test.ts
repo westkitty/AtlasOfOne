@@ -233,7 +233,7 @@ describe('Q05 double-submit / replay hammer', () => {
    * a second AdventureAction and AdventureObservation with the SAME ids and
    * advances the beat a second time. Expected: reject the repeat or no-op.
    */
-  it.fails('DEFECT Q05-D1: sequential double-submit of a story choice must not duplicate action/observation ids', () => {
+  it('FIXED Q05-D1: sequential double-submit of a story choice must not duplicate action/observation ids', () => {
     const state = startedCampaign(TERRITORIES[0], 'q5_d1');
     const input = { runId: 'q5_d1', label: 'Go on', now: at(10), actionId: 'q5_d1_act', observationId: 'q5_d1_obs', combatId: 'q5_d1_combat' };
     const once = makeSliceChoice(state, input);
@@ -250,7 +250,7 @@ describe('Q05 double-submit / replay hammer', () => {
    * No duplicate records result (asserted in the hammer above), but the
    * player's single click resolves twice.
    */
-  it.fails('DEFECT Q05-D2: a double-delivered combat intent must not play two rounds', () => {
+  it('FIXED Q05-D2: a double-delivered combat intent must not play two rounds', () => {
     let state = startedCampaign(TERRITORIES[0], 'q5_d2');
     for (let i = 0; i < 60 && !state.activeCombat; i += 1) {
       state = makeSliceChoice(state, { runId: 'q5_d2', label: 'Go on', now: at(5), actionId: `d2_act_${i}`, observationId: `d2_obs_${i}`, combatId: 'd2_combat' });

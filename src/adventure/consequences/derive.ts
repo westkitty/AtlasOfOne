@@ -25,9 +25,9 @@ import { adventureMemorySchema, type AdventureRun, type AdventureSeed } from '..
 export const COMBAT_OUTCOMES = ['victory', 'pacified', 'escaped', 'defeat', 'story'] as const satisfies readonly CombatOutcome[];
 
 /**
- * Mirror of the slice's system-authored combat consequence lines
- * (src/slice/loop.ts COMBAT_CONSEQUENCE). Only an exact match is recognised;
- * anything else (including any free-typed text) yields no combat outcome.
+ * System-authored combat consequence lines. The slice (src/slice/loop.ts)
+ * records exactly these; only an exact match is recognised here, so free-typed
+ * text can never be read as a combat outcome.
  */
 export const COMBAT_CONSEQUENCE_LINES: Readonly<Record<CombatOutcome, string>> = Object.freeze({
   victory: 'The way ahead is clear.',

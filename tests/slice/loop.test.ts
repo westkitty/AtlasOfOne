@@ -179,3 +179,26 @@ describe('Vertical slice I00-I04', () => {
     expect(() => startSliceAdventure(state, { seedId: 'seed_fun', runId: 'run_2', now: T(3) })).toThrow('already in progress');
   });
 });
+
+describe('World memory recurs across adventures (A07 + N05 via the slice)', () => {
+  it('a second adventure in the same place recalls the first; a PRIVATE-sourced one never recurs', async () => {
+    const { selectRecurringLine } = await import('../../src/slice/loop');
+    const first = exploreJournalEntry(withJournal(), {
+      journalEntryId: 'journal_1', territoryId: 'identity', gapId: 'gap_r1', seedId: 'seed_r1', now: T(1)
+    });
+    let state = playThrough(startSliceAdventure(first.state, { seedId: 'seed_r1', runId: 'run_r1', now: T(2) }), 'run_r1');
+    expect(state.adventureMemories.length).toBeGreaterThan(0);
+    expect(state.adventureMemories.every((card) => card.sourceIds.includes('run_r1'))).toBe(true);
+    expect(JSON.stringify(state.adventureMemories)).not.toContain(CANARY);
+
+    const second = createJournalEntry({ id: 'journal_2', createdAt: T(20), text: 'Another synthetic entry.', inputMode: 'typed' });
+    state = { ...state, journalEntries: appendJournalEntry(state.journalEntries, second) };
+    state = exploreJournalEntry(state, { journalEntryId: 'journal_2', territoryId: 'identity', gapId: 'gap_r2', seedId: 'seed_r2', now: T(21) }).state;
+    const running = startSliceAdventure(state, { seedId: 'seed_r2', runId: 'run_r2', now: T(22) });
+    expect(selectRecurringLine(running)).toMatch(/familiar face|place from/);
+
+    // Make the first run's source Journal entry PRIVATE: its memories stop recurring.
+    const hidden = privatizeJournalEntry(running, 'journal_1', T(23));
+    expect(selectRecurringLine(hidden)).toBeNull();
+  });
+});

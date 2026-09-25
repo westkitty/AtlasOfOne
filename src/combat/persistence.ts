@@ -61,6 +61,8 @@ export const activeCombatRecordSchema = z.object({
   definitionId: z.string().min(1),
   encounterId: z.string().min(1),
   adventureRunId: z.string().min(1).optional(),
+  /** Q05: id of the last applied player dispatch, so a double-delivered intent is a no-op. */
+  lastIntentId: z.string().min(1).optional(),
   startedAt: z.string().refine((value) => Number.isFinite(Date.parse(value)), 'Invalid startedAt.'),
   state: combatStateSchema
 }).strict().refine((record) => record.state.definitionId === record.definitionId, 'Combat state/definition mismatch.');

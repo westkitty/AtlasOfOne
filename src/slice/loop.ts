@@ -2,6 +2,8 @@ import { proposeReflectionHandoff } from '../adventure/reflectionHandoff';
 import { recordAdventureAction, recordAdventureObservation } from '../adventure/actions';
 import { nextAdventureBeat, type AdventureBeat } from '../adventure/beats';
 import { CORE_ADVENTURE_TEMPLATES } from '../adventure/content/templates';
+import { applyAdventureConsequences, COMBAT_CONSEQUENCE_LINES, deriveAdventureConsequences } from '../adventure/consequences/derive';
+import { selectRecurringReferences } from '../adventure/memory/recurring';
 import { completeAdventureRun, withdrawAdventureRun } from '../adventure/outcomes';
 import { reduceAdventureRun, startAdventureFromSeed } from '../adventure/run';
 import type { AdventureRun, AdventureSeed } from '../adventure/schema';
@@ -10,7 +12,7 @@ import { localReflectionWording } from '../cartographer/fallbacks/reflectionWord
 import { ENCOUNTER_BANK } from '../combat/content/encounters';
 import { createActiveCombatRecord, resumeActiveCombat } from '../combat/persistence';
 import { playRound, startEncounter, type CombatPlayerIntent } from '../combat/runner';
-import type { CombatDefinition, CombatOutcome } from '../combat/types';
+import type { CombatDefinition } from '../combat/types';
 import type { CampaignState } from '../game/types';
 import { linkJournalEntry } from '../journal/links';
 import { buildJournalCuriosityGap } from '../knowledge/curiosity';
@@ -206,7 +208,8 @@ function advanceOrFinish(
     const done = completeAdventureRun(ready, seed, { at: now });
     let next: CampaignState = { ...state, adventureRuns: replace(state.adventureRuns, done.run), updatedAt: now };
     next = offerReflection(next, done.run, seed, reflectionId, now);
-    return next;
+    // A07: the world remembers (structural memory cards governed by the N04 gate).
+    return applyAdventureConsequences(next, deriveAdventureConsequences(next, done.run.id));
   }
 
   const advanced = reduceAdventureRun(run, seed, { type: 'advance', at: now });
@@ -218,6 +221,8 @@ function advanceOrFinish(
  * opens the deterministic encounter instead of advancing.
  */
 export function makeSliceChoice(state: CampaignState, input: SliceChoiceInput): CampaignState {
+  // Q05-D1: a re-delivered choice (same action id) is a no-op, never a duplicate.
+  if (state.adventureActions.some((action) => action.id === input.actionId)) return state;
   const run = requireRun(state, input.runId);
   if (run.status !== 'active') throw new Error(`AdventureRun ${run.id} is not active.`);
   if (state.activeCombat) throw new Error('Resolve the current encounter first.');
@@ -258,13 +263,8 @@ export function makeSliceChoice(state: CampaignState, input: SliceChoiceInput): 
   return advanceOrFinish(next, run, seed, input.now, `reflection_${run.id}`);
 }
 
-const COMBAT_CONSEQUENCE: Record<CombatOutcome, string> = {
-  victory: 'The way ahead is clear.',
-  pacified: 'The standoff eased without a fight.',
-  escaped: 'You slipped away and the story moved on.',
-  defeat: 'You were knocked back, and the story found another way forward.',
-  story: 'The moment passed, and the story turned.'
-};
+/** Single source of the system-authored outcome lines (A07 reads them back). */
+const COMBAT_CONSEQUENCE = COMBAT_CONSEQUENCE_LINES;
 
 /**
  * I02/I03: one Combat round. When the encounter resolves, its deterministic
@@ -277,6 +277,9 @@ export function playSliceCombatRound(
   input: { intent: CombatPlayerIntent; now: string; consequenceActionId: string }
 ): CampaignState {
   const record = state.activeCombat;
+  // Q05-D2: the dispatch id doubles as the round's idempotency key.
+  if (state.adventureActions.some((action) => action.id === input.consequenceActionId)) return state;
+  if (record?.lastIntentId === input.consequenceActionId) return state;
   if (!record) throw new Error('No encounter in progress.');
   const resumed = resumeActiveCombat(record, ENCOUNTER_BANK);
   if (!resumed.ok) {
@@ -285,7 +288,7 @@ export function playSliceCombatRound(
   }
   const nextCombat = playRound(resumed.definition, resumed.state, input.intent);
   if (nextCombat.phase !== 'resolved' || !nextCombat.outcome) {
-    return { ...state, activeCombat: { ...record, state: nextCombat }, updatedAt: input.now };
+    return { ...state, activeCombat: { ...record, state: nextCombat, lastIntentId: input.consequenceActionId }, updatedAt: input.now };
   }
 
   let next: CampaignState = { ...state, activeCombat: null, updatedAt: input.now };
@@ -352,12 +355,13 @@ export function withdrawSliceAdventure(
   const run = requireRun(state, input.runId);
   const seed = requireSeed(state, run.seedId);
   const done = withdrawAdventureRun(run, seed, { at: input.now, cause: 'chose-to-leave' });
-  return {
+  const next: CampaignState = {
     ...state,
     adventureRuns: replace(state.adventureRuns, done.run),
     activeCombat: state.activeCombat?.adventureRunId === run.id ? null : state.activeCombat,
     updatedAt: input.now
   };
+  return applyAdventureConsequences(next, deriveAdventureConsequences(next, run.id, { exitCause: 'chose-to-leave' }));
 }
 
 export function selectActiveAdventure(state: CampaignState): { run: AdventureRun; seed: AdventureSeed } | undefined {
@@ -365,4 +369,15 @@ export function selectActiveAdventure(state: CampaignState): { run: AdventureRun
   if (!run) return undefined;
   const seed = state.adventureSeeds.find((item) => item.id === run.seedId);
   return seed ? { run, seed } : undefined;
+}
+
+/** N05: a line recalling an earlier, still-eligible character or place in this territory. */
+export function selectRecurringLine(state: CampaignState): string | null {
+  const active = selectActiveAdventure(state);
+  if (!active) return null;
+  return selectRecurringReferences(state, {
+    territoryId: active.seed.territoryId,
+    currentRunId: active.run.id,
+    currentSeedId: active.seed.id
+  }).fallbackLine;
 }

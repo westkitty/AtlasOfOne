@@ -12,6 +12,8 @@ export interface AdventurePanelProps {
   available: readonly AdventureSeed[];
   combatView?: CombatPanelView;
   lastOutcome?: string;
+  /** N05: recalls an earlier character/place in this territory (structural label only). */
+  recurringLine?: string | null;
   onStart: (seedId: string) => void;
   onChoice: (label: string) => void;
   onCombatIntent: (intent: CombatPlayerIntent) => void;
@@ -31,6 +33,7 @@ export function AdventurePanel({
   available,
   combatView,
   lastOutcome,
+  recurringLine,
   onStart,
   onChoice,
   onCombatIntent,
@@ -80,6 +83,7 @@ export function AdventurePanel({
             {beat.heading} · {beat.index + 1} of {beat.total}
           </p>
           <h2 id="adventure-title" className="adventure-prompt" data-testid="adventure-prompt">{beat.prompt}</h2>
+          {beat.beat === 'hook' && recurringLine && <p className="adventure-recurring" data-testid="adventure-recurring">{recurringLine}</p>}
 
           {combatView ? (
             <div data-testid="adventure-combat">

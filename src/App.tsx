@@ -15,6 +15,7 @@ import {
   makeSliceChoice,
   playSliceCombatRound,
   selectActiveAdventure,
+  selectRecurringLine,
   startSliceAdventure,
   withdrawSliceAdventure
 } from './slice/loop';
@@ -1001,7 +1002,8 @@ export default function App() {
     const runId = activeAdventure?.run.id;
     const next = runSlice('Combat', (current) => playSliceCombatRound(current, {
       intent,
-      consequenceActionId: `action_${crypto.randomUUID()}`,
+      // Stable per encounter round: a double-tap in the same round is a no-op (Q05-D2).
+      consequenceActionId: `action_${current.activeCombat?.id ?? 'none'}_r${current.activeCombat?.state.round ?? 0}_${current.activeCombat?.state.phase ?? 'none'}`,
       now: new Date().toISOString()
     }));
     if (runId) finishedMessage(next, runId);
@@ -1998,6 +2000,7 @@ export default function App() {
             available={availableSeeds}
             combatView={combatView}
             lastOutcome={adventureOutcome}
+            recurringLine={selectRecurringLine(state)}
             onStart={startAdventure}
             onChoice={chooseInAdventure}
             onCombatIntent={combatIntent}
