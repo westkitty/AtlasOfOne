@@ -11,9 +11,9 @@
   "last_updated": "2026-09-24",
   "current_baseline": {
     "identity": "integration-v2-staging@2063ad8",
-    "state": "implemented-unverified",
-    "last_verified": "2026-09-24T03:16:50Z",
-    "note": "Current integration head after RF01, C05 and P00 merges. Atlas validation #205 is still in progress, so this head is not yet promoted to verified. main remains the release surface."
+    "state": "verified",
+    "last_verified": "2026-09-25T01:32:54Z",
+    "note": "Verified integration staging baseline after RF01, C05 and P00 merges. Atlas validation #205 passed. It is not deployed; main remains the release surface."
   },
   "application_content_baseline": {
     "commit": "b5a3a2f",
@@ -51,9 +51,9 @@
     "pull_request": 12,
     "draft": true,
     "ci_run": "36081936267",
-    "unit": "pending current-head validation",
-    "browser": "pending current-head validation",
-    "build": "pending current-head validation",
+    "unit": "469/469 across 64 files",
+    "browser": "152/152 across 18 files",
+    "build": "passed; PWA precache 120 entries (614.68 KiB)",
     "deployed": false
   }
 }
@@ -79,9 +79,9 @@ Atlas has four identities that must remain separate: authority/source state, v2 
 
 - **Repository:** `westkitty/AtlasOfOne`.
 - **Active development branch:** `integration/atlas-v2-journal-adventure-combat`.
-- **Current integration head:** `2063ad8de2cb616876956bdb0fd2ff74cb213b8d` (**implemented-unverified** until Atlas validation #205 completes).
+- **Verified integration head:** `2063ad8de2cb616876956bdb0fd2ff74cb213b8d`.
 - **Integration PR:** #12, still **DRAFT**. It remains staging/review, not release authority.
-- **Current-head proof:** GitHub Actions `Atlas validation #205`, run `36081936267`, is still in progress. The most recent merged packets were individually green before integration: RF01 PR #44 / CI #202, C05 PR #50 / CI #199, and P00 PR #51 / CI #201.
+- **Current-head proof:** GitHub Actions `Atlas validation #205`, run `36081936267`: **469/469 unit tests across 64 files**, production/PWA build PASS, **120 precache entries (614.68 KiB)**, **152/152 real-Chrome browser tests across 18 files**.
 - The current head includes the merged packet chain through RF07 plus RF01 UI, Journal J04/J07, Knowledge K01/K02/K04/K05, Combat C03/C04/C05 and provider envelope P00. Draft candidate PRs #52-#55 cover K06, P01, P02 and S00 and are not merged authority.
 - **Current `main`:** `1b5103333f09884bf87286787e29885fd53d447c`. None of this v2 runtime work has merged to `main`.
 
@@ -102,7 +102,7 @@ Atlas has four identities that must remain separate: authority/source state, v2 
 
 ### 2d. Shared facts
 
-- **Project state:** `integration-head-pending-validation / v2-in-progress`.
+- **Project state:** `verified-integration-baseline / v2-in-progress`.
 - Authority remains Journal-first with Worldwalker, deterministic Adventure/Combat, Reflection firewall, revisable Snapshots, local-first persistence and no assistant TTS.
 - Schema v2 is now active on integration and canonical v1 fixtures migrate deterministically; historical FinalAssessment data is preserved as a first historical Snapshot without fabricated provenance.
 - Journal is now a real blank local-first input path: typed saves persist with no Turn/Evidence/XP/provider side effect, and the latest saved entry can be marked PRIVATE or retracted with M06 retirement propagation.
@@ -794,7 +794,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 ## Revision 28 — 2026-09-24 — reconcile post-c14 v2 integration packet chain
 
 - Advanced the control-plane identity from stale integration head `c14b4b7` to current integration head `2063ad8`.
-- Did **not** promote the current head to verified: Atlas validation #205 / run `36081936267` is still in progress.
+- Promoted `2063ad8` to **verified integration staging** after Atlas validation #205 / run `36081936267` passed: 469/469 unit, build/PWA clean, 152/152 browser.
 - Recorded already-merged Journal J04/J07; Reflection RF01/RF02/RF03/RF05/RF06/RF07; Knowledge K01/K02/K04/K05; Combat C03/C04/C05; and provider boundary P00.
 - Recorded draft review candidates PR #52 K06, #53 P01, #54 P02 and #55 S00 as unmerged work.
 - Preserved `main` as the release/deployment surface; no v2 runtime work was merged to main.
