@@ -261,4 +261,27 @@ describe('v2 Reflection human-authority UI (RF01)', () => {
 
     await page.setViewportSize(PHONE);
   });
+
+  it('contains keyboard focus and restores it after dismissing the modal', async () => {
+    await seedPendingReflection('reflection_ui_keyboard');
+    await page.click('[data-testid="open-reflection"]');
+    await page.waitForSelector('[data-testid="reflection-panel"]');
+
+    expect(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')))
+      .toBe('reflection-panel');
+
+    await page.keyboard.press('Shift+Tab');
+    expect(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')))
+      .toBe('reflection-private');
+
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')))
+      .toBe('reflection-close');
+
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('[data-testid="reflection-panel"]', { state: 'detached' });
+    await expect.poll(async () =>
+      page.evaluate(() => document.activeElement?.getAttribute('data-testid'))
+    ).toBe('open-reflection');
+  });
 });
