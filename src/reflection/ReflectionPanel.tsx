@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { ReflectionDecision, ReflectionRecord } from './schema';
 
 const SOURCE_LABEL: Record<ReflectionRecord['sourceKind'], string> = {
@@ -32,17 +33,55 @@ export function ReflectionPanel({
   onClose
 }: ReflectionPanelProps) {
   const hasWords = value.trim().length > 0;
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
+
+  const containFocus = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const panel = panelRef.current;
+    if (!panel) return;
+    const focusable = [...panel.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), textarea:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])'
+    )].filter((element) => element.offsetParent !== null);
+
+    if (focusable.length === 0) {
+      event.preventDefault();
+      panel.focus();
+      return;
+    }
+
+    const active = document.activeElement;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && (active === first || active === panel)) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   return (
     <section
+      ref={panelRef}
       className="reflection-overlay"
       data-testid="reflection-panel"
       role="dialog"
       aria-modal="true"
       aria-labelledby="reflection-title"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose();
-      }}
+      tabIndex={-1}
+      onKeyDown={containFocus}
     >
       <button
         type="button"
