@@ -290,10 +290,13 @@ export interface CombatActResolution {
 
 export interface CombatLeaveCommand {
   actorId: string;
-  /**
-   * Deterministic story authority supplied by the encounter runtime.
-   * Provider/model prose cannot set this bit directly.
-   */
+}
+
+/**
+ * Deterministic encounter-owned context for evaluating LEAVE eligibility.
+ * This is deliberately separate from the player's command.
+ */
+export interface CombatLeaveContext {
   storyGateOpen?: boolean;
 }
 
