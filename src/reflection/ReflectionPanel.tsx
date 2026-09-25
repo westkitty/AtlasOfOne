@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type KeyboardEvent } from 'react';
 import type { ReflectionDecision, ReflectionRecord } from './schema';
 
 const SOURCE_LABEL: Record<ReflectionRecord['sourceKind'], string> = {
@@ -39,7 +39,7 @@ export function ReflectionPanel({
     panelRef.current?.focus();
   }, []);
 
-  const containFocus = (event: React.KeyboardEvent<HTMLElement>) => {
+  const containFocus = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
       onClose();
