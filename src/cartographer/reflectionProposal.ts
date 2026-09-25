@@ -3,6 +3,7 @@ import {
   proposalContainsForbiddenAuthority,
   reflectionProposalEnvelopeSchema
 } from './proposals';
+import { ProposalProvenanceError } from './proposalErrors';
 
 /**
  * P02 Reflection proposal.
@@ -52,8 +53,9 @@ export function parseReflectionProposalForContext(
   const unknownIds = proposal.supportingSourceIds.filter((id) => !allowed.has(id));
 
   if (unknownIds.length > 0) {
-    throw new Error(
-      `Reflection proposal referenced source IDs outside bounded context: ${unknownIds.join(', ')}`
+    throw new ProposalProvenanceError(
+      `Reflection proposal referenced source IDs outside bounded context: ${unknownIds.join(', ')}`,
+      unknownIds
     );
   }
 

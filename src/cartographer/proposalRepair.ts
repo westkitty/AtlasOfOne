@@ -1,4 +1,3 @@
-import { ZodError } from 'zod';
 import { proposalContainsForbiddenAuthority } from './proposals';
 import { ProposalProvenanceError } from './proposalErrors';
 
@@ -35,14 +34,6 @@ function classify<T>(raw: string, parse: ProposalParser<T>): Classified<T> {
     return { ok: true, proposal: parse(value) };
   } catch (error) {
     if (error instanceof ProposalProvenanceError) return { ok: false, code: 'provenance-violation' };
-    // P02's parseReflectionProposalForContext throws a plain Error with this marker.
-    if (
-      error instanceof Error
-      && !(error instanceof ZodError)
-      && /outside bounded context/.test(error.message)
-    ) {
-      return { ok: false, code: 'provenance-violation' };
-    }
     return { ok: false, code: 'malformed' };
   }
 }
