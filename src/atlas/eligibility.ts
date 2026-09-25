@@ -51,6 +51,11 @@ export interface AtlasSnapshotRequest {
   evidenceIds: string[];
   insightIds: string[];
   contradictionIds: string[];
+  /**
+   * Insights Greyson rejected whose support still qualifies. Carried so a
+   * synthesizer can remember them as NOT reasserted; never counted as new material.
+   */
+  rejectedInsightIds: string[];
   /** Qualifying IDs not referenced by the previous Snapshot ("what changed"). */
   newSourceIds: string[];
 }
@@ -64,6 +69,7 @@ export interface QualifyingSnapshotProvenance {
   evidenceIds: string[];
   insightIds: string[];
   contradictionIds: string[];
+  rejectedInsightIds: string[];
 }
 
 /** Provenance-only selection; never inspects prose. Sorted for determinism. */
@@ -79,19 +85,21 @@ export function selectQualifyingSnapshotProvenance(
   const allQualify = (ids: readonly string[]) =>
     ids.length > 0 && ids.every((id) => qualifying.has(id));
 
-  const insightIds = state.insights
-    .filter((record) => record.status === 'confirmed'
+  const insightIdsWithStatus = (status: 'confirmed' | 'rejected') => state.insights
+    .filter((record) => record.status === status
       && visibility.insightIsEligible(record.id)
       && allQualify(record.evidenceIds))
     .map((record) => record.id)
     .sort();
+  const insightIds = insightIdsWithStatus('confirmed');
+  const rejectedInsightIds = insightIdsWithStatus('rejected');
 
   const contradictionIds = state.contradictions
     .filter((record) => visibility.contradictionIsEligible(record.id) && allQualify(record.evidenceIds))
     .map((record) => record.id)
     .sort();
 
-  return { evidence, evidenceIds: [...qualifying].sort(), insightIds, contradictionIds };
+  return { evidence, evidenceIds: [...qualifying].sort(), insightIds, contradictionIds, rejectedInsightIds };
 }
 
 export function evaluateSnapshotEligibility(
@@ -147,6 +155,7 @@ export function evaluateSnapshotEligibility(
       evidenceIds: provenance.evidenceIds,
       insightIds: provenance.insightIds,
       contradictionIds: provenance.contradictionIds,
+      rejectedInsightIds: provenance.rejectedInsightIds,
       newSourceIds
     }
   };

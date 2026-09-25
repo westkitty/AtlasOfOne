@@ -30,6 +30,7 @@ describe('Snapshot eligibility (S01)', () => {
         evidenceIds: ['ev_1', 'ev_2', 'ev_3', 'ev_4', 'ev_5', 'ev_6'],
         insightIds: ['insight_1'],
         contradictionIds: ['contradiction_1'],
+        rejectedInsightIds: [],
         newSourceIds: ['ev_1', 'ev_2', 'ev_3', 'ev_4', 'ev_5', 'ev_6', 'insight_1', 'contradiction_1']
       }
     });
@@ -73,6 +74,7 @@ describe('Snapshot eligibility (S01)', () => {
     );
     const result = evaluateSnapshotEligibility(state, { trigger: 'milestone', requestedAt: T0 });
     expect(result.eligible && result.request.insightIds).toEqual(['insight_1']);
+    expect(result.eligible && result.request.rejectedInsightIds).toEqual(['insight_rejected']);
     expect(result.eligible && result.request.evidenceIds).not.toContain('ev_model');
   });
 
