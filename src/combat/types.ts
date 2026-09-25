@@ -287,3 +287,21 @@ export interface CombatActResolution {
   completed: boolean;
   observationKey?: string;
 }
+
+export interface CombatLeaveCommand {
+  actorId: string;
+  /**
+   * Deterministic story authority supplied by the encounter runtime.
+   * Provider/model prose cannot set this bit directly.
+   */
+  storyGateOpen?: boolean;
+}
+
+export interface CombatLeaveResolution {
+  state: CombatState;
+  actorId: string;
+  fleeRule: CombatFleeRule;
+  outcome: Extract<CombatOutcome, 'escaped' | 'story'>;
+  failForward: true;
+}
+
