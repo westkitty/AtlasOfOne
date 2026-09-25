@@ -45,11 +45,13 @@ Regenerated at state revision 28 from receipts present on the integration branch
 | docs/v2/proof/C14.md | MERGED |
 | docs/v2/proof/C15.md | MERGED |
 | docs/v2/proof/C16.md | MERGED |
+| docs/v2/proof/C17.md | MERGED |
 | docs/v2/proof/CT00.md | MERGED |
 | docs/v2/proof/CT01.md | MERGED |
 | docs/v2/proof/CT04.md | MERGED |
 | docs/v2/proof/CT05.md | MERGED |
 | docs/v2/proof/CT09.md | MERGED |
+| docs/v2/proof/CT10.md | MERGED |
 | docs/v2/proof/D00.md | MERGED |
 | docs/v2/proof/D01.md | MERGED |
 | docs/v2/proof/D02.md | MERGED |
@@ -112,6 +114,8 @@ Regenerated at state revision 28 from receipts present on the integration branch
 | docs/v2/proof/Q02.md | MERGED |
 | docs/v2/proof/Q04.md | MERGED |
 | docs/v2/proof/Q05.md | MERGED |
+| docs/v2/proof/Q10.md | MERGED |
+| docs/v2/proof/Q11.md | MERGED |
 | docs/v2/proof/RF00.md | MERGED |
 | docs/v2/proof/RF01.md | MERGED |
 | docs/v2/proof/RF02-RF03.md | MERGED |
@@ -137,6 +141,7 @@ Regenerated at state revision 28 from receipts present on the integration branch
 | docs/v2/proof/V08.md | MERGED |
 | docs/v2/proof/W01.md | MERGED |
 | docs/v2/proof/W02.md | MERGED |
+| docs/v2/proof/W02-W09-ui.md | MERGED |
 | docs/v2/proof/W03.md | MERGED |
 | docs/v2/proof/W04.md | MERGED |
 | docs/v2/proof/W09.md | MERGED |
@@ -147,10 +152,8 @@ Regenerated at state revision 28 from receipts present on the integration branch
 |---|---|---|
 | J09 | READY | provider acknowledgement path; needs P06 + provider route |
 | P06, S03, P11 (worker part), Q06 | READY | v2 provider modes -> route, remote Snapshot proposal, quota/offline degradation proof |
-| W02/W03/W06/W07/W08/W10 UI | READY | world markers + contact encounters on the Worldwalker map |
+| W03/W06/W07/W10 UI | READY | contact-triggered encounters and consequence visuals on the Worldwalker map (W02/W09 markers merged) |
 | W05 | BLOCKED | needs `worldConsequences` persisted field (proposal in A07 receipt) |
-| C17, CT10 | IN_PROGRESS | tuning + content lint lane |
-| Q10, Q11 | IN_PROGRESS | mobile/a11y browser proof lane |
 | AS03-AS18 | BLOCKED | visual generation tooling not available in this environment |
 | Q12, Q13 | BLOCKED | physical iPhone/Android not reachable |
 | Q14-Q19, I09 | READY | release-candidate review after the above |

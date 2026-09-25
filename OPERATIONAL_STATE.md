@@ -64,11 +64,11 @@
 Evidence, not intent. `main` (1b51033) and production were not touched.
 
 - Integration head verified by CI: `dbafb34` (Atlas validation #243: typecheck, unit, build, browser all pass). Later heads are verified only once their CI run completes; see the ledger.
-- Local gate at `89f6fba`: `npm run typecheck` 0 errors; unit 1103/1103 (121 files); build PASS, PWA precache 120 entries (734.55 KiB); browser 160/160 (22 files, Chromium).
+- Local gate at `81f28de`: `npm run typecheck` 0 errors; unit 1160/1160 (123 files); build PASS, PWA precache 120 entries (738.58 KiB); browser 170/170 (24 files, Chromium), incl. 320/390/430/768 layout and keyboard/reduced-motion proofs (Q10/Q11) with four found defects fixed.
 - New gate: CI now runs `npm run typecheck`. `npx tsc --noEmit -p .` is vacuous (root config has `files: []`); earlier "tsc clean" receipt lines are UNVERIFIED for types (Q02).
 - Working product path (browser-proven): Journal (history, optional prompt, PRIVATE/retract) -> explicit "Explore this" -> seed -> Adventure (local beats, free input, step away) -> deterministic Combat (ATTACK/TECHNIQUE/GUARD/ACT/LEAVE, fail-forward) -> consequences + world memory -> optional pending Reflection -> Greyson's confirm/partial creates provenance-tracked Evidence without XP -> Vault shows and can withdraw it -> dated revisable Atlas Snapshots with "what changed". Always-available just-for-fun adventure. Mid-encounter state survives reload and export/delete/import.
 - Privacy: two-layer Reflection-evidence retirement; N04 memory gate enforced by type; Q04 canary across all consumers passes.
-- Not yet done: provider v2 modes not wired to a route (P06/S03/J09); Worldwalker world markers/contact encounters not wired into the map (W02/W03 UI); asset factory (AS03+) needs visual generation not available here; physical iPhone/Android runs (Q12/Q13) not executed; release review (Q14-Q19) not done.
+- Not yet done: provider v2 modes not wired to a route (P06/S03/J09; play is fully local today); contact-triggered encounters on the map (W03 UI; markers W02 are live); asset factory (AS03+) needs visual generation not available here; physical iPhone/Android runs (Q12/Q13) not executed; release review (Q14-Q19) not done.
 
 ## 1. Project Identity and Scope
 
