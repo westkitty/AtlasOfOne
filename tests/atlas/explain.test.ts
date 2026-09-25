@@ -19,7 +19,7 @@ function state(): CampaignState {
   const snapshot = synthesizeLocalSnapshot(base, { id: 'snapshot_1', request: request.request });
   return {
     ...base,
-    evidence: base.evidence.map((e) => (e.id === 'ev_2' ? { ...e, basis: 'inferred' as const, origin: 'model-proposed' as const } : e)),
+    evidence: base.evidence.map((e) => (e.id === 'ev_2' ? { ...e, basis: 'inference' as const, origin: 'model-proposed' as const } : e)),
     atlasSnapshots: [snapshot],
     contradictions: [
       ...base.contradictions,
@@ -46,7 +46,7 @@ describe('RF08 explainInsight', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       evidence: [
         { id: 'ev_1', dimension: 'self-description', basis: 'explicit', origin: 'player-stated' },
-        { id: 'ev_2', dimension: 'loyalty', basis: 'inferred', origin: 'model-proposed' }
+        { id: 'ev_2', dimension: 'loyalty', basis: 'inference', origin: 'model-proposed' }
       ],
       reflections: [{ id: 'reflection_confirm', decision: 'confirm', epistemicStatus: 'confirmed', createdAt: T_SNAP }],
       counterContradictionIds: ['contradiction_overlap'],

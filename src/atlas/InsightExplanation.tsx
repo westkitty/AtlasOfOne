@@ -6,6 +6,13 @@ const STATUS_LABEL = {
   rejected: 'You rejected this — not counted'
 } as const;
 
+const BASIS_LABEL = {
+  explicit: 'you said this',
+  example: 'your example',
+  inference: 'inferred',
+  revision: 'your revision'
+} as const;
+
 export interface InsightExplanationProps {
   explanation: InsightExplanationResult;
 }
@@ -32,7 +39,7 @@ export function InsightExplanation({ explanation }: InsightExplanationProps) {
         <ul data-testid="insight-evidence">
           {evidence.map((item) => (
             <li key={item.id}>
-              {item.id} — {item.dimension} ({item.basis === 'explicit' ? 'you said this' : 'inferred'}, {item.origin})
+              {item.id} — {item.dimension} ({BASIS_LABEL[item.basis]}, {item.origin})
             </li>
           ))}
         </ul>
