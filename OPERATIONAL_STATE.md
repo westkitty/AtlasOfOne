@@ -7,12 +7,12 @@
   "project_name": "Atlas of One",
   "project_root": ".",
   "artifact_path": null,
-  "state_revision": 27,
-  "last_updated": "2026-09-24",
+  "state_revision": 28,
+  "last_updated": "2026-09-25",
   "current_baseline": {
-    "identity": "integration-v2-staging@c14b4b7",
+    "identity": "integration-v2-staging@dbafb34",
     "state": "verified",
-    "last_verified": "2026-09-24T03:16:50Z",
+    "last_verified": "2026-09-25 (GitHub Actions Atlas validation #243, typecheck+unit+build+browser)",
     "note": "Verified integration staging baseline only. It is not deployed; main remains the release surface."
   },
   "application_content_baseline": {
@@ -31,7 +31,7 @@
     "note": "Historical predecessor to the Revision 25 production baseline; retained only for lineage."
   },
   "repository_head_at_write": {
-    "commit": "c14b4b7669958fef9a1324e22077afa7fbaf20f1",
+    "commit": "dbafb34",
     "branch": "integration/atlas-v2-journal-adventure-combat",
     "main_commit": "1b5103333f09884bf87286787e29885fd53d447c",
     "note": "Verified integration head before this state/ledger reconciliation commit. V2 runtime work remains off main."
@@ -58,6 +58,17 @@
   }
 }
 -->
+
+## Revision 28 — verified v2 integration state (2026-09-25)
+
+Evidence, not intent. `main` (1b51033) and production were not touched.
+
+- Integration head verified by CI: `dbafb34` (Atlas validation #243: typecheck, unit, build, browser all pass). Later heads are verified only once their CI run completes; see the ledger.
+- Local gate at `89f6fba`: `npm run typecheck` 0 errors; unit 1103/1103 (121 files); build PASS, PWA precache 120 entries (734.55 KiB); browser 160/160 (22 files, Chromium).
+- New gate: CI now runs `npm run typecheck`. `npx tsc --noEmit -p .` is vacuous (root config has `files: []`); earlier "tsc clean" receipt lines are UNVERIFIED for types (Q02).
+- Working product path (browser-proven): Journal (history, optional prompt, PRIVATE/retract) -> explicit "Explore this" -> seed -> Adventure (local beats, free input, step away) -> deterministic Combat (ATTACK/TECHNIQUE/GUARD/ACT/LEAVE, fail-forward) -> consequences + world memory -> optional pending Reflection -> Greyson's confirm/partial creates provenance-tracked Evidence without XP -> Vault shows and can withdraw it -> dated revisable Atlas Snapshots with "what changed". Always-available just-for-fun adventure. Mid-encounter state survives reload and export/delete/import.
+- Privacy: two-layer Reflection-evidence retirement; N04 memory gate enforced by type; Q04 canary across all consumers passes.
+- Not yet done: provider v2 modes not wired to a route (P06/S03/J09); Worldwalker world markers/contact encounters not wired into the map (W02/W03 UI); asset factory (AS03+) needs visual generation not available here; physical iPhone/Android runs (Q12/Q13) not executed; release review (Q14-Q19) not done.
 
 ## 1. Project Identity and Scope
 
