@@ -26,6 +26,8 @@ const INERT_V2_COLLECTIONS = V2_COLLECTIONS.filter((field) => field !== 'atlasSn
 function asLegacyProjection(state: CampaignState) {
   const projected = { ...state } as Record<string, unknown>;
   for (const field of V2_COLLECTIONS) delete projected[field];
+  // C11 scalar v2 field (not a collection); asserted separately as null.
+  delete projected.activeCombat;
   projected.schemaVersion = 1;
   return projected;
 }
@@ -42,6 +44,7 @@ describe('deterministic schema-v1 -> schema-v2 migration (M02)', () => {
       expect(migrated.schemaVersion).toBe(2);
       expect(asLegacyProjection(migrated)).toEqual(expectedV1);
       for (const field of INERT_V2_COLLECTIONS) expect(migrated[field]).toEqual([]);
+      expect(migrated.activeCombat).toBeNull();
       expect(migrated.atlasSnapshots).toHaveLength(expectedV1.finalAssessment ? 1 : 0);
       expect(campaignStateSchemaV2.parse(migrated)).toEqual(migrated);
     }

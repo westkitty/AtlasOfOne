@@ -1,3 +1,4 @@
+import type { ActiveCombatRecord } from '../combat/persistence';
 import type { AdventureAction, AdventureMemory, AdventureObservation, AdventureRun, AdventureSeed } from '../adventure/schema';
 import type { AtlasSnapshot } from '../atlas/schema';
 import type { FinalAssessment } from '../cartographer/finalize';
@@ -100,6 +101,7 @@ export interface CampaignState {
   reflections: ReflectionRecord[];
   adventureMemories: AdventureMemory[];
   atlasSnapshots: AtlasSnapshot[];
+  activeCombat: ActiveCombatRecord | null;
   updatedAt: string;
 }
 

@@ -50,6 +50,7 @@ export function createInitialCampaign(): CampaignState {
     reflections: [],
     adventureMemories: [],
     atlasSnapshots: [],
+    activeCombat: null,
     updatedAt: now()
   };
 }

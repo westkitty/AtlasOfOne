@@ -7,6 +7,7 @@ import {
   adventureRunSchema,
   adventureSeedSchema
 } from '../adventure/schema';
+import { activeCombatRecordSchema } from '../combat/persistence';
 import { journalEntrySchema } from '../journal/schema';
 import { knowledgeGapSchema } from '../knowledge/schema';
 import { reflectionRecordSchema } from '../reflection/schema';
@@ -29,7 +30,9 @@ export const campaignStateSchemaV2 = campaignStateSchemaV1.extend({
   adventureObservations: z.array(adventureObservationSchema).default([]),
   reflections: z.array(reflectionRecordSchema).default([]),
   adventureMemories: z.array(adventureMemorySchema).default([]),
-  atlasSnapshots: z.array(atlasSnapshotSchema).default([])
+  atlasSnapshots: z.array(atlasSnapshotSchema).default([]),
+  /** C11: at most one in-progress encounter; additive, absent in older v2 saves. */
+  activeCombat: activeCombatRecordSchema.nullable().default(null)
 });
 
 export type CampaignStateV2 = z.infer<typeof campaignStateSchemaV2>;
