@@ -862,9 +862,19 @@ export default function App() {
     setReflectionOpen(true);
   };
 
+  const restoreWorldFocus = () => {
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(
+        '[data-testid="open-reflection"], [data-testid="open-journal"], [data-testid="enter-encounter"], [data-testid="resume-encounter"], [data-testid="open-menu"]'
+      );
+      target?.focus();
+    });
+  };
+
   const closeReflection = () => {
     setReflectionOpen(false);
     setReflectionDraft('');
+    restoreWorldFocus();
   };
 
   const submitReflectionDecision = (decision: ReflectionDecision) => {
@@ -893,6 +903,7 @@ export default function App() {
 
     setReflectionOpen(false);
     setReflectionDraft('');
+    restoreWorldFocus();
     setMessage(
       decision === 'confirm' ? 'Reflection confirmed.'
         : decision === 'partial' ? 'Partial reflection saved in your words.'
