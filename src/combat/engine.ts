@@ -6,6 +6,8 @@ import type {
   CombatAttackResolution,
   CombatGuardCommand,
   CombatGuardResolution,
+  CombatLeaveCommand,
+  CombatLeaveResolution,
   CombatTechniqueActivation,
   CombatTechniqueCommand,
   CombatTechniqueDefinition,
@@ -479,6 +481,58 @@ export function resolveAct(
     requiredSteps: act.requiredSteps,
     completed,
     ...(act.observationKey === undefined ? {} : { observationKey: act.observationKey })
+  };
+}
+
+/**
+ * C06 deterministic LEAVE / fail-forward resolver.
+ *
+ * LEAVE is never a personality judgment and never a progression failure. It
+ * resolves the Combat encounter into an authored fail-forward terminal state:
+ *
+ * - always: may leave on any player turn -> escaped
+ * - after-turn: available after one complete round -> escaped
+ * - story-gated: requires a deterministic encounter-owned gate -> story
+ *
+ * No reward, Evidence, AdventureObservation, or provider call is created here.
+ */
+export function resolveLeave(
+  definition: CombatDefinition,
+  state: CombatState,
+  command: CombatLeaveCommand
+): CombatLeaveResolution {
+  validateCombatDefinition(definition);
+
+  if (state.definitionId !== definition.id) {
+    throw new Error(
+      `LEAVE definition mismatch: state=${state.definitionId}, definition=${definition.id}`
+    );
+  }
+  if (state.phase !== 'player') {
+    throw new Error(`LEAVE requires player phase, got ${state.phase}.`);
+  }
+
+  const actor = state.combatants.find((combatant) => combatant.id === command.actorId);
+  if (!actor) throw new Error(`Unknown LEAVE actor: ${command.actorId}`);
+  if (actor.side !== 'player') throw new Error(`LEAVE actor ${command.actorId} is not the player.`);
+  if (actor.hp <= 0) throw new Error(`LEAVE actor ${command.actorId} is defeated.`);
+
+  if (definition.fleeRule === 'after-turn' && state.round <= 1) {
+    throw new Error('LEAVE is unavailable until one full combat round has passed.');
+  }
+  if (definition.fleeRule === 'story-gated' && command.storyGateOpen !== true) {
+    throw new Error('LEAVE is currently story-gated by deterministic encounter state.');
+  }
+
+  const outcome = definition.fleeRule === 'story-gated' ? 'story' : 'escaped';
+  const nextState = reduceCombatLifecycle(state, { type: 'RESOLVE', outcome });
+
+  return {
+    state: nextState,
+    actorId: actor.id,
+    fleeRule: definition.fleeRule,
+    outcome,
+    failForward: true
   };
 }
 
