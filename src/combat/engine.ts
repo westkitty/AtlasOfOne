@@ -7,6 +7,7 @@ import type {
   CombatGuardCommand,
   CombatGuardResolution,
   CombatLeaveCommand,
+  CombatLeaveContext,
   CombatLeaveResolution,
   CombatTechniqueActivation,
   CombatTechniqueCommand,
@@ -499,7 +500,8 @@ export function resolveAct(
 export function resolveLeave(
   definition: CombatDefinition,
   state: CombatState,
-  command: CombatLeaveCommand
+  command: CombatLeaveCommand,
+  context: CombatLeaveContext = {}
 ): CombatLeaveResolution {
   validateCombatDefinition(definition);
 
@@ -520,7 +522,7 @@ export function resolveLeave(
   if (definition.fleeRule === 'after-turn' && state.round <= 1) {
     throw new Error('LEAVE is unavailable until one full combat round has passed.');
   }
-  if (definition.fleeRule === 'story-gated' && command.storyGateOpen !== true) {
+  if (definition.fleeRule === 'story-gated' && context.storyGateOpen !== true) {
     throw new Error('LEAVE is currently story-gated by deterministic encounter state.');
   }
 
