@@ -46,14 +46,14 @@ describe('Knowledge structural relevance (K03)', () => {
     });
   });
 
-  it('ignores reconciled contradictions and unrelated evidence', () => {
+  it('ignores resolved contradictions and unrelated evidence', () => {
     const subject = gap({
       sourceEvidenceIds: ['ev_gap']
     });
 
     const score = scoreKnowledgeGapStructuralRelevance(subject, {
       contradictions: [
-        { status: 'reconciled', evidenceIds: ['ev_gap', 'ev_other'] },
+        { status: 'resolved', evidenceIds: ['ev_gap', 'ev_other'] },
         { status: 'open', evidenceIds: ['ev_unrelated'] }
       ],
       confirmedChangeSourceIds: []

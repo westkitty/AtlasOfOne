@@ -39,8 +39,8 @@ describe('M05 schema-v2 transfer validation', () => {
   });
 
   it('keeps v1 imports compatible by migrating them before returning from transfer', () => {
-    const state = createInitialCampaign() as Record<string, unknown>;
-    const legacy = { ...state, schemaVersion: 1 };
+    const state = createInitialCampaign() as unknown as Record<string, unknown>;
+    const legacy: Record<string, unknown> = { ...state, schemaVersion: 1 };
     for (const field of [
       'journalEntries',
       'knowledgeGaps',

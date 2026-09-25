@@ -85,7 +85,7 @@ describe('Snapshot eligibility (S01)', () => {
     state.contradictions = [];
     state.adventureSeeds = [{
       id: 'seed_fixture', sourceGapIds: [], kind: 'pure-fun', territoryId: 'identity',
-      premise: 'Synthetic premise.', learningTarget: 'fun', status: 'started'
+      premise: 'Synthetic premise.', learningTarget: 'none', status: 'started'
     }];
     state.adventureRuns = [{
       id: 'run_fixture', seedId: 'seed_fixture', territoryId: 'identity', status: 'active',

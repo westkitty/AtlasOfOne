@@ -47,7 +47,7 @@ describe('AdventureSeed state/eligibility/dedup (A00)', () => {
   });
 
   it('rejects tampered requests (pure-fun kind, learningTarget none, extra keys)', () => {
-    expect(() => createAdventureSeedFromRequest({ ...request, kind: 'pure-fun' }, { id: 's', premise: 'p' })).toThrow();
+    expect(() => createAdventureSeedFromRequest({ ...request, kind: 'pure-fun' } as unknown as AdventureSeedRequest, { id: 's', premise: 'p' })).toThrow();
     expect(() => createAdventureSeedFromRequest(
       { ...request, learningTarget: 'none' } as unknown as AdventureSeedRequest, { id: 's', premise: 'p' }
     )).toThrow();

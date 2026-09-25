@@ -59,7 +59,7 @@ describe('Phase 6 minimal onboarding engine invariants', () => {
     expect(parsedCompleted.onboardingCompleted).toBe(true);
 
     // Historical v1 data may predate onboardingCompleted and every v2 collection.
-    const legacy = structuredClone(completed) as Record<string, unknown>;
+    const legacy = structuredClone(completed) as unknown as Record<string, unknown>;
     legacy.schemaVersion = 1;
     delete legacy.onboardingCompleted;
     for (const field of [

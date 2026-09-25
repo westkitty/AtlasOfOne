@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "npm run build && vite preview",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.worker.json",
     "test:watch": "vitest",
     "deploy": "npm run build && wrangler deploy",
     "test:browser": "npm run build && vitest run --config vitest.browser.config.ts",

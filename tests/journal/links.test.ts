@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { CampaignState } from '../../src/game/types';
 import { createInitialCampaign } from '../../src/game/engine';
 import { createJournalEntry } from '../../src/journal/domain';
 import { linkJournalEntry } from '../../src/journal/links';
@@ -116,7 +117,7 @@ describe('Journal links (J07)', () => {
   });
 
   it('persists reflection and adventure links through the public export/import boundary', () => {
-    let state = fixtureState();
+    let state: CampaignState = fixtureState();
     state = linkJournalEntry(state, 'journal_link_fixture', {
       kind: 'reflection',
       id: 'reflection_link_fixture'

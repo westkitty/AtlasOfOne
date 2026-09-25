@@ -50,8 +50,8 @@ function state(gaps: KnowledgeGap[], extra: Partial<CampaignState> = {}): Campai
   return {
     ...initial,
     territories: [
-      { id: 'alpha', label: 'Alpha', status: 'available', requiredDimensions: ['a1', 'a2'], coveredDimensions: [], evidenceIds: [] },
-      { id: 'beta', label: 'Beta', status: 'available', requiredDimensions: ['b1', 'b2'], coveredDimensions: ['b1'], evidenceIds: [] }
+      { id: 'alpha', label: 'Alpha', status: 'exploring', requiredDimensions: ['a1', 'a2'], coveredDimensions: [], evidenceIds: [] },
+      { id: 'beta', label: 'Beta', status: 'exploring', requiredDimensions: ['b1', 'b2'], coveredDimensions: ['b1'], evidenceIds: [] }
     ] as CampaignState['territories'],
     knowledgeGaps: gaps,
     ...extra

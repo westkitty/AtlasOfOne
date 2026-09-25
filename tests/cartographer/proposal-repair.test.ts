@@ -61,11 +61,12 @@ describe('single-repair / no-loop policy (P07)', () => {
       interpretationCandidate: 'i', supportingSourceIds: ['invented']
     });
 
-    for (const [raw, parse] of [
+    const cases: Array<[string, (v: unknown) => unknown]> = [
       [scene, parseScene],
       [snapshot, (v: unknown) => parseSnapshotProposalForContext(v, ['obs_1'])],
       [reflection, (v: unknown) => parseReflectionProposalForContext(v, ['obs_1'])]
-    ] as const) {
+    ];
+    for (const [raw, parse] of cases) {
       const result = await parseProposalWithSingleRepair(raw, parse, repair);
       expect(result).toEqual({ ok: false, code: 'provenance-violation', repairAttempted: false });
     }
