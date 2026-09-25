@@ -157,18 +157,31 @@ export interface EvidenceVisibility {
 
 export function createEvidenceVisibility(state: CampaignState): EvidenceVisibility {
   const evidenceById = new Map(state.evidence.map((item) => [item.id, item]));
+  const reflectionById = new Map((state.reflections ?? []).map((item) => [item.id, item]));
   const isPrivateDimension = (dimension: string) => isPrivate(state, dimension);
+  // I06: Reflection-sourced evidence travels only while every authorizing
+  // Reflection is still active, non-PRIVATE, and confirmed/partial. The deeper
+  // source chain is enforced durably by v2 retirement (retireIneligibleV2DerivedState).
+  const reflectionAuthorityHolds = (record: EvidenceRecord) => (record.sourceReflectionIds ?? []).every((id) => {
+    const reflection = reflectionById.get(id);
+    return Boolean(reflection)
+      && reflection!.recordStatus === 'active'
+      && reflection!.privacy === 'normal'
+      && (reflection!.epistemicStatus === 'confirmed' || reflection!.epistemicStatus === 'partial');
+  });
+  const isVisibleRecord = (record: EvidenceRecord) =>
+    record.status === 'active' && !isPrivateDimension(record.dimension) && reflectionAuthorityHolds(record);
 
   // `status === 'active'` is what carries retraction: ANSWER_RETRACTED marks every
   // evidence record derived from the retracted turn as 'retracted'.
   const evidenceIsVisible = (evidenceId: string) => {
     const record = evidenceById.get(evidenceId);
-    return Boolean(record) && record!.status === 'active' && !isPrivateDimension(record!.dimension);
+    return Boolean(record) && isVisibleRecord(record!);
   };
 
   return {
     isPrivateDimension,
-    visibleEvidence: state.evidence.filter((item) => item.status === 'active' && !isPrivateDimension(item.dimension)),
+    visibleEvidence: state.evidence.filter(isVisibleRecord),
     evidenceIsVisible,
     derivedIsVisible: (evidenceIds: string[]) => evidenceIds.length > 0 && evidenceIds.every(evidenceIsVisible)
   };

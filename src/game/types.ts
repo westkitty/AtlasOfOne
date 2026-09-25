@@ -33,7 +33,7 @@ export interface QuestState { id: string; label: string; description: string; pr
 export interface UnlockState { id: string; label: string; description: string; levelRequired: number; unlockedAt?: string; }
 export interface AchievementState { id: string; label: string; description: string; unlockedAt?: string; }
 export interface TurnRecord { id: string; createdAt: string; territoryId: string; dimension: string; question: string; answer: string; substantive: boolean; behavioralExample: boolean; revision: boolean; retracted: boolean; }
-export interface EvidenceRecord { id: string; dimension: string; claim: string; sourceTurnIds: string[]; basis: EvidenceBasis; strength: 1 | 2 | 3; territories: string[]; counterEvidenceIds: string[]; status: EvidenceStatus; origin: EvidenceOrigin; /** Provider that authored the claim, e.g. `mock` or `workers-ai:<model>`. */ providerId?: string; }
+export interface EvidenceRecord { id: string; dimension: string; claim: string; sourceTurnIds: string[]; basis: EvidenceBasis; strength: 1 | 2 | 3; territories: string[]; counterEvidenceIds: string[]; status: EvidenceStatus; origin: EvidenceOrigin; /** Provider that authored the claim, e.g. `mock` or `workers-ai:<model>`. */ providerId?: string; /** v2 (I06): Reflection(s) whose explicit human decision authorized this claim. */ sourceReflectionIds?: string[]; }
 export interface InsightRecord { id: string; title: string; summary: string; evidenceIds: string[]; confidence: 'low' | 'moderate' | 'strong'; status: InsightStatus; createdAt: string; }
 export interface ContradictionRecord { id: string; claim: string; evidenceIds: string[]; status: 'open' | 'resolved'; }
 export interface MapFragment { id: string; territoryId: string; label: string; unlockedAt: string; }

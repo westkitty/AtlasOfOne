@@ -98,6 +98,19 @@ describe('v2 vertical slice: Journal -> Adventure -> Encounter -> Reflection (I0
     await page.fill('[data-testid="adventure-free-input"]', 'Knock on the tower door.');
     await page.click('[data-testid="adventure-free-submit"]');
 
+    // Double-tap regression: two dispatches in one task must both apply, in order.
+    await expect.poll(async () => (await persistedState())?.adventureActions?.length ?? 0).toBe(1);
+    await page.evaluate(() => {
+      const button = document.querySelector('[data-testid="adventure-option"]') as HTMLButtonElement | null;
+      if (!button) throw new Error('No adventure option.');
+      button.click();
+      (document.querySelector('[data-testid="adventure-option"]') as HTMLButtonElement).click();
+    });
+    await expect.poll(async () => (await persistedState())?.adventureActions?.length ?? 0).toBe(3);
+    const afterDouble = await persistedState();
+    expect(afterDouble.adventureObservations).toHaveLength(3);
+    expect(afterDouble.adventureRuns[0].currentBeat).toBe('encounter');
+
     for (let step = 0; step < 30; step += 1) {
       if (await page.locator('[data-testid="adventure-outcome"]').count()) break;
       if (await page.locator('[data-testid="adventure-combat"]').count()) {
@@ -125,5 +138,21 @@ describe('v2 vertical slice: Journal -> Adventure -> Encounter -> Reflection (I0
 
     await page.click('[data-testid="adventure-close"]');
     await page.waitForSelector('[data-testid="open-reflection"]');
+
+    // I06: Greyson answers in his own words and confirms; only then does Evidence exist.
+    await page.click('[data-testid="open-reflection"]');
+    await page.fill('[data-testid="reflection-response"]', 'Synthetic confirmed statement in my own words.');
+    await page.click('[data-testid="reflection-confirm"]');
+    await expect.poll(async () => (await persistedState())?.evidence?.length ?? 0).toBe(before.evidence.length + 1);
+    const confirmed = await persistedState();
+    const evidence = confirmed.evidence.at(-1);
+    expect(evidence).toMatchObject({
+      claim: 'Synthetic confirmed statement in my own words.',
+      origin: 'player-stated',
+      sourceReflectionIds: [confirmed.reflections[0].id],
+      status: 'active'
+    });
+    expect(confirmed.xp).toBe(before.xp);
+    expect(turnRequests).toBe(beforeTurnRequests);
   });
 });

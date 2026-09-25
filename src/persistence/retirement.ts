@@ -58,7 +58,25 @@ export function createV2ProvenanceVisibility(state: CampaignState): V2Provenance
     return Boolean(record) && journalEntryIsProviderEligible(record!);
   };
 
-  const evidenceIsEligible = evidenceVisibility.evidenceIsVisible;
+  // Reflection-sourced evidence additionally requires each authorizing
+  // Reflection's whole source chain to be eligible (reflectionIsEligible is
+  // defined below and only called after construction). Honest provenance is
+  // acyclic by time; a crafted import with a cycle fails closed instead of
+  // recursing forever.
+  const evidenceInProgress = new Set<string>();
+  const evidenceIsEligible = (id: string): boolean => {
+    if (!evidenceVisibility.evidenceIsVisible(id)) return false;
+    const record = state.evidence.find((item) => item.id === id);
+    const reflectionIds = record?.sourceReflectionIds ?? [];
+    if (reflectionIds.length === 0) return true;
+    if (evidenceInProgress.has(id)) return false;
+    evidenceInProgress.add(id);
+    try {
+      return reflectionIds.every((reflectionId) => reflectionIsEligible(reflectionId));
+    } finally {
+      evidenceInProgress.delete(id);
+    }
+  };
 
   const insightIsEligible = (id: string) => {
     const record = insightById.get(id);
@@ -264,8 +282,19 @@ export function retireIneligibleV2DerivedState(state: CampaignState): CampaignSt
     return { ...memory, status: 'retired' };
   });
 
+  // I06: durably retract Reflection-sourced evidence whose authorizing
+  // Reflection (or its source chain) is no longer eligible, so every consumer,
+  // including provider context compilation, sees status 'retracted'.
+  const evidence = state.evidence.map((record) => {
+    if (record.status !== 'active' || !record.sourceReflectionIds?.length) return record;
+    return record.sourceReflectionIds.every(sourceVisibility.reflectionIsEligible)
+      ? record
+      : { ...record, status: 'retracted' as const };
+  });
+
   return {
     ...stateWithSeeds,
+    evidence,
     adventureMemories
   };
 }

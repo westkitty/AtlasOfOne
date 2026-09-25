@@ -20,8 +20,14 @@ import { campaignStateSchemaV1 } from './schema';
  * import/export, or the runtime. M02 owns the first v1 -> v2 migration and the
  * coordinated CURRENT_SCHEMA_VERSION flip.
  */
+const evidenceRecordSchemaV2 = campaignStateSchemaV1.shape.evidence.element.extend({
+  /** I06: Reflection provenance for human-authorized claims (optional; turn-sourced evidence omits it). */
+  sourceReflectionIds: z.array(z.string().min(1)).min(1).optional()
+});
+
 export const campaignStateSchemaV2 = campaignStateSchemaV1.extend({
   schemaVersion: z.literal(2),
+  evidence: z.array(evidenceRecordSchemaV2),
   journalEntries: z.array(journalEntrySchema).default([]),
   knowledgeGaps: z.array(knowledgeGapSchema).default([]),
   adventureSeeds: z.array(adventureSeedSchema).default([]),

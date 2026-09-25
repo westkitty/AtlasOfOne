@@ -3,6 +3,7 @@ import { EncounterPanel } from './app/EncounterPanel';
 import { AgencyControls, AgencySheet, PrimaryActionBar, ProgressDisplay } from './app/PresentationControls';
 import { JournalComposer } from './journal/JournalComposer';
 import { AdventurePanel } from './slice/AdventurePanel';
+import { applyReflectionEvidence } from './slice/evidence';
 import {
   exploreJournalEntry,
   makeSliceChoice,
@@ -905,6 +906,8 @@ export default function App() {
     setMessage('Latest Journal entry retracted. Its history is kept; its authority is retired.');
   };
 
+  const latestSliceState = useRef(state);
+  latestSliceState.current = state;
   const activeAdventure = selectActiveAdventure(state);
   const availableSeeds = activeAdventure
     ? []
@@ -918,10 +921,20 @@ export default function App() {
 
   // Slice handlers: every transition is a pure state function with injected ids/time.
   // A domain error (e.g. an ineligible seed) is shown, never swallowed silently.
+  //
+  // Sequential dispatches in one browser task (double-taps) must see each
+  // other's result, so the base is the latest state known to this component,
+  // not the render-time closure. If some other update lands first, the pure
+  // step is re-applied to that newer state instead of overwriting it.
   const runSlice = (label: string, step: (current: CampaignState) => CampaignState) => {
+    const base = latestSliceState.current;
     try {
-      const next = step(state);
-      setState(next);
+      const next = step(base);
+      latestSliceState.current = next;
+      setState((current) => {
+        if (current === base) return next;
+        try { return step(current); } catch { return current; }
+      });
       return next;
     } catch (error) {
       setMessage(`${label}: ${error instanceof Error ? error.message : 'not possible right now.'}`);
@@ -1030,7 +1043,9 @@ export default function App() {
 
       const reflections = current.reflections.slice();
       reflections[index] = decideReflection(record, decision, response);
-      return { ...current, reflections, updatedAt };
+      const decided = { ...current, reflections, updatedAt };
+      // I06: only an explicit confirm/partial response can become Evidence (RF02 firewall).
+      return applyReflectionEvidence(decided, { reflectionId, evidenceId: `evidence_${reflectionId}` });
     });
 
     reflectionRestoreFocusPending.current = true;
