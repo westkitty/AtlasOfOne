@@ -1,4 +1,7 @@
 import type {
+  CombatActCommand,
+  CombatActDefinition,
+  CombatActResolution,
   CombatAttackCommand,
   CombatAttackResolution,
   CombatGuardCommand,
@@ -69,6 +72,33 @@ function validateTechnique(technique: CombatTechniqueDefinition): void {
   }
 }
 
+function validateActOption(
+  act: CombatActDefinition,
+  combatants: readonly CombatantDefinition[]
+): void {
+  if (!act.id.trim()) throw new Error('Combat ACT id must not be empty.');
+  if (!act.label.trim()) throw new Error(`Combat ACT ${act.id} needs a label.`);
+  if (!Number.isInteger(act.requiredSteps) || act.requiredSteps < 0 || act.requiredSteps > 3) {
+    throw new Error(`Combat ACT ${act.id} requiredSteps must be an integer from 0 to 3.`);
+  }
+
+  if (act.targetKind === 'enemy' || act.targetKind === 'ally') {
+    if (!act.targetId) {
+      throw new Error(`Combat ACT ${act.id} needs a ${act.targetKind} targetId.`);
+    }
+    const target = combatants.find((combatant) => combatant.id === act.targetId);
+    if (!target || target.side !== act.targetKind) {
+      throw new Error(
+        `Combat ACT ${act.id} target ${act.targetId} is not an authored ${act.targetKind}.`
+      );
+    }
+  } else if ((act.targetKind === 'object' || act.targetKind === 'terrain') && !act.targetId?.trim()) {
+    throw new Error(`Combat ACT ${act.id} needs a stable ${act.targetKind} targetId.`);
+  } else if (act.targetKind === 'objective' && act.targetId !== undefined) {
+    throw new Error(`Combat ACT ${act.id} objective target must not invent a targetId.`);
+  }
+}
+
 function validateReward(reward: FixedCombatReward): void {
   if (reward.amount !== undefined && (!Number.isFinite(reward.amount) || reward.amount < 0)) {
     throw new Error(`Combat reward ${reward.id} amount must be a non-negative finite number.`);
@@ -95,10 +125,12 @@ export function validateCombatDefinition(definition: CombatDefinition): CombatDe
   uniqueIds(definition.combatants, 'combatant');
   uniqueIds(definition.rewards, 'combat reward');
   uniqueIds(definition.techniques ?? [], 'combat technique');
+  uniqueIds(definition.actOptions ?? [], 'combat ACT');
 
   for (const combatant of definition.combatants) validateCombatant(combatant);
   for (const reward of definition.rewards) validateReward(reward);
   for (const technique of definition.techniques ?? []) validateTechnique(technique);
+  for (const act of definition.actOptions ?? []) validateActOption(act, definition.combatants);
 
   const players = definition.combatants.filter((combatant) => combatant.side === 'player');
   const enemies = definition.combatants.filter((combatant) => combatant.side === 'enemy');
@@ -159,6 +191,10 @@ export function createCombatState(definition: CombatDefinition): CombatState {
     techniqueReadyRound: Object.fromEntries(
       (definition.techniques ?? []).map((technique) => [technique.id, 1])
     ),
+    actProgressById: Object.fromEntries(
+      (definition.actOptions ?? []).map((act) => [act.id, 0])
+    ),
+    completedActIds: [],
     objectiveProgress: 0
   };
 }
@@ -373,3 +409,76 @@ export function activateTechnique(
     nextUsableRound
   };
 }
+
+function actFor(definition: CombatDefinition, actId: string): CombatActDefinition {
+  const act = (definition.actOptions ?? []).find((item) => item.id === actId);
+  if (!act) throw new Error(`Unknown ACT id: ${actId}`);
+  return act;
+}
+
+/**
+ * C05 deterministic scenario-owned ACT resolver.
+ *
+ * ACT advances only its authored 0-3 step path. It deliberately does not
+ * mutate objectiveProgress, statuses, outcome, rewards, Evidence or
+ * AdventureObservation persistence. Later deterministic packets may consume
+ * the returned job/completion/observationKey.
+ */
+export function resolveAct(
+  definition: CombatDefinition,
+  state: CombatState,
+  command: CombatActCommand
+): CombatActResolution {
+  validateCombatDefinition(definition);
+
+  if (state.definitionId !== definition.id) {
+    throw new Error(
+      `ACT definition mismatch: state=${state.definitionId}, definition=${definition.id}`
+    );
+  }
+  if (state.phase !== 'player') {
+    throw new Error(`ACT requires player phase, got ${state.phase}.`);
+  }
+
+  const actor = state.combatants.find((combatant) => combatant.id === command.actorId);
+  if (!actor) throw new Error(`Unknown ACT actor: ${command.actorId}`);
+  if (actor.side !== 'player') throw new Error(`ACT actor ${command.actorId} is not the player.`);
+  if (actor.hp <= 0) throw new Error(`ACT actor ${command.actorId} is defeated.`);
+
+  const act = actFor(definition, command.actId);
+  if (state.completedActIds.includes(act.id)) {
+    throw new Error(`ACT ${act.id} is already complete.`);
+  }
+
+  const previousProgress = state.actProgressById[act.id] ?? 0;
+  const progress = act.requiredSteps === 0
+    ? 0
+    : Math.min(act.requiredSteps, previousProgress + 1);
+  const completed = act.requiredSteps === 0 || progress >= act.requiredSteps;
+
+  const nextState: CombatState = {
+    ...state,
+    actProgressById: {
+      ...state.actProgressById,
+      [act.id]: progress
+    },
+    completedActIds: completed
+      ? [...state.completedActIds, act.id]
+      : state.completedActIds
+  };
+
+  return {
+    state: nextState,
+    actorId: actor.id,
+    actId: act.id,
+    job: act.job,
+    targetKind: act.targetKind,
+    ...(act.targetId === undefined ? {} : { targetId: act.targetId }),
+    previousProgress,
+    progress,
+    requiredSteps: act.requiredSteps,
+    completed,
+    ...(act.observationKey === undefined ? {} : { observationKey: act.observationKey })
+  };
+}
+
