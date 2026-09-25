@@ -1,3 +1,4 @@
+import { markAdventureSeedStarted } from './seeds';
 import { ADVENTURE_BEATS, adventureBeatPlan, nextAdventureBeat } from './beats';
 import { adventureRunSchema, type AdventureRun, type AdventureSeed } from './schema';
 
@@ -82,4 +83,19 @@ export function reduceAdventureRun(
       throw new Error(`Unknown AdventureRun event: ${JSON.stringify(unknown)}`);
     }
   }
+}
+
+/**
+ * Atomic seed -> run start for integration callers (I01).
+ *
+ * Starting a run and flipping its seed to `started` must happen together, or
+ * two runs could open from one available seed. Callers should use this rather
+ * than calling startAdventureRun and markAdventureSeedStarted separately.
+ */
+export function startAdventureFromSeed(
+  seed: AdventureSeed,
+  input: { id: string; startedAt: string; characterIds?: readonly string[] }
+): { seed: AdventureSeed; run: AdventureRun } {
+  const run = startAdventureRun(seed, input);
+  return { seed: markAdventureSeedStarted(seed), run };
 }

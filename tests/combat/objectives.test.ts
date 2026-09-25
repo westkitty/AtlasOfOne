@@ -154,3 +154,11 @@ describe('C07 deterministic objective sims (2-5 player turns)', () => {
     expect(state.combatants.find((c) => c.id === 'enemy_1')!.hp).toBe(54);
   });
 });
+
+describe('C07 objective/gimmick compatibility (integration repair)', () => {
+  it('rejects defeat combined with non-kill-target as unwinnable', async () => {
+    const { validateObjectiveDefinition } = await import('../../src/combat/objectives');
+    const definition = { ...objectiveFixture('defeat'), gimmicks: ['non-kill-target'] } as never;
+    expect(() => validateObjectiveDefinition(definition)).toThrow('cannot be combined with the non-kill-target');
+  });
+});

@@ -32,6 +32,12 @@ export function validateObjectiveDefinition(definition: CombatDefinition): Comba
     throw new Error(`Combat objective ${objective} is not implemented in the C07 MVP set.`);
   }
 
+  if (objective === 'defeat' && definition.gimmicks.includes('non-kill-target')) {
+    // non-kill-target floors enemy HP at 1, so a defeat objective could never
+    // complete: an unwinnable encounter. Reject at authoring time.
+    throw new Error('Combat objective defeat cannot be combined with the non-kill-target gimmick.');
+  }
+
   if ((objective === 'survive' || objective === 'protect') && definition.turnLimit === undefined) {
     throw new Error(`Combat objective ${objective} requires a turnLimit (rounds to hold).`);
   }

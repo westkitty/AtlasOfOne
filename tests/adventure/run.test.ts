@@ -87,3 +87,14 @@ describe('pure-fun run requires no reflection (A09)', () => {
     expect(done.status).toBe('complete');
   });
 });
+
+describe('Atomic seed start (integration repair)', () => {
+  it('returns the started seed and run together; the started seed cannot start again', async () => {
+    const { startAdventureFromSeed } = await import('../../src/adventure/run');
+    const { seed: started, run } = startAdventureFromSeed(seed, { id: 'run_atomic', startedAt: T0 });
+    expect(started.status).toBe('started');
+    expect(seed.status).toBe('available');
+    expect(run.seedId).toBe(seed.id);
+    expect(() => startAdventureFromSeed(started, { id: 'run_again', startedAt: T0 })).toThrow();
+  });
+});
