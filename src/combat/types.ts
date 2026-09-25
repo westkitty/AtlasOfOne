@@ -287,3 +287,24 @@ export interface CombatActResolution {
   completed: boolean;
   observationKey?: string;
 }
+
+export interface CombatLeaveCommand {
+  actorId: string;
+}
+
+/**
+ * Deterministic encounter-owned context for evaluating LEAVE eligibility.
+ * This is deliberately separate from the player's command.
+ */
+export interface CombatLeaveContext {
+  storyGateOpen?: boolean;
+}
+
+export interface CombatLeaveResolution {
+  state: CombatState;
+  actorId: string;
+  fleeRule: CombatFleeRule;
+  outcome: Extract<CombatOutcome, 'escaped' | 'story'>;
+  failForward: true;
+}
+
