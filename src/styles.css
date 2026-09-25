@@ -1731,3 +1731,28 @@ html[data-reduced-motion="true"] .world-enter { animation: none; }
 .lab-samples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .lab-samples button.is-speaking { border-color: var(--gold); color: var(--gold); }
 .lab-choose { border-color: #6d6040 !important; color: var(--gold-soft) !important; }
+
+
+/* Familiar Bus: derived presence only; never progression or privacy authority. */
+.voice-card[data-familiar-attention="focused"] {
+  border-color: color-mix(in srgb, var(--gold) 62%, var(--line));
+  box-shadow: 0 0 0 1px rgba(217, 197, 143, .12), 0 10px 26px rgba(0, 0, 0, .32);
+}
+.voice-card[data-familiar-reaction="error"] {
+  border-color: #8f5a62;
+}
+.screen[data-familiar-reaction="warning"] .eyebrow:first-child::after {
+  content: ' · privacy lock active';
+  color: var(--gold-soft);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .voice-card[data-familiar-attention="focused"] .voice-badge {
+    animation: familiar-attention-breathe 1.4s ease-in-out infinite;
+  }
+}
+@keyframes familiar-attention-breathe {
+  50% { opacity: .72; }
+}
+html[data-reduced-motion="true"] .voice-card[data-familiar-attention="focused"] .voice-badge {
+  animation: none;
+}
