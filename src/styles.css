@@ -2334,3 +2334,16 @@ html[data-reduced-motion="true"] .combat-panel * { transition: none !important; 
 }
 .snapshot-body { padding: 8px 10px; overflow-wrap: anywhere; }
 .snapshot-domain h4 { margin: 10px 0 4px; }
+
+/* ---- v2 world adventure markers (W02/W09) ----------------------------- */
+.world-adventure-marker {
+  position: absolute;
+  z-index: 6;
+  transform: translate(-50%, -50%);
+  display: inline-flex; align-items: center; gap: 4px;
+  min-width: 44px; min-height: 44px; padding: 4px 8px;
+  border: 2px solid var(--gold); border-radius: 999px;
+  background: #121a24e6; color: var(--gold-soft);
+  font: inherit; font-size: .7rem; font-weight: 800;
+}
+.world-adventure-marker-label { white-space: nowrap; }

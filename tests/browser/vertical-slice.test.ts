@@ -77,6 +77,18 @@ describe('v2 vertical slice: Journal -> Adventure -> Encounter -> Reflection (I0
     await page.click('[data-testid="journal-save"]');
     await expect.poll(async () => (await persistedState())?.journalEntries?.length ?? 0).toBe(1);
 
+    // W02/W09: the just-for-fun adventure is on the map as a glyph+text marker with an accessible name.
+    const marker = page.locator('[data-testid="world-adventure-marker"]').first();
+    await marker.waitFor();
+    expect(await marker.getAttribute('aria-label')).toMatch(/\S/);
+    const box = await marker.boundingBox();
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+    await marker.click();
+    await page.waitForSelector('[data-testid="adventure-panel"]');
+    expect(await page.locator('[data-testid="adventure-just-for-fun"]').count()).toBe(1);
+    await page.click('[data-testid="adventure-close"]');
+
     // Writing never creates an adventure about the entry; only an explicit "Explore this" does.
     expect((await persistedState()).adventureSeeds).toEqual([]);
     expect((await persistedState()).knowledgeGaps).toEqual([]);

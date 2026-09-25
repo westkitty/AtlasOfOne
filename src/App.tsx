@@ -43,6 +43,9 @@ import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefi
 import { applyGameEvents, campaignReachedEndState, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
 import type { CampaignState, GameEvent, PresentationNotice, SassLevel, TerritoryStatus } from './game/types';
 import { WorldMap } from './world/WorldMap';
+import { placeAdventureMarkers } from './world/markerPlacement';
+import { renderWorldMarker } from './world/markers';
+import { REGIONS } from './world/geography';
 import { useWorldInteraction } from './world/useWorldInteraction';
 import { sanctuaryFor } from './world/sanctuaries';
 import { playMenuSound, playStinger } from './world/audio';
@@ -972,6 +975,16 @@ export default function App() {
     }
   };
 
+  // W02/W09: available adventures appear on the map as glyph+label markers.
+  const adventureMarkers = activeInterior ? [] : placeAdventureMarkers(
+    availableSeeds,
+    REGIONS.map((region) => ({ territoryId: region.id, label: region.label, centre: region.centre })),
+    () => true
+  ).map((marker) => {
+    const region = REGIONS.find((item) => item.id === marker.territoryId);
+    return { ...marker, ...renderWorldMarker(marker.kind, region?.label) };
+  });
+
   const startAdventure = (seedId: string) => {
     const runId = `run_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
@@ -1235,6 +1248,8 @@ export default function App() {
       controlsDisabled={worldControlsDisabled}
       activeInterior={activeInterior}
       onInteriorChange={setActiveInterior}
+      adventureMarkers={adventureMarkers}
+      onAdventureMarker={() => { setAdventureOutcome(''); setAdventureOpen(true); }}
     />
 
     <div className="hud" data-testid="hud">
