@@ -5,6 +5,10 @@ import { JournalComposer } from './journal/JournalComposer';
 import { JournalPanel } from './journal/JournalPanel';
 import { appendJournalEntry, createJournalEntry, selectJournalEntriesNewestFirst } from './journal/domain';
 import { privatizeJournalEntry, retractJournalEntryFromCampaign } from './journal/privacy';
+import { ReflectionPanel } from './reflection/ReflectionPanel';
+import { decideReflection } from './reflection/domain';
+import type { ReflectionDecision } from './reflection/schema';
+import { createV2ProvenanceVisibility } from './persistence/retirement';
 import { eventsFromTurn } from './cartographer/apply';
 import { createRemoteProvider, requestFinalAssessment, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
@@ -217,6 +221,12 @@ export default function App() {
   const [journalDraftInputMode, setJournalDraftInputMode] = useState<'typed' | 'speech-to-text'>('typed');
   /** Synchronous exclusion for same-task double taps on local Journal save. */
   const journalSaveInFlight = useRef(false);
+  /** Optional human-authority surface for one already-created ReflectionRecord. */
+  const [reflectionOpen, setReflectionOpen] = useState(false);
+  const [reflectionDraft, setReflectionDraft] = useState('');
+  const reflectionDecisionInFlight = useRef(false);
+  /** Restore focus only after React has committed the closed-dialog render. */
+  const reflectionRestoreFocusPending = useRef(false);
   /** Vault and the character record are places you visit, reached from one menu. */
   const [menuOpen, setMenuOpen] = useState(false);
   /** The conversation panel scrolls; an opened sheet must not open off-screen. */
@@ -753,6 +763,39 @@ export default function App() {
       ? { eyebrow: 'EXPEDITION COMPLETE', label: 'Every territory charted', detail: 'The Atlas is finished. The final assessment is available on your character record.', progress: state.territories.length, target: state.territories.length }
       : { eyebrow: 'STANDING OBJECTIVE', label: 'Chart the Atlas', detail: 'Recover a fragment from every territory on the map.', progress: chartedCount, target: state.territories.length };
   const quiet = state.presentation === 'quiet';
+  const reflectionVisibility = useMemo(() => createV2ProvenanceVisibility(state), [state]);
+  const activeReflection = useMemo(
+    () => [...state.reflections]
+      .filter((record) =>
+        record.recordStatus === 'active'
+        && record.privacy === 'normal'
+        && record.epistemicStatus === 'pending'
+        && record.decision === undefined
+        && reflectionVisibility.reflectionIsEligible(record.id)
+      )
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))[0],
+    [state.reflections, reflectionVisibility]
+  );
+  useEffect(() => {
+    if (!reflectionOpen || activeReflection) return;
+    setReflectionOpen(false);
+    setReflectionDraft('');
+  }, [reflectionOpen, activeReflection]);
+
+  useEffect(() => {
+    if (reflectionOpen || !reflectionRestoreFocusPending.current) return;
+    reflectionRestoreFocusPending.current = false;
+    const target = [
+      'open-reflection',
+      'open-journal',
+      'enter-encounter',
+      'resume-encounter',
+      'open-menu'
+    ]
+      .map((testId) => document.querySelector<HTMLElement>(`[data-testid="${testId}"]`))
+      .find((element): element is HTMLElement => Boolean(element));
+    target?.focus();
+  }, [reflectionOpen, activeReflection]);
   const {
     activeWaystone,
     dismissWaystone,
@@ -771,7 +814,7 @@ export default function App() {
   } = useWorldInteraction({
     state,
     hydrated,
-    talking: talking || journalOpen,
+    talking: talking || journalOpen || reflectionOpen,
     encounterActive: Boolean(encounter),
     menuOpen,
     worldVisible: screen === 'world',
@@ -828,6 +871,56 @@ export default function App() {
     const updatedAt = new Date().toISOString();
     setState((current) => retractJournalEntryFromCampaign(current, latestJournalEntry.id, updatedAt));
     setMessage('Latest Journal entry retracted. Its history is kept; its authority is retired.');
+  };
+
+  const openReflection = () => {
+    if (!activeReflection) return;
+    setReflectionDraft(activeReflection.response);
+    setReflectionOpen(true);
+  };
+
+  const closeReflection = () => {
+    reflectionRestoreFocusPending.current = true;
+    setReflectionOpen(false);
+    setReflectionDraft('');
+  };
+
+  const submitReflectionDecision = (decision: ReflectionDecision) => {
+    if (!activeReflection || reflectionDecisionInFlight.current) return;
+    if ((decision === 'partial' || decision === 'revise') && !reflectionDraft.trim()) return;
+
+    reflectionDecisionInFlight.current = true;
+    const reflectionId = activeReflection.id;
+    const response = reflectionDraft;
+    const updatedAt = new Date().toISOString();
+
+    setState((current) => {
+      const index = current.reflections.findIndex((record) => record.id === reflectionId);
+      if (index < 0) return current;
+      const record = current.reflections[index];
+      if (
+        record.recordStatus !== 'active'
+        || record.privacy !== 'normal'
+        || record.epistemicStatus !== 'pending'
+      ) return current;
+
+      const reflections = current.reflections.slice();
+      reflections[index] = decideReflection(record, decision, response);
+      return { ...current, reflections, updatedAt };
+    });
+
+    reflectionRestoreFocusPending.current = true;
+    setReflectionOpen(false);
+    setReflectionDraft('');
+    setMessage(
+      decision === 'confirm' ? 'Reflection confirmed.'
+        : decision === 'partial' ? 'Partial reflection saved in your words.'
+          : decision === 'reject' ? 'Reflection rejected. Atlas will keep that rejection as history.'
+            : decision === 'uncertain' ? 'Reflection left uncertain.'
+              : decision === 'revise' ? 'Revision saved. Atlas will not treat it as settled yet.'
+                : 'Reflection is private.'
+    );
+    queueMicrotask(() => { reflectionDecisionInFlight.current = false; });
   };
 
   // The six permanent controls. They are rendered identically for ordinary
@@ -962,13 +1055,13 @@ export default function App() {
           <span className="hud-track"><b style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></span>
         </span>
       </div>
-      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} disabled={journalOpen} onClick={() => { playMenuSound('open'); setMenuOpen(true); }}>
+      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} disabled={journalOpen || reflectionOpen} onClick={() => { playMenuSound('open'); setMenuOpen(true); }}>
         <span aria-hidden="true">☰</span>
       </button>
       {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
     </div>
 
-    {!talking && !encounter && !journalOpen && <>
+    {!talking && !encounter && !journalOpen && !reflectionOpen && <>
       <button
         className="world-enter world-journal"
         data-testid="open-journal"
@@ -983,8 +1076,17 @@ export default function App() {
       >
         <span>{activeInterior ? 'Consult Cartographer' : state.turns.length === 0 ? 'Ask Cartographer' : 'Continue Cartographer'}</span>
       </button>
+      {activeReflection && (
+        <button
+          className="world-reflect"
+          data-testid="open-reflection"
+          onClick={openReflection}
+        >
+          <span>Reflect</span>
+        </button>
+      )}
     </>}
-    {!talking && encounter && !journalOpen && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
+    {!talking && encounter && !journalOpen && !reflectionOpen && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
       <span>Resume {encounter.kind === 'door' ? encounter.title : encounter.heading}</span>
     </button>}
 
@@ -1676,6 +1778,15 @@ export default function App() {
     ) : (
       <>
         {renderWorld()}
+        {reflectionOpen && activeReflection && (
+          <ReflectionPanel
+            record={activeReflection}
+            value={reflectionDraft}
+            onChange={setReflectionDraft}
+            onDecision={submitReflectionDecision}
+            onClose={closeReflection}
+          />
+        )}
         {journalOpen && (
           <JournalComposer
             value={journalDraft}
