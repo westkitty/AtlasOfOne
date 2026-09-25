@@ -1980,7 +1980,7 @@ export default function App() {
 
   /** One menu, holding the places that are not the world. */
   const renderMenu = () => menuOpen && <div className="menu-scrim" data-testid="menu" onClick={()=>{ playMenuSound('close'); setMenuOpen(false); }}>
-    <div className="menu" role="dialog" aria-label="Menu" onClick={(event)=>event.stopPropagation()} onKeyDown={(event)=>{ if(event.key==='Escape') { playMenuSound('close'); setMenuOpen(false); } }}>
+    <div className="menu" role="dialog" aria-modal="true" aria-label="Menu" onClick={(event)=>event.stopPropagation()} onKeyDown={(event)=>{ if(event.key==='Escape') { playMenuSound('close'); setMenuOpen(false); } }}>
       <button className="menu-item" data-testid="go-vault" onClick={()=>{ playMenuSound('open'); setScreen('vault'); setMenuOpen(false); }}>
         <span aria-hidden="true">▤</span><span><strong>Vault</strong><small>{state.mapFragments.length} of {state.territories.length} fragments · {state.insights.length} insight{state.insights.length===1?'':'s'}</small></span>
       </button>
@@ -1997,7 +1997,7 @@ export default function App() {
   </div>;
 
   /** Vault and the character record are visited, then left behind. */
-  const renderSheet = (title: string, body: ReactNode) => <div className="sheet" data-testid="sheet">
+  const renderSheet = (title: string, body: ReactNode) => <div className="sheet" data-testid="sheet" role="dialog" aria-modal="true" aria-label={title}>
     <div className="sheet-bar">
       <button className="sheet-back" data-testid="close-sheet" aria-label="Back to the map" onClick={()=>setScreen('world')}><span aria-hidden="true">←</span> Map</button>
       <span className="sheet-title">{title}</span>
@@ -2009,7 +2009,7 @@ export default function App() {
   const banners = notices.filter((notice) => notice.kind !== 'territory').slice(0, MAX_BANNERS);
 
   return <div className={`shell${waking ? ' is-waking' : ''}`}>
-    {message&&<div className="toast" role="status">{message}<button aria-label="Dismiss" onClick={()=>setMessage('')}>×</button></div>}
+    {message&&<div className={`toast${journalOpen || adventureOpen || reflectionOpen ? ' is-top' : ''}`} role="status">{message}<button aria-label="Dismiss" onClick={()=>setMessage('')}>×</button></div>}
     {showOnboarding ? (
       renderOnboarding()
     ) : (

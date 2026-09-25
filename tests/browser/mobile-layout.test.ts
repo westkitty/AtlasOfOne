@@ -168,7 +168,7 @@ describe('Q10 mobile layout across v2 surfaces', () => {
   // DEFECT Q10-D1: the app toast ("An optional adventure is waiting...") stays at
   // z-index 70 over the open Adventure dialog during combat; at 430x932 it paints
   // over the LEAVE verb (elementFromPoint hits div.toast). Remove .fails once fixed.
-  it.fails('DEFECT Q10-D1: no toast overlaps the open Adventure dialog / LEAVE', () => {
+  it('FIXED Q10-D1: no toast overlaps the open Adventure dialog / LEAVE', () => {
     expect(combatProbe).toHaveLength(VIEWPORTS.length);
     for (const probe of combatProbe) {
       expect(probe.toast?.overlapsPanel ?? false, `${probe.tag} toast over dialog`).toBe(false);
@@ -177,7 +177,7 @@ describe('Q10 mobile layout across v2 surfaces', () => {
   });
 
   // DEFECT Q10-D2: the toast dismiss button (.toast button, "Dismiss") measures 25x23.
-  it.fails('DEFECT Q10-D2: toast dismiss target is at least 44x44', () => {
+  it('FIXED Q10-D2: toast dismiss target is at least 44x44', () => {
     expect(combatProbe).toHaveLength(VIEWPORTS.length);
     for (const probe of combatProbe) {
       expect(probe.toast, `${probe.tag} toast present`).not.toBeNull();

@@ -569,7 +569,9 @@ html[data-reduced-motion="true"] .world-layer { transition: none; }
   box-shadow: 0 10px 30px #0007;
   animation: toast-in .18s ease-out;
 }
-.toast button { border: 0; background: transparent; font-size: 1.3rem; line-height: 1; color: var(--muted); }
+.toast button { border: 0; background: transparent; font-size: 1.3rem; line-height: 1; color: var(--muted); min-width: 44px; min-height: 44px; }
+/* Q10-D1: while a bottom-anchored dialog is open, the toast moves to the top so it never covers controls such as LEAVE. */
+.toast.is-top { bottom: auto; top: calc(env(safe-area-inset-top) + 8px); }
 
 .overlay {
   position: fixed; z-index: 80; inset: 0;

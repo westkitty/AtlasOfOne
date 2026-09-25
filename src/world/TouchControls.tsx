@@ -76,6 +76,14 @@ export function TouchControls({
         activeDirections.current.right = true;
         changed = true;
       } else if (e.code === 'Space' || e.code === 'KeyE' || e.code === 'Enter') {
+        // Q11-D2: let focused buttons/links activate normally (keyboard access to HUD controls).
+        if (
+          e.code !== 'KeyE'
+          && e.target instanceof HTMLElement
+          && e.target.closest('button, a[href], [role="button"], summary')
+        ) {
+          return;
+        }
         e.preventDefault();
         onInteract();
       }

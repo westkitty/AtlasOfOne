@@ -191,7 +191,7 @@ describe('Q11 accessibility of v2 surfaces', () => {
   // DEFECT Q11-D1: the menu (role=dialog, aria-label="Menu") has no aria-modal, and
   // the Vault/record sheet is not exposed as a dialog. Repro: open the menu, inspect
   // [data-testid="menu"] and [data-testid="sheet"]. Remove .fails once fixed.
-  it.fails('DEFECT Q11-D1: menu and Vault/record sheet are modal, labelled dialogs', () => {
+  it('FIXED Q11-D1: menu and Vault/record sheet are modal, labelled dialogs', () => {
     expect(dialogs.menu).toEqual({ role: 'dialog', modal: 'true', labelled: true });
     expect(dialogs.sheet).toEqual({ role: 'dialog', modal: 'true', labelled: true });
   });
@@ -201,7 +201,7 @@ describe('Q11 accessibility of v2 surfaces', () => {
   // input/textarea/select, so a focused world <button> (e.g. open-journal) never
   // activates from the keyboard. Repro: focus [data-testid="open-journal"], press Enter:
   // the Journal composer does not open. Remove .fails once fixed.
-  it.fails('DEFECT Q11-D2: Enter/Space on a focused world button activates it', async () => {
+  it('FIXED Q11-D2: Enter/Space on a focused world button activates it', async () => {
     const { context, page } = await freshPage();
     try {
       for (const key of ['Enter', 'Space']) {
