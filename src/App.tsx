@@ -3,7 +3,13 @@ import { EncounterPanel } from './app/EncounterPanel';
 import { AgencyControls, AgencySheet, PrimaryActionBar, ProgressDisplay } from './app/PresentationControls';
 import { JournalComposer } from './journal/JournalComposer';
 import { AdventurePanel } from './slice/AdventurePanel';
+import { SnapshotHistory } from './atlas/SnapshotHistory';
+import { evaluateSnapshotEligibility } from './atlas/eligibility';
+import { synthesizeLocalSnapshot } from './atlas/synthesize';
+import { appendAtlasSnapshot, selectAtlasSnapshotsNewestFirst } from './atlas/history';
+import { compareAtlasSnapshots } from './atlas/compare';
 import { applyReflectionEvidence } from './slice/evidence';
+import { retractReflectionInCampaign } from './reflection/propagation';
 import {
   exploreJournalEntry,
   makeSliceChoice,
@@ -725,19 +731,19 @@ export default function App() {
   const generateAssessment = async () => {
     if (isFinalizing || !campaignEnded) return;
     setIsFinalizing(true);
-    setMessage('Synthesizing holistic character assessment...');
+    setMessage('Synthesizing a dated whole-map reading...');
     try {
       if (isOffline || provider.id === 'disabled') {
         const local = generateLocalAssessment(state);
         dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: local });
-        setMessage('Final Atlas assessment generated locally.');
+        setMessage('Whole-map reading generated locally.');
         return;
       }
       const context = compileFinalizeContext(state);
       const result = await requestFinalAssessment(context, { headers: getAccessHeaders });
       if (result.ok) {
         dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: result.assessment });
-        setMessage('Final Atlas assessment generated.');
+        setMessage('Whole-map reading generated.');
       } else {
         setMessage(`Cloud synthesis unavailable (${result.message}). Generating with local synthesizer.`);
         const local = generateLocalAssessment(state);
@@ -776,7 +782,7 @@ export default function App() {
   const objective = quest
     ? { eyebrow: 'CURRENT QUEST', label: quest.label, detail: quest.description, progress: quest.progress, target: quest.target }
     : campaignEnded
-      ? { eyebrow: 'EXPEDITION COMPLETE', label: 'Every territory charted', detail: 'The Atlas is finished. The final assessment is available on your character record.', progress: state.territories.length, target: state.territories.length }
+      ? { eyebrow: 'EXPEDITION COMPLETE', label: 'Every territory charted', detail: 'Every territory has been charted. Your Atlas keeps changing as you write — see Atlas Snapshots on your record.', progress: state.territories.length, target: state.territories.length }
       : { eyebrow: 'STANDING OBJECTIVE', label: 'Chart the Atlas', detail: 'Recover a fragment from every territory on the map.', progress: chartedCount, target: state.territories.length };
   const quiet = state.presentation === 'quiet';
   const reflectionVisibility = useMemo(() => createV2ProvenanceVisibility(state), [state]);
@@ -1008,6 +1014,43 @@ export default function App() {
       now: new Date().toISOString()
     }));
     if (next) setAdventureOutcome('You stepped away. The story will carry on without you for now.');
+  };
+
+  // S01/S02/S04: dated, revisable Snapshots (replace terminal "final" semantics).
+  const snapshotsNewestFirst = selectAtlasSnapshotsNewestFirst(state.atlasSnapshots);
+  const snapshotEligibility = evaluateSnapshotEligibility(state, {
+    trigger: 'explicit-request',
+    requestedAt: new Date().toISOString()
+  });
+  let latestSnapshotChange: ReturnType<typeof compareAtlasSnapshots> | undefined;
+  if (snapshotsNewestFirst.length >= 2) {
+    try {
+      latestSnapshotChange = compareAtlasSnapshots(state, snapshotsNewestFirst[1].id, snapshotsNewestFirst[0].id);
+    } catch {
+      latestSnapshotChange = undefined;
+    }
+  }
+  const takeSnapshot = () => {
+    const next = runSlice('Snapshot', (current) => {
+      const eligibility = evaluateSnapshotEligibility(current, {
+        trigger: 'explicit-request',
+        requestedAt: new Date().toISOString()
+      });
+      if (!eligibility.eligible) throw new Error('not available yet.');
+      const snapshot = synthesizeLocalSnapshot(current, {
+        id: `snapshot_${crypto.randomUUID()}`,
+        request: eligibility.request
+      });
+      return { ...current, atlasSnapshots: appendAtlasSnapshot(current.atlasSnapshots, snapshot), updatedAt: eligibility.request.requestedAt };
+    });
+    if (next) setMessage('Dated Snapshot saved. It is a reading for today, not a final verdict.');
+  };
+
+  // I07: confirmed-by-Greyson statements are visible and withdrawable.
+  const confirmedStatements = state.evidence.filter((item) => item.status === 'active' && (item.sourceReflectionIds?.length ?? 0) > 0);
+  const withdrawConfirmed = (reflectionId: string) => {
+    const next = runSlice('Withdraw', (current) => retractReflectionInCampaign(current, reflectionId, new Date().toISOString()).state);
+    if (next) setMessage('Withdrawn. Its history is kept; Atlas no longer relies on it.');
   };
 
   const openReflection = () => {
@@ -1394,6 +1437,21 @@ export default function App() {
     <h1>Vault</h1>
     <p>Evidence, fragments, contradictions, and things the map is not allowed to pretend it knows.</p>
 
+    <section className="vault-section" data-testid="vault-confirmed">
+      <h2>Confirmed in your own words <span className="count">{confirmedStatements.length}</span></h2>
+      {confirmedStatements.length === 0
+        ? <div className="empty">Nothing here yet. Only things you confirm yourself in a Reflection appear here — never guesses from play.</div>
+        : <>
+          <p className="section-note">You can withdraw any of these. History is kept; Atlas stops relying on it everywhere.</p>
+          {confirmedStatements.map((item) => <article className="card" key={item.id} data-testid="vault-confirmed-item" data-evidence-id={item.id}>
+            <span className="eyebrow">{item.strength === 2 ? 'CONFIRMED' : 'PARTLY CONFIRMED'} · {item.dimension.toUpperCase()}</span>
+            <h3>{item.claim}</h3>
+            <small>From a Reflection after an adventure. Adventures alone never count as evidence.</small>
+            <div className="row"><button type="button" data-testid="vault-confirmed-withdraw" onClick={() => withdrawConfirmed(item.sourceReflectionIds![0])}>Withdraw</button></div>
+          </article>)}
+        </>}
+    </section>
+
     <section className="vault-section">
       <h2>Insight Cards <span className="count">{state.insights.length}</span></h2>
       {state.insights.length===0
@@ -1499,16 +1557,24 @@ export default function App() {
       <div><b>{state.unlocks.filter((u)=>u.unlockedAt).length}</b><small>Unlocks</small></div>
     </div>
 
+    <SnapshotHistory
+      snapshots={snapshotsNewestFirst}
+      eligible={snapshotEligibility.eligible}
+      reasons={snapshotEligibility.eligible ? [] : snapshotEligibility.reasons}
+      latestChange={latestSnapshotChange}
+      onTakeSnapshot={takeSnapshot}
+    />
+
     <article className="card assessment-section" data-testid="final-assessment-section">
       <div className="assessment-head">
         <div>
-          <h2>Final Atlas Assessment</h2>
-          <p className="settings-note">Holistic synthesis of mapped coordinates, values, contradictions, and open questions.</p>
+          <h2>Whole-map synthesis (older format)</h2>
+          <p className="settings-note">A dated whole-map reading from the original Cartographer questions. It is not a final verdict about you; Atlas Snapshots above are the ongoing, revisable record.</p>
         </div>
         <div className="assessment-actions no-print">
           {campaignEnded && (
             <button className="primary" data-testid="synthesize-assessment-btn" onClick={generateAssessment} disabled={isFinalizing}>
-              {isFinalizing ? 'Synthesizing...' : state.finalAssessment ? 'Re-synthesize Atlas' : 'Synthesize Final Atlas'}
+              {isFinalizing ? 'Synthesizing...' : state.finalAssessment ? 'Re-synthesize reading' : 'Synthesize whole-map reading'}
             </button>
           )}
           {state.finalAssessment && (
@@ -1521,7 +1587,7 @@ export default function App() {
 
       {!campaignEnded && (
         <div className="empty" data-testid="assessment-locked">
-          The final Atlas is written once the map is finished. {chartedTerritories} of {state.territories.length} territories are charted so far — keep mapping, and it will be waiting.
+          This older whole-map reading becomes available once every territory is charted. {chartedTerritories} of {state.territories.length} territories are charted so far — keep mapping, and it will be waiting.
         </div>
       )}
 

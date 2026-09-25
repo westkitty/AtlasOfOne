@@ -154,5 +154,16 @@ describe('v2 vertical slice: Journal -> Adventure -> Encounter -> Reflection (I0
     });
     expect(confirmed.xp).toBe(before.xp);
     expect(turnRequests).toBe(beforeTurnRequests);
+
+    // I07: the confirmed statement is visible in the Vault, and Greyson can withdraw it.
+    await page.click('[data-testid="open-menu"]');
+    await page.click('[data-testid="go-vault"]');
+    await page.waitForSelector('[data-testid="vault-confirmed-item"]');
+    expect(await page.textContent('[data-testid="vault-confirmed"]')).toContain('Synthetic confirmed statement in my own words.');
+    await page.click('[data-testid="vault-confirmed-withdraw"]');
+    await expect.poll(async () => (await persistedState())?.evidence?.at(-1)?.status).toBe('retracted');
+    const withdrawn = await persistedState();
+    expect(withdrawn.reflections[0].recordStatus).toBe('retracted');
+    expect(await page.locator('[data-testid="vault-confirmed-item"]').count()).toBe(0);
   });
 });

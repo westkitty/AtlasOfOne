@@ -2322,3 +2322,15 @@ html[data-reduced-motion="true"] .combat-panel * { transition: none !important; 
 .adventure-outcome { color: var(--gold-soft); }
 .journal-explore { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .journal-explore p { width: 100%; margin: 0; font-size: .74rem; color: var(--muted); }
+
+/* ---- v2 Atlas Snapshots (S04) ----------------------------------------- */
+.snapshot-reasons, .snapshot-change ul, .snapshot-list { margin: 8px 0; padding-left: 18px; }
+.snapshot-list { list-style: none; padding: 0; display: grid; gap: 6px; }
+.snapshot-summary {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  width: 100%; min-height: 44px; padding: 8px 10px;
+  border: 1px solid var(--line-soft); border-radius: 8px;
+  background: transparent; color: var(--ink); font: inherit; text-align: left;
+}
+.snapshot-body { padding: 8px 10px; overflow-wrap: anywhere; }
+.snapshot-domain h4 { margin: 10px 0 4px; }
