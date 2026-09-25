@@ -225,6 +225,8 @@ export default function App() {
   const [reflectionOpen, setReflectionOpen] = useState(false);
   const [reflectionDraft, setReflectionDraft] = useState('');
   const reflectionDecisionInFlight = useRef(false);
+  /** Restore focus only after React has committed the closed-dialog render. */
+  const reflectionRestoreFocusPending = useRef(false);
   /** Vault and the character record are places you visit, reached from one menu. */
   const [menuOpen, setMenuOpen] = useState(false);
   /** The conversation panel scrolls; an opened sheet must not open off-screen. */
@@ -779,6 +781,15 @@ export default function App() {
     setReflectionOpen(false);
     setReflectionDraft('');
   }, [reflectionOpen, activeReflection]);
+
+  useEffect(() => {
+    if (reflectionOpen || !reflectionRestoreFocusPending.current) return;
+    reflectionRestoreFocusPending.current = false;
+    const target = document.querySelector<HTMLElement>(
+      '[data-testid="open-reflection"], [data-testid="open-journal"], [data-testid="enter-encounter"], [data-testid="resume-encounter"], [data-testid="open-menu"]'
+    );
+    target?.focus();
+  }, [reflectionOpen, activeReflection]);
   const {
     activeWaystone,
     dismissWaystone,
@@ -862,19 +873,10 @@ export default function App() {
     setReflectionOpen(true);
   };
 
-  const restoreWorldFocus = () => {
-    window.requestAnimationFrame(() => {
-      const target = document.querySelector<HTMLElement>(
-        '[data-testid="open-reflection"], [data-testid="open-journal"], [data-testid="enter-encounter"], [data-testid="resume-encounter"], [data-testid="open-menu"]'
-      );
-      target?.focus();
-    });
-  };
-
   const closeReflection = () => {
+    reflectionRestoreFocusPending.current = true;
     setReflectionOpen(false);
     setReflectionDraft('');
-    restoreWorldFocus();
   };
 
   const submitReflectionDecision = (decision: ReflectionDecision) => {
@@ -901,9 +903,9 @@ export default function App() {
       return { ...current, reflections, updatedAt };
     });
 
+    reflectionRestoreFocusPending.current = true;
     setReflectionOpen(false);
     setReflectionDraft('');
-    restoreWorldFocus();
     setMessage(
       decision === 'confirm' ? 'Reflection confirmed.'
         : decision === 'partial' ? 'Partial reflection saved in your words.'
