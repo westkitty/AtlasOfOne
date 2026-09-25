@@ -785,9 +785,15 @@ export default function App() {
   useEffect(() => {
     if (reflectionOpen || !reflectionRestoreFocusPending.current) return;
     reflectionRestoreFocusPending.current = false;
-    const target = document.querySelector<HTMLElement>(
-      '[data-testid="open-reflection"], [data-testid="open-journal"], [data-testid="enter-encounter"], [data-testid="resume-encounter"], [data-testid="open-menu"]'
-    );
+    const target = [
+      'open-reflection',
+      'open-journal',
+      'enter-encounter',
+      'resume-encounter',
+      'open-menu'
+    ]
+      .map((testId) => document.querySelector<HTMLElement>(`[data-testid="${testId}"]`))
+      .find((element): element is HTMLElement => Boolean(element));
     target?.focus();
   }, [reflectionOpen, activeReflection]);
   const {
