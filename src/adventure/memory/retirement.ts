@@ -1,6 +1,7 @@
 import type { CampaignState } from '../../game/types';
 import { createV2ProvenanceVisibility, retireIneligibleV2DerivedState } from '../../persistence/retirement';
 import type { AdventureMemory } from '../schema';
+import type { EligibleAdventureMemory } from './eligible';
 import { retrieveAdventureMemories, type MemoryQuery, type RankedMemory } from './retrieval';
 
 /**
@@ -15,9 +16,9 @@ import { retrieveAdventureMemories, type MemoryQuery, type RankedMemory } from '
  * Mixed-provenance cards are therefore withheld from context but kept active.
  */
 
-export function eligibleAdventureMemories(state: CampaignState): AdventureMemory[] {
+export function eligibleAdventureMemories(state: CampaignState): EligibleAdventureMemory[] {
   const visibility = createV2ProvenanceVisibility(state);
-  return state.adventureMemories.filter((memory) => visibility.adventureMemoryIsEligible(memory.id));
+  return state.adventureMemories.filter((memory) => visibility.adventureMemoryIsEligible(memory.id)) as EligibleAdventureMemory[];
 }
 
 /** Retrieval over provenance-eligible cards only. */

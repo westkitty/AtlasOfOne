@@ -1,4 +1,5 @@
 import type { AdventureMemory } from '../schema';
+import type { EligibleAdventureMemory } from './eligible';
 
 /**
  * N02 deterministic memory retrieval without vectors (section 14.4).
@@ -6,8 +7,8 @@ import type { AdventureMemory } from '../schema';
  * Score = 3 per direct entity reference (memory id or a source id)
  *       + 2 per matched trigger term (exact term or all words of a multi-word term).
  * Recency (lastUsedAt) and id only break ties; recency alone never makes an
- * irrelevant card relevant. Only active, normal-privacy cards are candidates;
- * callers should additionally pre-filter with the N04 provenance gate.
+ * irrelevant card relevant. Input must come from the N04 gate
+ * (`eligibleAdventureMemories`); the type system enforces this.
  */
 
 export const ENTITY_MATCH_WEIGHT = 3;
@@ -23,7 +24,7 @@ export interface MemoryQuery {
 }
 
 export interface RankedMemory {
-  memory: AdventureMemory;
+  memory: EligibleAdventureMemory;
   score: number;
   matchedEntityIds: readonly string[];
   matchedTerms: readonly string[];
@@ -47,7 +48,7 @@ export function compareRankedMemories(left: RankedMemory, right: RankedMemory): 
   return left.memory.id.localeCompare(right.memory.id);
 }
 
-export function scoreAdventureMemory(memory: AdventureMemory, query: MemoryQuery): RankedMemory {
+export function scoreAdventureMemory(memory: EligibleAdventureMemory, query: MemoryQuery): RankedMemory {
   const entities = new Set(query.entityIds ?? []);
   const tokens = new Set([...tokenize(query.text ?? ''), ...(query.terms ?? []).flatMap(tokenize)]);
   const phrases = new Set((query.terms ?? []).map((term) => term.trim().toLowerCase()));
@@ -71,7 +72,7 @@ export function scoreAdventureMemory(memory: AdventureMemory, query: MemoryQuery
 }
 
 export function retrieveAdventureMemories(
-  memories: readonly AdventureMemory[],
+  memories: readonly EligibleAdventureMemory[],
   query: MemoryQuery
 ): RankedMemory[] {
   return memories

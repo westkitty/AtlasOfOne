@@ -6,16 +6,16 @@ import {
   selectMemoriesWithinBudget
 } from '../../../src/adventure/memory/budget';
 import { retrieveAdventureMemories, type RankedMemory } from '../../../src/adventure/memory/retrieval';
-import { mem } from './fixtures';
+import { asGated, gatedMem } from './fixtures';
 
 const ranked = (id: string, length: number, score = 2): RankedMemory => ({
-  memory: mem({ id, summary: 'x'.repeat(length) }), score, matchedEntityIds: [], matchedTerms: []
+  memory: gatedMem({ id, summary: 'x'.repeat(length) }), score, matchedEntityIds: [], matchedTerms: []
 });
 
 describe('N03 bounded memory selection', () => {
   it('never exceeds the item cap even with a huge candidate pool', () => {
     const pool = Array.from({ length: 500 }, (_, i) =>
-      mem({ id: `m${String(i).padStart(3, '0')}`, summary: 'short', triggerTerms: ['ferry'] }));
+      gatedMem({ id: `m${String(i).padStart(3, '0')}`, summary: 'short', triggerTerms: ['ferry'] }));
     const selection = selectMemoriesWithinBudget(retrieveAdventureMemories(pool, { text: 'ferry' }));
     expect(selection.selected).toHaveLength(DEFAULT_ADVENTURE_MEMORY_BUDGET.maxItems);
     expect(selection.omittedIds).toHaveLength(492);

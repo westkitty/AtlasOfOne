@@ -1,25 +1,26 @@
 import type { AdventureMemory } from '../schema';
+import type { EligibleAdventureMemory } from './eligible';
 import { retireAdventureMemory } from './records';
 import { retrieveAdventureMemories, type MemoryQuery } from './retrieval';
 
 /**
  * N06 promise / object / place continuity helpers.
  *
- * Pure grouping over active, normal-privacy cards. Callers should pass cards
- * already filtered through the N04 provenance gate.
+ * Pure grouping over N04-gated cards (`eligibleAdventureMemories`); the
+ * EligibleAdventureMemory type makes raw state arrays a compile error.
  */
 
 export interface ContinuityDigest {
-  openPromises: readonly AdventureMemory[];
-  objects: readonly AdventureMemory[];
-  places: readonly AdventureMemory[];
+  openPromises: readonly EligibleAdventureMemory[];
+  objects: readonly EligibleAdventureMemory[];
+  places: readonly EligibleAdventureMemory[];
 }
 
 const usable = (memory: AdventureMemory) => memory.status === 'active' && memory.privacy === 'normal';
 const byId = (left: AdventureMemory, right: AdventureMemory) => left.id.localeCompare(right.id);
 
 /** Everything the world should still remember, grouped. Stable order by id. */
-export function continuityDigest(memories: readonly AdventureMemory[]): ContinuityDigest {
+export function continuityDigest(memories: readonly EligibleAdventureMemory[]): ContinuityDigest {
   const active = memories.filter(usable);
   return {
     openPromises: active.filter((memory) => memory.type === 'promise').sort(byId),
@@ -29,7 +30,7 @@ export function continuityDigest(memories: readonly AdventureMemory[]): Continui
 }
 
 /** Continuity that is relevant to the current scene (N02 ranking, restricted to the three types). */
-export function relevantContinuity(memories: readonly AdventureMemory[], query: MemoryQuery): ContinuityDigest {
+export function relevantContinuity(memories: readonly EligibleAdventureMemory[], query: MemoryQuery): ContinuityDigest {
   const ranked = retrieveAdventureMemories(
     memories.filter((memory) => memory.type === 'promise' || memory.type === 'object' || memory.type === 'place'),
     query
@@ -48,7 +49,7 @@ export function resolvePromise(memory: AdventureMemory): AdventureMemory {
 }
 
 /** Objects that a place card references by trigger term (e.g. what was left at a landmark). */
-export function objectsAtPlace(memories: readonly AdventureMemory[], place: AdventureMemory): AdventureMemory[] {
+export function objectsAtPlace(memories: readonly EligibleAdventureMemory[], place: AdventureMemory): EligibleAdventureMemory[] {
   if (place.type !== 'place') throw new Error(`AdventureMemory ${place.id} is not a place.`);
   const placeTerms = new Set(place.triggerTerms);
   return memories

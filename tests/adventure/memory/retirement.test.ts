@@ -61,3 +61,16 @@ describe('N04 retire memory from PRIVATE/retracted sources', () => {
     expect(JSON.stringify(state)).toBe(snapshot);
   });
 });
+
+describe('N04 gate is enforced by type (integration repair)', () => {
+  it('raw state.adventureMemories cannot be passed to retrieval/continuity helpers', async () => {
+    const { retrieveAdventureMemories } = await import('../../../src/adventure/memory/retrieval');
+    const { continuityDigest } = await import('../../../src/adventure/memory/continuity');
+    const raw: import('../../../src/adventure/schema').AdventureMemory[] = [];
+    // @ts-expect-error raw memories have not passed the N04 provenance gate
+    retrieveAdventureMemories(raw, { text: 'x' });
+    // @ts-expect-error raw memories have not passed the N04 provenance gate
+    continuityDigest(raw);
+    expect(true).toBe(true);
+  });
+});

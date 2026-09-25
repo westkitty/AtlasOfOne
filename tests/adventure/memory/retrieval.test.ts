@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { retrieveAdventureMemories, scoreAdventureMemory, tokenize } from '../../../src/adventure/memory/retrieval';
-import { mem } from './fixtures';
+import { asGated, gatedMem } from './fixtures';
 
 const bank = [
-  mem({ id: 'ferry', triggerTerms: ['ferry', 'pell'], sourceIds: ['run_1'] }),
-  mem({ id: 'mill', type: 'place', summary: 'The old mill.', triggerTerms: ['old mill', 'river'], sourceIds: ['run_2'] }),
-  mem({ id: 'npc_bram', summary: 'Bram the baker.', triggerTerms: ['bakery', 'bram'], sourceIds: ['run_3'], lastUsedAt: '2026-01-03T00:00:00.000Z' }),
-  mem({ id: 'bakery', type: 'place', summary: 'The bakery.', triggerTerms: ['bakery'], sourceIds: ['run_3'], lastUsedAt: '2026-01-05T00:00:00.000Z' }),
-  mem({ id: 'retired', triggerTerms: ['ferry'], status: 'retired' }),
-  mem({ id: 'private', triggerTerms: ['ferry'], privacy: 'private' })
+  gatedMem({ id: 'ferry', triggerTerms: ['ferry', 'pell'], sourceIds: ['run_1'] }),
+  gatedMem({ id: 'mill', type: 'place', summary: 'The old mill.', triggerTerms: ['old mill', 'river'], sourceIds: ['run_2'] }),
+  gatedMem({ id: 'npc_bram', summary: 'Bram the baker.', triggerTerms: ['bakery', 'bram'], sourceIds: ['run_3'], lastUsedAt: '2026-01-03T00:00:00.000Z' }),
+  gatedMem({ id: 'bakery', type: 'place', summary: 'The bakery.', triggerTerms: ['bakery'], sourceIds: ['run_3'], lastUsedAt: '2026-01-05T00:00:00.000Z' }),
+  gatedMem({ id: 'retired', triggerTerms: ['ferry'], status: 'retired' }),
+  gatedMem({ id: 'private', triggerTerms: ['ferry'], privacy: 'private' })
 ];
 
 describe('N02 entity/tag/recency retrieval without vectors', () => {
@@ -30,7 +30,7 @@ describe('N02 entity/tag/recency retrieval without vectors', () => {
 
   it('breaks score ties by recency, then id', () => {
     expect(retrieveAdventureMemories(bank, { text: 'bakery' }).map((r) => r.memory.id)).toEqual(['bakery', 'npc_bram']);
-    const tie = retrieveAdventureMemories([mem({ id: 'b', triggerTerms: ['x'] }), mem({ id: 'a', triggerTerms: ['x'] })], { text: 'x' });
+    const tie = retrieveAdventureMemories([gatedMem({ id: 'b', triggerTerms: ['x'] }), gatedMem({ id: 'a', triggerTerms: ['x'] })], { text: 'x' });
     expect(tie.map((r) => r.memory.id)).toEqual(['a', 'b']);
   });
 
