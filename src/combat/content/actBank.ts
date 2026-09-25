@@ -30,6 +30,9 @@ export const ACT_BANK: readonly ActTemplate[] = [
   // interrupt (enemy)
   { templateId: 'toss_pebble', label: 'Toss a pebble at the glow', job: 'interrupt', targetKind: 'enemy', requiredSteps: 1, observationKey: 'act.tossed_pebble' },
   { templateId: 'ring_bell', label: 'Ring the hand bell', job: 'interrupt', targetKind: 'enemy', requiredSteps: 1, observationKey: 'act.rang_bell' },
+  // C17: two-step interrupts leave one charged release unanswered (real pressure).
+  { templateId: 'close_shutters', label: 'Close the lamp shutters', job: 'interrupt', targetKind: 'enemy', requiredSteps: 2, observationKey: 'act.closed_shutters' },
+  { templateId: 'muffle_clapper', label: 'Muffle the bell clapper', job: 'interrupt', targetKind: 'enemy', requiredSteps: 2, observationKey: 'act.muffled_clapper' },
   { templateId: 'shout_name', label: 'Call out its true name', job: 'interrupt', targetKind: 'enemy', requiredSteps: 1, observationKey: 'act.called_name' },
   // reveal-information
   { templateId: 'read_runes', label: 'Read the runes on its collar', job: 'reveal-information', targetKind: 'enemy', requiredSteps: 0, observationKey: 'act.read_runes' },

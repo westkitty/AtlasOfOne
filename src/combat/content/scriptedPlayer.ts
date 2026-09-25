@@ -68,3 +68,17 @@ export const simpleScriptedPlayer: ScriptedPlayer = (definition, state): CombatP
     }
   }
 };
+
+/**
+ * C17 cautious scripted player: GUARDs whenever a heavy blow (a charged
+ * release) is telegraphed at the player and the simple plan would merely
+ * ATTACK; otherwise it plays like simpleScriptedPlayer. Metrics-only.
+ */
+export const cautiousScriptedPlayer: ScriptedPlayer = (definition, state): CombatPlayerIntent => {
+  const intent = simpleScriptedPlayer(definition, state);
+  const playerId = player(state).id;
+  const heavyIncoming = (state.telegraphedIntents ?? []).some(
+    (plan) => plan.targetId === playerId && plan.telegraphKey === 'charged-release'
+  );
+  return heavyIncoming && intent.verb === 'attack' ? { verb: 'guard' } : intent;
+};

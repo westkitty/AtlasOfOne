@@ -101,11 +101,11 @@ export const ENCOUNTER_BANK: readonly CombatDefinition[] = [
   buildEncounter({ id: 'interrupt_wasp_choir', objective: 'interrupt', gimmicks: ['charging', 'swarm'], enemies: one('wasps', 'Wasp Choir', 54), techniques: [BREAK_FOCUS] }),
   buildEncounter({
     id: 'interrupt_dream_bell', objective: 'interrupt', gimmicks: ['charging', 'non-kill-target'], enemies: one('bellwisp', 'Bell Wisp', 45),
-    acts: [actFromBank('ring_bell', 'bellwisp')]
+    acts: [actFromBank('muffle_clapper', 'bellwisp')]
   }),
   buildEncounter({
     id: 'interrupt_lamp_eater', objective: 'interrupt', gimmicks: ['charging'], enemies: one('lampeater', 'Lamp Eater', 54),
-    acts: [actFromBank('toss_pebble', 'lampeater'), actFromBank('check_lantern', 'lamp_post')]
+    acts: [actFromBank('close_shutters', 'lampeater'), actFromBank('check_lantern', 'lamp_post')]
   }),
 
   // ---- pacify (6) --------------------------------------------------------
