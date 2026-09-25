@@ -15,6 +15,8 @@ export interface JournalComposerProps {
   entries: readonly JournalEntry[];
   onMakeEntryPrivate: (id: string) => void;
   onRetractEntry: (id: string) => void;
+  exploreTerritories?: readonly { id: string; label: string }[];
+  onExploreEntry?: (id: string, territoryId: string) => void;
   dictationSupported: boolean;
   dictationState: VoiceState;
   dictationStatusLabel: string;
@@ -53,7 +55,9 @@ export function JournalComposer({
   onRetractLatest,
   entries,
   onMakeEntryPrivate,
-  onRetractEntry
+  onRetractEntry,
+  exploreTerritories,
+  onExploreEntry
 }: JournalComposerProps) {
   const [showHistory, setShowHistory] = useState(false);
   const [prompt, setPrompt] = useState<string | undefined>();
@@ -96,6 +100,8 @@ export function JournalComposer({
           onMakePrivate={onMakeEntryPrivate}
           onRetract={onRetractEntry}
           onBack={() => setShowHistory(false)}
+          exploreTerritories={exploreTerritories}
+          onExplore={onExploreEntry}
         />
       ) : (
       <>

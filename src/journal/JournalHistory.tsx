@@ -7,6 +7,9 @@ export interface JournalHistoryProps {
   onMakePrivate: (id: string) => void;
   onRetract: (id: string) => void;
   onBack: () => void;
+  /** Places Greyson may choose for an explicit "Explore this". */
+  exploreTerritories?: readonly { id: string; label: string }[];
+  onExplore?: (id: string, territoryId: string) => void;
 }
 
 function formatDay(dayKey: string): string {
@@ -35,7 +38,8 @@ function statusLabel(entry: JournalEntry): string | undefined {
  * Presentation only: every change goes through the caller's privacy callbacks,
  * which apply M06 retirement. Nothing here sends entries anywhere.
  */
-export function JournalHistory({ entries, onMakePrivate, onRetract, onBack }: JournalHistoryProps) {
+export function JournalHistory({ entries, onMakePrivate, onRetract, onBack, exploreTerritories = [], onExplore }: JournalHistoryProps) {
+  const [exploringId, setExploringId] = useState<string | undefined>();
   const groups = groupJournalEntriesByDay(entries);
   const [dayIndex, setDayIndex] = useState(0);
   const [openId, setOpenId] = useState<string | undefined>();
@@ -112,6 +116,28 @@ export function JournalHistory({ entries, onMakePrivate, onRetract, onBack }: Jo
                           {entry.status === 'retracted' ? 'Retracted' : 'Retract'}
                         </button>
                       </div>
+                      {onExplore && entry.status === 'active' && entry.privacy === 'normal' && exploreTerritories.length > 0 && (
+                        exploringId === entry.id ? (
+                          <div className="journal-explore" data-testid="journal-explore-places" role="group" aria-label="Where should this adventure happen?">
+                            <p>Where should this adventure happen?</p>
+                            {exploreTerritories.map((territory) => (
+                              <button
+                                key={territory.id}
+                                type="button"
+                                data-testid="journal-explore-place"
+                                data-territory={territory.id}
+                                onClick={() => { setExploringId(undefined); onExplore(entry.id, territory.id); }}
+                              >
+                                {territory.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <button type="button" className="link-btn" data-testid="journal-explore" onClick={() => setExploringId(entry.id)}>
+                            Explore this (optional adventure)
+                          </button>
+                        )
+                      )}
                     </div>
                   )}
                 </li>

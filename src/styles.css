@@ -2249,3 +2249,76 @@ html[data-reduced-motion="true"] .world-enter { animation: none; }
 @media (prefers-reduced-motion: reduce) { .combat-panel * { transition: none !important; animation: none !important; } }
 html[data-reduced-motion="true"] .combat-panel * { transition: none !important; animation: none !important; }
 /* ---- end v2 CombatPanel (C13) ---- */
+
+/* ---- v2 vertical slice: Adventure surface (I01/I02) ------------------ */
+.world-adventure {
+  position: absolute;
+  z-index: 25;
+  left: calc(var(--pad) + var(--lane-dpad) + var(--lane-gap));
+  right: calc(var(--pad) + var(--lane-action) + var(--lane-gap));
+  bottom: calc(180px + env(safe-area-inset-bottom));
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  background: #1d1a0fe8;
+  color: var(--gold-soft);
+  font: inherit;
+  font-size: clamp(.7rem, 3.6vw, .84rem);
+  font-weight: 800;
+}
+.adventure-overlay {
+  position: fixed;
+  z-index: 29;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  max-width: 580px;
+  max-height: 82vh;
+  margin: 0 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  background: #0d141df5;
+  color: var(--ink);
+}
+.adventure-overlay h2 { font-size: 1rem; line-height: 1.4; overflow-wrap: anywhere; }
+.adventure-options,
+.adventure-seed-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.adventure-options button,
+.adventure-seed-list button,
+.adventure-free button,
+.journal-explore button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #111b27;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 750;
+}
+.adventure-free { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.adventure-free label { display: grid; gap: 4px; font-size: .74rem; color: var(--muted); min-width: 0; }
+.adventure-free input {
+  min-height: 44px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0a1017;
+  color: var(--ink);
+  font: inherit;
+}
+.adventure-withdraw { display: block; margin-top: 12px; min-height: 44px; }
+.adventure-outcome { color: var(--gold-soft); }
+.journal-explore { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.journal-explore p { width: 100%; margin: 0; font-size: .74rem; color: var(--muted); }

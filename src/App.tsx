@@ -2,6 +2,19 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { EncounterPanel } from './app/EncounterPanel';
 import { AgencyControls, AgencySheet, PrimaryActionBar, ProgressDisplay } from './app/PresentationControls';
 import { JournalComposer } from './journal/JournalComposer';
+import { AdventurePanel } from './slice/AdventurePanel';
+import {
+  exploreJournalEntry,
+  makeSliceChoice,
+  playSliceCombatRound,
+  selectActiveAdventure,
+  startSliceAdventure,
+  withdrawSliceAdventure
+} from './slice/loop';
+import { adventureSeedIsEligible } from './adventure/seeds';
+import { ENCOUNTER_BANK } from './combat/content/encounters';
+import { buildCombatPanelView } from './combat/ui/combatPanelView';
+import type { CombatPlayerIntent } from './combat/runner';
 import { JournalPanel } from './journal/JournalPanel';
 import { appendJournalEntry, createJournalEntry, selectJournalEntriesNewestFirst } from './journal/domain';
 import { privatizeJournalEntry, retractJournalEntryFromCampaign } from './journal/privacy';
@@ -223,6 +236,8 @@ export default function App() {
   const journalSaveInFlight = useRef(false);
   /** Optional human-authority surface for one already-created ReflectionRecord. */
   const [reflectionOpen, setReflectionOpen] = useState(false);
+  const [adventureOpen, setAdventureOpen] = useState(false);
+  const [adventureOutcome, setAdventureOutcome] = useState('');
   const [reflectionDraft, setReflectionDraft] = useState('');
   const reflectionDecisionInFlight = useRef(false);
   /** Restore focus only after React has committed the closed-dialog render. */
@@ -814,7 +829,7 @@ export default function App() {
   } = useWorldInteraction({
     state,
     hydrated,
-    talking: talking || journalOpen || reflectionOpen,
+    talking: talking || journalOpen || reflectionOpen || adventureOpen,
     encounterActive: Boolean(encounter),
     menuOpen,
     worldVisible: screen === 'world',
@@ -888,6 +903,98 @@ export default function App() {
     const updatedAt = new Date().toISOString();
     setState((current) => retractJournalEntryFromCampaign(current, latestJournalEntry.id, updatedAt));
     setMessage('Latest Journal entry retracted. Its history is kept; its authority is retired.');
+  };
+
+  const activeAdventure = selectActiveAdventure(state);
+  const availableSeeds = activeAdventure
+    ? []
+    : state.adventureSeeds.filter((seed) => adventureSeedIsEligible(state, seed));
+  const activeCombatDefinition = state.activeCombat
+    ? ENCOUNTER_BANK.find((definition) => definition.id === state.activeCombat!.definitionId)
+    : undefined;
+  const combatView = state.activeCombat && activeCombatDefinition
+    ? buildCombatPanelView(activeCombatDefinition, state.activeCombat.state)
+    : undefined;
+
+  // Slice handlers: every transition is a pure state function with injected ids/time.
+  // A domain error (e.g. an ineligible seed) is shown, never swallowed silently.
+  const runSlice = (label: string, step: (current: CampaignState) => CampaignState) => {
+    try {
+      const next = step(state);
+      setState(next);
+      return next;
+    } catch (error) {
+      setMessage(`${label}: ${error instanceof Error ? error.message : 'not possible right now.'}`);
+      return undefined;
+    }
+  };
+
+  const exploreJournal = (journalEntryId: string, territoryId: string) => {
+    const now = new Date().toISOString();
+    const next = runSlice('Explore', (current) => exploreJournalEntry(current, {
+      journalEntryId,
+      territoryId,
+      gapId: `gap_${crypto.randomUUID()}`,
+      seedId: `seed_${crypto.randomUUID()}`,
+      now
+    }).state);
+    if (next) {
+      setJournalOpen(false);
+      setAdventureOutcome('');
+      setAdventureOpen(true);
+      setMessage('An optional adventure is waiting. You can set out now or later.');
+    }
+  };
+
+  const startAdventure = (seedId: string) => {
+    runSlice('Adventure', (current) => startSliceAdventure(current, {
+      seedId,
+      runId: `run_${crypto.randomUUID()}`,
+      now: new Date().toISOString()
+    }));
+  };
+
+  const finishedMessage = (next: CampaignState | undefined, runId: string) => {
+    const run = next?.adventureRuns.find((item) => item.id === runId);
+    if (!next || !run || run.status === 'active') return;
+    const offered = next.reflections.some((record) => record.sourceKind === 'adventure' && record.id === `reflection_${runId}`);
+    setAdventureOutcome(offered
+      ? 'The adventure is over. A Reflection is waiting if you want it — it is optional.'
+      : 'The adventure is over. The world will remember it.');
+  };
+
+  const chooseInAdventure = (label: string) => {
+    if (!activeAdventure) return;
+    const runId = activeAdventure.run.id;
+    const id = crypto.randomUUID();
+    const next = runSlice('Adventure', (current) => makeSliceChoice(current, {
+      runId,
+      label,
+      actionId: `action_${id}`,
+      observationId: `observation_${id}`,
+      combatId: `combat_${id}`,
+      now: new Date().toISOString()
+    }));
+    finishedMessage(next, runId);
+  };
+
+  const combatIntent = (intent: CombatPlayerIntent) => {
+    const runId = activeAdventure?.run.id;
+    const next = runSlice('Combat', (current) => playSliceCombatRound(current, {
+      intent,
+      consequenceActionId: `action_${crypto.randomUUID()}`,
+      now: new Date().toISOString()
+    }));
+    if (runId) finishedMessage(next, runId);
+  };
+
+  const withdrawAdventure = () => {
+    if (!activeAdventure) return;
+    const next = runSlice('Adventure', (current) => withdrawSliceAdventure(current, {
+      runId: activeAdventure.run.id,
+      now: new Date().toISOString()
+    }));
+    if (next) setAdventureOutcome('You stepped away. The story will carry on without you for now.');
   };
 
   const openReflection = () => {
@@ -1072,13 +1179,13 @@ export default function App() {
           <span className="hud-track"><b style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></span>
         </span>
       </div>
-      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} disabled={journalOpen || reflectionOpen} onClick={() => { playMenuSound('open'); setMenuOpen(true); }}>
+      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} disabled={journalOpen || reflectionOpen || adventureOpen} onClick={() => { playMenuSound('open'); setMenuOpen(true); }}>
         <span aria-hidden="true">☰</span>
       </button>
       {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
     </div>
 
-    {!talking && !encounter && !journalOpen && !reflectionOpen && <>
+    {!talking && !encounter && !journalOpen && !reflectionOpen && !adventureOpen && <>
       <button
         className="world-enter world-journal"
         data-testid="open-journal"
@@ -1093,6 +1200,15 @@ export default function App() {
       >
         <span>{activeInterior ? 'Consult Cartographer' : state.turns.length === 0 ? 'Ask Cartographer' : 'Continue Cartographer'}</span>
       </button>
+      {(activeAdventure || availableSeeds.length > 0) && (
+        <button
+          className="world-adventure"
+          data-testid="open-adventure"
+          onClick={() => { setAdventureOutcome(''); setAdventureOpen(true); }}
+        >
+          <span>{activeAdventure ? 'Continue adventure' : 'Adventure'}</span>
+        </button>
+      )}
       {activeReflection && (
         <button
           className="world-reflect"
@@ -1103,7 +1219,7 @@ export default function App() {
         </button>
       )}
     </>}
-    {!talking && encounter && !journalOpen && !reflectionOpen && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
+    {!talking && encounter && !journalOpen && !reflectionOpen && !adventureOpen && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
       <span>Resume {encounter.kind === 'door' ? encounter.title : encounter.heading}</span>
     </button>}
 
@@ -1795,6 +1911,19 @@ export default function App() {
     ) : (
       <>
         {renderWorld()}
+        {adventureOpen && (
+          <AdventurePanel
+            active={activeAdventure}
+            available={availableSeeds}
+            combatView={combatView}
+            lastOutcome={adventureOutcome}
+            onStart={startAdventure}
+            onChoice={chooseInAdventure}
+            onCombatIntent={combatIntent}
+            onWithdraw={withdrawAdventure}
+            onClose={() => setAdventureOpen(false)}
+          />
+        )}
         {reflectionOpen && activeReflection && (
           <ReflectionPanel
             record={activeReflection}
@@ -1812,6 +1941,8 @@ export default function App() {
             entries={state.journalEntries}
             onMakeEntryPrivate={makeJournalEntryPrivate}
             onRetractEntry={retractJournalEntryById}
+            exploreTerritories={state.territories.map((territory) => ({ id: territory.id, label: territory.label }))}
+            onExploreEntry={exploreJournal}
             dictationSupported={isAudioCaptureSupported() && !isOffline}
             dictationState={voiceState}
             dictationStatusLabel={voiceStateLabel(voiceState)}
