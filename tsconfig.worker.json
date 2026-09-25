@@ -19,5 +19,8 @@
     "src/journal/schema.ts",
     "src/knowledge/schema.ts",
     "src/reflection/schema.ts"
+  ],
+  "exclude": [
+    "src/cartographer/modes"
   ]
 }
