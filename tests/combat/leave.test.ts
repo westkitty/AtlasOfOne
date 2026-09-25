@@ -65,10 +65,12 @@ describe('Combat LEAVE fail-forward rules (C06)', () => {
     expect(() => resolveLeave(def, start, { actorId: 'greyson' }))
       .toThrow('story-gated by deterministic encounter state');
 
-    const result = resolveLeave(def, start, {
-      actorId: 'greyson',
-      storyGateOpen: true
-    });
+    const result = resolveLeave(
+      def,
+      start,
+      { actorId: 'greyson' },
+      { storyGateOpen: true }
+    );
 
     expect(result).toMatchObject({
       fleeRule: 'story-gated',
