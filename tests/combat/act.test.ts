@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createCombatState,
   DEFAULT_COMBAT_HP,
+  reduceCombatLifecycle,
   resolveAct,
   validateCombatDefinition
 } from '../../src/combat/engine';
@@ -114,17 +115,25 @@ describe('Combat ACT resolver (C05)', () => {
     expect(result.state.combatants).toEqual(start.combatants);
   });
 
-  it('advances a three-step nonviolent path exactly one deterministic step per use', () => {
+  it('advances a three-step nonviolent path one deterministic step per player round', () => {
     const def = definition();
     const first = resolveAct(def, createCombatState(def), {
       actorId: 'greyson',
       actId: 'lower_tension'
     });
-    const second = resolveAct(def, first.state, {
+    const round2 = reduceCombatLifecycle(
+      reduceCombatLifecycle(first.state, { type: 'END_PLAYER_PHASE' }),
+      { type: 'END_ENEMY_PHASE' }
+    );
+    const second = resolveAct(def, round2, {
       actorId: 'greyson',
       actId: 'lower_tension'
     });
-    const third = resolveAct(def, second.state, {
+    const round3 = reduceCombatLifecycle(
+      reduceCombatLifecycle(second.state, { type: 'END_PLAYER_PHASE' }),
+      { type: 'END_ENEMY_PHASE' }
+    );
+    const third = resolveAct(def, round3, {
       actorId: 'greyson',
       actId: 'lower_tension'
     });
@@ -132,6 +141,7 @@ describe('Combat ACT resolver (C05)', () => {
     expect(first).toMatchObject({ previousProgress: 0, progress: 1, completed: false });
     expect(second).toMatchObject({ previousProgress: 1, progress: 2, completed: false });
     expect(third).toMatchObject({ previousProgress: 2, progress: 3, completed: true });
+    expect(third.state.round).toBe(3);
     expect(third.state.completedActIds).toEqual(['lower_tension']);
     expect(third.state.objectiveProgress).toBe(0);
     expect(third.state.outcome).toBeUndefined();
