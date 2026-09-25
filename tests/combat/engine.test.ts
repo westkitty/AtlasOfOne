@@ -48,6 +48,8 @@ describe('Combat core state/reducer (C01)', () => {
       ],
       statuses: [],
       techniqueReadyRound: {},
+      actProgressById: {},
+      completedActIds: [],
       objectiveProgress: 0
     });
   });
