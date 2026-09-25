@@ -77,6 +77,48 @@ export interface CombatTechniqueDefinition {
   cooldownRounds: number;
 }
 
+export const COMBAT_ACT_JOBS = [
+  'reveal-information',
+  'pacify-progress',
+  'interrupt',
+  'redirect',
+  'objective-progress'
+] as const;
+export type CombatActJob = typeof COMBAT_ACT_JOBS[number];
+
+export const COMBAT_ACT_TARGET_KINDS = [
+  'enemy',
+  'ally',
+  'object',
+  'terrain',
+  'objective'
+] as const;
+export type CombatActTargetKind = typeof COMBAT_ACT_TARGET_KINDS[number];
+
+export interface CombatActDefinition {
+  id: string;
+  label: string;
+  job: CombatActJob;
+  targetKind: CombatActTargetKind;
+  /**
+   * Combatant ID for enemy/ally targets or a stable authored encounter key for
+   * object/terrain targets. Objective ACTs do not require a targetId.
+   */
+  targetId?: string;
+  /**
+   * Scenario-owned 0-3 step path. Zero-step ACTs complete immediately (for
+   * example revealing information); 1-3 step ACTs advance one deterministic
+   * step per use.
+   */
+  requiredSteps: 0 | 1 | 2 | 3;
+  /**
+   * Stable authored hook that a later Adventure integration may convert into
+   * an AdventureObservation. C05 itself never creates personal Evidence.
+   */
+  observationKey?: string;
+}
+
+
 export type CombatSide = 'player' | 'enemy' | 'ally';
 export type CombatPhase = 'player' | 'enemy' | 'resolved';
 export type CombatOutcome = 'victory' | 'pacified' | 'escaped' | 'defeat' | 'story';
@@ -139,6 +181,8 @@ export interface CombatDefinition {
   combatants: CombatantDefinition[];
   /** Small encounter-local registry. Empty/omitted means TECHNIQUE has no options. */
   techniques?: CombatTechniqueDefinition[];
+  /** Scenario-authored ACT choices. Empty/omitted means ACT has no contextual option. */
+  actOptions?: CombatActDefinition[];
   turnLimit?: number;
   rewards: FixedCombatReward[];
   fleeRule: CombatFleeRule;
@@ -158,6 +202,10 @@ export interface CombatState {
   statuses: CombatStatus[];
   /** Absolute combat round on/after which each Technique may be used again. */
   techniqueReadyRound: Record<string, number>;
+  /** Scenario-local ACT path progress; this is not personality evidence. */
+  actProgressById: Record<string, number>;
+  /** Completed ACT paths cannot be farmed/replayed for repeated mechanics. */
+  completedActIds: string[];
   objectiveProgress: number;
   outcome?: CombatOutcome;
 }
@@ -219,4 +267,23 @@ export interface CombatTechniqueActivation {
   job: CombatTechniqueJob;
   chargeCost: number;
   nextUsableRound: number;
+}
+
+export interface CombatActCommand {
+  actorId: string;
+  actId: string;
+}
+
+export interface CombatActResolution {
+  state: CombatState;
+  actorId: string;
+  actId: string;
+  job: CombatActJob;
+  targetKind: CombatActTargetKind;
+  targetId?: string;
+  previousProgress: number;
+  progress: number;
+  requiredSteps: 0 | 1 | 2 | 3;
+  completed: boolean;
+  observationKey?: string;
 }
