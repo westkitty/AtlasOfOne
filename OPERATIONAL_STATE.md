@@ -10,10 +10,10 @@
   "state_revision": 28,
   "last_updated": "2026-09-24",
   "current_baseline": {
-    "identity": "integration-v2-staging@2063ad8",
-    "state": "verified",
+    "identity": "integration-v2-staging@b262901",
+    "state": "implemented-unverified",
     "last_verified": "2026-09-25T01:32:54Z",
-    "note": "Verified integration staging baseline after RF01, C05 and P00 merges. Atlas validation #205 passed. It is not deployed; main remains the release surface."
+    "note": "Current integration head after K06 and P01 merges. Atlas validation #221 is in progress; last fully verified integration baseline remains 2063ad8. It is not deployed; main remains the release surface."
   },
   "application_content_baseline": {
     "commit": "b5a3a2f",
@@ -31,10 +31,10 @@
     "note": "Historical predecessor to the Revision 25 production baseline; retained only for lineage."
   },
   "repository_head_at_write": {
-    "commit": "2063ad8de2cb616876956bdb0fd2ff74cb213b8d",
+    "commit": "b262901b57394794816772e137bcc74280460331",
     "branch": "integration/atlas-v2-journal-adventure-combat",
     "main_commit": "1b5103333f09884bf87286787e29885fd53d447c",
-    "note": "Current integration head before this state/ledger reconciliation commit. V2 runtime work remains off main; current-head CI is pending."
+    "note": "Current integration head after K06/P01 merges and before this state/ledger reconciliation commit. V2 runtime work remains off main; current-head CI #221 is pending."
   },
   "scope_boundaries": [
     "Atlas v2 is a mobile-first, local-first React/TypeScript/Vite PWA for Greyson: Journal-first input, Worldwalker as the living game world, optional generated Adventures, lightweight deterministic JRPG-style Combat, Reflection as the firewall between fictional behavior and self-knowledge, and dated revisable Atlas Snapshots.",
@@ -47,13 +47,13 @@
   "linked_parent_state": null,
   "integration_candidate_baseline": {
     "branch": "integration/atlas-v2-journal-adventure-combat",
-    "commit": "2063ad8de2cb616876956bdb0fd2ff74cb213b8d",
+    "commit": "b262901b57394794816772e137bcc74280460331",
     "pull_request": 12,
     "draft": true,
-    "ci_run": "36081936267",
-    "unit": "469/469 across 64 files",
-    "browser": "152/152 across 18 files",
-    "build": "passed; PWA precache 120 entries (614.68 KiB)",
+    "ci_run": "36082606159",
+    "unit": "pending current-head validation; prior verified 2063ad8 = 469/469 across 64 files",
+    "browser": "pending current-head validation; prior verified 2063ad8 = 152/152 across 18 files",
+    "build": "pending current-head validation; prior verified 2063ad8 build/PWA passed",
     "deployed": false
   }
 }
@@ -67,7 +67,7 @@
 - **Primary root or artifact:** repository root.
 - **Target environment:** Current evergreen mobile browsers first; installable PWA; Cloudflare Worker deployment live.
 - **Canonical authority:** Current explicit user instructions, then repository source-of-truth documents distilled from supplied planning/source material and accepted asset mapping.
-- **Governed scope:** Revision 25 remains the last verified deployed production runtime. The active v2 integration branch now includes schema-v2 activation and v1 migration through M07; historical FinalAssessment->Snapshot preservation; structural v2 provenance retirement; Journal J00-J05 plus J07 and editable STT input J04; Reflection RF00-RF07 including the human-authority decision UI and evidence/provenance/contradiction/change candidate foundations; Knowledge K00-K02, K04-K05; deterministic Combat C01-C05 including ATTACK, GUARD, TECHNIQUE and scenario-owned ACT; provider proposal envelope P00; and STT-only voice closure V01-V08. Adventures, K03/K06/K07, Combat LEAVE/objectives/gimmicks/UI/persistence, Journal history/provider acknowledgement, Adventure memory, new Snapshot generation/history UI, full vertical-slice integration, physical mobile/non-Chrome proof, Greyson pilot, release-candidate review and deployment remain incomplete. No percentage-complete claim is authoritative.
+- **Governed scope:** Revision 25 remains the last verified deployed production runtime. The active v2 integration branch now includes schema-v2 activation and v1 migration through M07; historical FinalAssessment->Snapshot preservation; structural v2 provenance retirement; Journal J00-J05 plus J07 and editable STT input J04; Reflection RF00-RF07 including the human-authority decision UI and evidence/provenance/contradiction/change candidate foundations; Knowledge K00-K02, K04-K05; deterministic Combat C01-C05 including ATTACK, GUARD, TECHNIQUE and scenario-owned ACT; provider proposal envelope P00 plus JournalProposal P01; and STT-only voice closure V01-V08. Adventures, K03/K06/K07, Combat LEAVE/objectives/gimmicks/UI/persistence, Journal history/provider acknowledgement, Adventure memory, new Snapshot generation/history UI, full vertical-slice integration, physical mobile/non-Chrome proof, Greyson pilot, release-candidate review and deployment remain incomplete. No percentage-complete claim is authoritative.
 
 - **Explicitly not governed:** Paid-model integration, real Greyson campaign content, 3D/native/account systems.
 
@@ -79,9 +79,9 @@ Atlas has four identities that must remain separate: authority/source state, v2 
 
 - **Repository:** `westkitty/AtlasOfOne`.
 - **Active development branch:** `integration/atlas-v2-journal-adventure-combat`.
-- **Verified integration head:** `2063ad8de2cb616876956bdb0fd2ff74cb213b8d`.
+- **Current integration head:** `b262901b57394794816772e137bcc74280460331` (**implemented-unverified** while Atlas validation #221 runs). Last fully verified integration head: `2063ad8de2cb616876956bdb0fd2ff74cb213b8d`.
 - **Integration PR:** #12, still **DRAFT**. It remains staging/review, not release authority.
-- **Current-head proof:** GitHub Actions `Atlas validation #205`, run `36081936267`: **469/469 unit tests across 64 files**, production/PWA build PASS, **120 precache entries (614.68 KiB)**, **152/152 real-Chrome browser tests across 18 files**.
+- **Current-head proof:** GitHub Actions `Atlas validation #221`, run `36082606159`, is in progress for `b262901`. Prior baseline `2063ad8` passed validation #205 with **469/469 unit**, build/PWA PASS, **152/152 browser**. K06 implementation validation #206 and P01 implementation validation #207 were green before merge.
 - The current head includes the merged packet chain through RF07 plus RF01 UI, Journal J04/J07, Knowledge K01/K02/K04/K05, Combat C03/C04/C05 and provider envelope P00. Draft candidate PRs #52-#55 cover K06, P01, P02 and S00 and are not merged authority.
 - **Current `main`:** `1b5103333f09884bf87286787e29885fd53d447c`. None of this v2 runtime work has merged to `main`.
 
@@ -102,13 +102,13 @@ Atlas has four identities that must remain separate: authority/source state, v2 
 
 ### 2d. Shared facts
 
-- **Project state:** `verified-integration-baseline / v2-in-progress`.
+- **Project state:** `integration-head-pending-validation / v2-in-progress`.
 - Authority remains Journal-first with Worldwalker, deterministic Adventure/Combat, Reflection firewall, revisable Snapshots, local-first persistence and no assistant TTS.
 - Schema v2 is now active on integration and canonical v1 fixtures migrate deterministically; historical FinalAssessment data is preserved as a first historical Snapshot without fabricated provenance.
 - Journal is now a real blank local-first input path: typed saves persist with no Turn/Evidence/XP/provider side effect, and the latest saved entry can be marked PRIVATE or retracted with M06 retirement propagation.
 - Combat currently has deterministic core state/lifecycle plus ATTACK, GUARD, TECHNIQUE and scenario-owned ACT. LEAVE, MVP objectives/gimmicks, enemy intent, persistence and full Combat UI remain incomplete.
 - Reflection now includes the RF01 human-authority decision UI plus RF02/RF03 evidence firewall, RF05 provenance behavior, RF06 contradiction construction and RF07 correction-or-change review candidates. End-to-end wiring into the full Adventure loop remains incomplete.
-- Knowledge now includes K00 selectors, K01 scoring, K02 explicit curiosity, K04 diversity/cooldown and K05 structural privacy eligibility. K06 retirement is under draft review in PR #52; K03 and K07 remain incomplete.
+- Knowledge now includes K00 selectors, K01 scoring, K02 explicit curiosity, K04 diversity/cooldown, K05 structural privacy eligibility and merged K06 retirement. K03 is under draft review in PR #57; K07 remains incomplete.
 - Adventure runtime, memory recurrence, new Snapshot synthesis/history UI and the complete vertical slice remain unimplemented.
 - No percentage-complete claim is authoritative.
 
@@ -797,4 +797,5 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 - Promoted `2063ad8` to **verified integration staging** after Atlas validation #205 / run `36081936267` passed: 469/469 unit, build/PWA clean, 152/152 browser.
 - Recorded already-merged Journal J04/J07; Reflection RF01/RF02/RF03/RF05/RF06/RF07; Knowledge K01/K02/K04/K05; Combat C03/C04/C05; and provider boundary P00.
 - Recorded draft review candidates PR #52 K06, #53 P01, #54 P02 and #55 S00 as unmerged work.
+- K06 and P01 subsequently merged into integration at `f351765` and `b262901`; current-head validation #221 is pending.
 - Preserved `main` as the release/deployment surface; no v2 runtime work was merged to main.
