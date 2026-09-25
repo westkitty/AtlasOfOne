@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { reflectionProposalSchema } from '../../src/cartographer/reflectionProposal';
+import { parseReflectionProposalForContext, reflectionProposalSchema } from '../../src/cartographer/reflectionProposal';
 
 describe('ReflectionProposal schema (P02)', () => {
   it('accepts a question-only Reflection without forcing an interpretation', () => {
@@ -70,6 +70,26 @@ describe('ReflectionProposal schema (P02)', () => {
         ...extra
       })).toThrow();
     }
+  });
+
+  it('rejects provenance IDs that were not present in bounded context', () => {
+    const value = {
+      kind: 'reflection',
+      mode: 'reflection',
+      question: 'Does this fit?',
+      interpretationCandidate: 'Synthetic interpretation.',
+      supportingSourceIds: ['source_visible', 'source_invented']
+    };
+
+    expect(() => parseReflectionProposalForContext(value, ['source_visible']))
+      .toThrow('source IDs outside bounded context: source_invented');
+
+    const parsed = parseReflectionProposalForContext({
+      ...value,
+      supportingSourceIds: ['source_visible']
+    }, ['source_visible']);
+
+    expect(parsed.supportingSourceIds).toEqual(['source_visible']);
   });
 
   it('rejects cross-mode use', () => {
