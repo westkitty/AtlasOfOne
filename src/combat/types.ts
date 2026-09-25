@@ -55,6 +55,28 @@ export const COMBAT_STATUS_IDS = [
 ] as const;
 export type CombatStatusId = typeof COMBAT_STATUS_IDS[number];
 
+export const COMBAT_TECHNIQUE_JOBS = [
+  'interrupt-charge',
+  'protect-ally',
+  'expose-shield',
+  'reposition-objective',
+  'trade-damage-for-control'
+] as const;
+export type CombatTechniqueJob = typeof COMBAT_TECHNIQUE_JOBS[number];
+
+export interface CombatTechniqueDefinition {
+  id: string;
+  label: string;
+  job: CombatTechniqueJob;
+  /** Encounter-local charges spent on activation. */
+  chargeCost: number;
+  /**
+   * Number of additional full rounds that must pass before the Technique can
+   * be used again. 0 means it is available again on the next player round.
+   */
+  cooldownRounds: number;
+}
+
 export type CombatSide = 'player' | 'enemy' | 'ally';
 export type CombatPhase = 'player' | 'enemy' | 'resolved';
 export type CombatOutcome = 'victory' | 'pacified' | 'escaped' | 'defeat' | 'story';
@@ -115,6 +137,8 @@ export interface CombatDefinition {
   objective: CombatObjective;
   gimmicks: CombatGimmick[];
   combatants: CombatantDefinition[];
+  /** Small encounter-local registry. Empty/omitted means TECHNIQUE has no options. */
+  techniques?: CombatTechniqueDefinition[];
   turnLimit?: number;
   rewards: FixedCombatReward[];
   fleeRule: CombatFleeRule;
@@ -132,6 +156,8 @@ export interface CombatState {
   phase: CombatPhase;
   combatants: CombatantState[];
   statuses: CombatStatus[];
+  /** Absolute combat round on/after which each Technique may be used again. */
+  techniqueReadyRound: Record<string, number>;
   objectiveProgress: number;
   outcome?: CombatOutcome;
 }
@@ -178,4 +204,19 @@ export interface CombatGuardResolution {
   damageTaken: number;
   damagePrevented: number;
   timedSuccess: boolean;
+}
+
+
+export interface CombatTechniqueCommand {
+  actorId: string;
+  techniqueId: string;
+}
+
+export interface CombatTechniqueActivation {
+  state: CombatState;
+  actorId: string;
+  techniqueId: string;
+  job: CombatTechniqueJob;
+  chargeCost: number;
+  nextUsableRound: number;
 }

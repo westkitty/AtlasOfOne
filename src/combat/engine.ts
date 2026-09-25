@@ -3,6 +3,9 @@ import type {
   CombatAttackResolution,
   CombatGuardCommand,
   CombatGuardResolution,
+  CombatTechniqueActivation,
+  CombatTechniqueCommand,
+  CombatTechniqueDefinition,
   CombatDefinition,
   CombatLifecycleEvent,
   CombatState,
@@ -46,6 +49,26 @@ function validateCombatant(definition: CombatantDefinition): void {
   }
 }
 
+function validateTechnique(technique: CombatTechniqueDefinition): void {
+  if (!technique.id.trim()) throw new Error('Combat Technique id must not be empty.');
+  if (!technique.label.trim()) {
+    throw new Error(`Combat Technique ${technique.id} needs a label.`);
+  }
+  if (!positiveInteger(technique.chargeCost)) {
+    throw new Error(`Combat Technique ${technique.id} chargeCost must be a positive integer.`);
+  }
+  if (technique.chargeCost > DEFAULT_TECHNIQUE_CHARGES) {
+    throw new Error(
+      `Combat Technique ${technique.id} chargeCost exceeds the C00 encounter charge baseline.`
+    );
+  }
+  if (!nonNegativeInteger(technique.cooldownRounds)) {
+    throw new Error(
+      `Combat Technique ${technique.id} cooldownRounds must be a non-negative integer.`
+    );
+  }
+}
+
 function validateReward(reward: FixedCombatReward): void {
   if (reward.amount !== undefined && (!Number.isFinite(reward.amount) || reward.amount < 0)) {
     throw new Error(`Combat reward ${reward.id} amount must be a non-negative finite number.`);
@@ -71,9 +94,11 @@ export function validateCombatDefinition(definition: CombatDefinition): CombatDe
 
   uniqueIds(definition.combatants, 'combatant');
   uniqueIds(definition.rewards, 'combat reward');
+  uniqueIds(definition.techniques ?? [], 'combat technique');
 
   for (const combatant of definition.combatants) validateCombatant(combatant);
   for (const reward of definition.rewards) validateReward(reward);
+  for (const technique of definition.techniques ?? []) validateTechnique(technique);
 
   const players = definition.combatants.filter((combatant) => combatant.side === 'player');
   const enemies = definition.combatants.filter((combatant) => combatant.side === 'enemy');
@@ -131,6 +156,9 @@ export function createCombatState(definition: CombatDefinition): CombatState {
     phase: definition.openingPhase ?? 'player',
     combatants: definition.combatants.map(initialCombatant),
     statuses: [],
+    techniqueReadyRound: Object.fromEntries(
+      (definition.techniques ?? []).map((technique) => [technique.id, 1])
+    ),
     objectiveProgress: 0
   };
 }
@@ -265,5 +293,83 @@ export function resolveGuardDamage(
     damageTaken,
     damagePrevented: rawDamage - damageTaken,
     timedSuccess
+  };
+}
+
+
+function techniqueFor(
+  definition: CombatDefinition,
+  techniqueId: string
+): CombatTechniqueDefinition {
+  const technique = (definition.techniques ?? []).find((item) => item.id === techniqueId);
+  if (!technique) throw new Error(`Unknown TECHNIQUE id: ${techniqueId}`);
+  return technique;
+}
+
+/**
+ * C04 deterministic TECHNIQUE resource/availability resolution.
+ *
+ * This spends encounter-local charges and freezes the next usable round. It
+ * intentionally does not apply the tactical job itself: interrupt/protect/
+ * expose/objective/control effects belong to later status/gimmick/objective
+ * packets and must remain deterministic.
+ */
+export function activateTechnique(
+  definition: CombatDefinition,
+  state: CombatState,
+  command: CombatTechniqueCommand
+): CombatTechniqueActivation {
+  validateCombatDefinition(definition);
+
+  if (state.definitionId !== definition.id) {
+    throw new Error(
+      `TECHNIQUE definition mismatch: state=${state.definitionId}, definition=${definition.id}`
+    );
+  }
+  if (state.phase !== 'player') {
+    throw new Error(`TECHNIQUE requires player phase, got ${state.phase}.`);
+  }
+
+  const actor = state.combatants.find((combatant) => combatant.id === command.actorId);
+  if (!actor) throw new Error(`Unknown TECHNIQUE actor: ${command.actorId}`);
+  if (actor.side !== 'player') {
+    throw new Error(`TECHNIQUE actor ${command.actorId} is not the player.`);
+  }
+  if (actor.hp <= 0) throw new Error(`TECHNIQUE actor ${command.actorId} is defeated.`);
+
+  const technique = techniqueFor(definition, command.techniqueId);
+  const readyRound = state.techniqueReadyRound[technique.id] ?? 1;
+  if (state.round < readyRound) {
+    throw new Error(
+      `TECHNIQUE ${technique.id} is unavailable until round ${readyRound}.`
+    );
+  }
+  if (actor.techniqueCharges < technique.chargeCost) {
+    throw new Error(
+      `TECHNIQUE ${technique.id} needs ${technique.chargeCost} charges; ${actor.techniqueCharges} remain.`
+    );
+  }
+
+  const nextUsableRound = state.round + technique.cooldownRounds + 1;
+  const nextState: CombatState = {
+    ...state,
+    combatants: state.combatants.map((combatant) =>
+      combatant.id === actor.id
+        ? { ...combatant, techniqueCharges: combatant.techniqueCharges - technique.chargeCost }
+        : combatant
+    ),
+    techniqueReadyRound: {
+      ...state.techniqueReadyRound,
+      [technique.id]: nextUsableRound
+    }
+  };
+
+  return {
+    state: nextState,
+    actorId: actor.id,
+    techniqueId: technique.id,
+    job: technique.job,
+    chargeCost: technique.chargeCost,
+    nextUsableRound
   };
 }
