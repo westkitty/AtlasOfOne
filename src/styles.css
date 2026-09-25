@@ -2121,3 +2121,99 @@ html[data-reduced-motion="true"] .world-enter { animation: none; }
     padding-right: 12px;
   }
 }
+
+/* ---- v2 Journal history + optional prompt (J06/J08) ------------------ */
+.journal-prompt {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: .76rem;
+}
+.journal-prompt p {
+  margin: 0 0 4px;
+  color: var(--gold-soft);
+  font-style: italic;
+}
+.journal-prompt-actions,
+.journal-history-head {
+  display: flex;
+  gap: 12px;
+}
+.journal-history-head button,
+.journal-history-days button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #111b27;
+  color: var(--ink);
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 750;
+  padding: 8px 11px;
+}
+.journal-history-days button:disabled { opacity: .45; }
+.journal-history-days {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 6px;
+}
+.journal-history-days h3 {
+  margin: 0;
+  text-align: center;
+  color: var(--ink);
+  font-size: .86rem;
+}
+.journal-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.journal-history-summary {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: .76rem;
+  text-align: left;
+}
+.journal-history-summary time { color: var(--muted); }
+.journal-history-status {
+  color: var(--gold-soft);
+  font-size: .66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.journal-history-excerpt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.journal-history-detail { padding: 8px 10px; }
+.journal-history-text {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: .8rem;
+}
+.journal-history-prompt {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: .7rem;
+  font-style: italic;
+}
+.journal-history-empty { color: var(--muted); }

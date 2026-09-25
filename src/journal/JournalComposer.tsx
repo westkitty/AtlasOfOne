@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { JournalHistory } from './JournalHistory';
+import { nextJournalPrompt } from './prompts';
 import type { JournalEntry } from './schema';
 import type { VoiceState } from '../voice/types';
 
@@ -5,9 +8,13 @@ export interface JournalComposerProps {
   value: string;
   savedCount: number;
   onChange: (value: string) => void;
-  onSave: () => void;
+  /** Saves the draft; `sourcePrompt` is set only if Greyson chose a prompt. */
+  onSave: (sourcePrompt?: string) => void;
   onClose: () => void;
   latestEntry?: JournalEntry;
+  entries: readonly JournalEntry[];
+  onMakeEntryPrivate: (id: string) => void;
+  onRetractEntry: (id: string) => void;
   dictationSupported: boolean;
   dictationState: VoiceState;
   dictationStatusLabel: string;
@@ -43,8 +50,14 @@ export function JournalComposer({
   onStopDictation,
   onCancelDictation,
   onMakeLatestPrivate,
-  onRetractLatest
+  onRetractLatest,
+  entries,
+  onMakeEntryPrivate,
+  onRetractEntry
 }: JournalComposerProps) {
+  const [showHistory, setShowHistory] = useState(false);
+  const [prompt, setPrompt] = useState<string | undefined>();
+
   const dictationBusy =
     dictationState === 'requesting-permission'
     || dictationState === 'listening'
@@ -77,6 +90,15 @@ export function JournalComposer({
         <p>No question required. Saving here does not score, interpret, or send the entry anywhere.</p>
       </header>
 
+      {showHistory ? (
+        <JournalHistory
+          entries={entries}
+          onMakePrivate={onMakeEntryPrivate}
+          onRetract={onRetractEntry}
+          onBack={() => setShowHistory(false)}
+        />
+      ) : (
+      <>
       <label className="journal-composer-field">
         <span>Journal entry</span>
         <textarea
@@ -88,6 +110,22 @@ export function JournalComposer({
           placeholder="Start anywhere."
         />
       </label>
+
+      <section className="journal-prompt" data-testid="journal-prompt" aria-label="Optional prompt">
+        {prompt === undefined ? (
+          <button type="button" className="link-btn" data-testid="journal-prompt-request" onClick={() => setPrompt(nextJournalPrompt())}>
+            Want a prompt? (optional)
+          </button>
+        ) : (
+          <>
+            <p data-testid="journal-prompt-text">{prompt}</p>
+            <div className="journal-prompt-actions">
+              <button type="button" className="link-btn" data-testid="journal-prompt-next" onClick={() => setPrompt(nextJournalPrompt(prompt))}>Another</button>
+              <button type="button" className="link-btn" data-testid="journal-prompt-dismiss" onClick={() => setPrompt(undefined)}>No prompt</button>
+            </div>
+          </>
+        )}
+      </section>
 
       <section className="journal-dictation" data-testid="journal-dictation" aria-label="Journal dictation">
         <div className="journal-dictation-copy">
@@ -178,6 +216,15 @@ export function JournalComposer({
       )}
 
       <footer className="journal-composer-actions">
+        <button
+          type="button"
+          className="link-btn"
+          data-testid="journal-history-open"
+          disabled={entries.length === 0 || dictationBusy}
+          onClick={() => setShowHistory(true)}
+        >
+          History
+        </button>
         <small data-testid="journal-saved-count">
           {savedCount === 0 ? 'No saved entries yet.' : `${savedCount} saved ${savedCount === 1 ? 'entry' : 'entries'}.`}
         </small>
@@ -186,11 +233,13 @@ export function JournalComposer({
           className="primary"
           data-testid="journal-save"
           disabled={!value.trim() || dictationBusy}
-          onClick={onSave}
+          onClick={() => onSave(prompt)}
         >
           Save locally
         </button>
       </footer>
+      </>
+      )}
     </section>
   );
 }

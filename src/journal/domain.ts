@@ -125,3 +125,50 @@ export function retractJournalEntry(
     entry.status === 'retracted' ? entry : { ...entry, status: 'retracted' }
   );
 }
+
+export interface JournalDayGroup {
+  /** Local calendar day, `YYYY-MM-DD`. */
+  dayKey: string;
+  /** Entries for this day, newest first. */
+  entries: JournalEntry[];
+}
+
+/**
+ * Calendar day for history navigation.
+ *
+ * `timeZone` is injectable so tests are deterministic; the app passes nothing
+ * and gets the device's local day.
+ */
+export function journalEntryDayKey(entry: Pick<JournalEntry, 'createdAt'>, timeZone?: string): string {
+  const date = new Date(entry.createdAt);
+  if (!Number.isFinite(date.getTime())) {
+    throw new Error('Invalid JournalEntry createdAt: ' + entry.createdAt);
+  }
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+}
+
+/**
+ * J06 history grouping: newest day first, newest entry first within a day.
+ *
+ * PRIVATE and retracted entries stay in local history (they are Greyson's own
+ * records); callers render their status rather than hiding them.
+ */
+export function groupJournalEntriesByDay(
+  entries: readonly JournalEntry[],
+  timeZone?: string
+): JournalDayGroup[] {
+  const groups: JournalDayGroup[] = [];
+  for (const entry of selectJournalEntriesNewestFirst(entries)) {
+    const dayKey = journalEntryDayKey(entry, timeZone);
+    const last = groups[groups.length - 1];
+    if (last && last.dayKey === dayKey) last.entries.push(entry);
+    else groups.push({ dayKey, entries: [entry] });
+  }
+  return groups;
+}
