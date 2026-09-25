@@ -6,7 +6,9 @@ import {
   selectKnowledgeGapsForDimension,
   selectKnowledgeGapsForTerritory,
   selectOpenKnowledgeGaps,
-  selectRankedOpenKnowledgeGaps
+  selectRankedOpenKnowledgeGaps,
+  retireKnowledgeGap,
+  retireKnowledgeGapById
 } from '../../src/knowledge/domain';
 import type { KnowledgeGap } from '../../src/knowledge/schema';
 
@@ -64,5 +66,56 @@ describe('Knowledge Gap deterministic selectors (K00)', () => {
       sourceJournalEntryIds: ['journal_1']
     });
     expect(knowledgeGapSourceIds(sourced)).toEqual(['ev_1', 'ev_2', 'journal_1']);
+  });
+
+  it('retires an open gap without deleting or rewriting its history', () => {
+    const original = gap({
+      id: 'gap_retire',
+      kind: 'curiosity',
+      territoryIds: ['interests'],
+      dimensionIds: ['curiosity'],
+      sourceEvidenceIds: ['ev_1'],
+      sourceJournalEntryIds: ['journal_1'],
+      summary: 'Synthetic curiosity path.',
+      priority: 82
+    });
+
+    const retired = retireKnowledgeGap(original);
+    expect(retired).toEqual({ ...original, status: 'retired' });
+    expect(original.status).toBe('open');
+    expect(retired.sourceEvidenceIds).toEqual(['ev_1']);
+    expect(retired.sourceJournalEntryIds).toEqual(['journal_1']);
+    expect(retired.summary).toBe('Synthetic curiosity path.');
+    expect(retired.priority).toBe(82);
+  });
+
+  it('retires a seeded path but refuses to relabel resolved history', () => {
+    const seeded = gap({ id: 'gap_seeded', status: 'seeded' });
+    expect(retireKnowledgeGap(seeded).status).toBe('retired');
+
+    const resolved = gap({ id: 'gap_resolved', status: 'resolved' });
+    expect(() => retireKnowledgeGap(resolved))
+      .toThrow('is resolved and cannot be retired as an exploration preference');
+  });
+
+  it('retires by stable id without mutating sibling gaps or caller order', () => {
+    const a = gap({ id: 'gap_a', summary: 'A' });
+    const b = gap({ id: 'gap_b', summary: 'B' });
+    const source = [a, b];
+    const next = retireKnowledgeGapById(source, 'gap_b');
+
+    expect(next.map((item) => item.id)).toEqual(['gap_a', 'gap_b']);
+    expect(next[0]).toBe(a);
+    expect(next[1]).toEqual({ ...b, status: 'retired' });
+    expect(source[1].status).toBe('open');
+    expect(() => retireKnowledgeGapById(source, 'missing'))
+      .toThrow('Unknown KnowledgeGap id: missing');
+  });
+
+  it('is idempotent for an already-retired gap and keeps it out of open ranking', () => {
+    const retired = gap({ id: 'gap_retired', status: 'retired', priority: 100 });
+    expect(retireKnowledgeGap(retired)).toBe(retired);
+    expect(selectOpenKnowledgeGaps([retired])).toEqual([]);
+    expect(selectRankedOpenKnowledgeGaps([retired])).toEqual([]);
   });
 });

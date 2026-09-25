@@ -56,3 +56,35 @@ export function selectRankedOpenKnowledgeGaps(
 export function knowledgeGapSourceIds(gap: KnowledgeGap): string[] {
   return [...gap.sourceEvidenceIds, ...gap.sourceJournalEntryIds];
 }
+
+/**
+ * K06 user-owned "do not explore this" transition.
+ *
+ * Retirement preserves the gap, summary, source IDs and prior priority as
+ * history. It only changes selection authority. Resolved gaps are already
+ * closed history and are not silently relabeled as user-retired.
+ */
+export function retireKnowledgeGap(gap: KnowledgeGap): KnowledgeGap {
+  if (gap.status === 'retired') return gap;
+  if (gap.status === 'resolved') {
+    throw new Error(`KnowledgeGap ${gap.id} is resolved and cannot be retired as an exploration preference.`);
+  }
+  return { ...gap, status: 'retired' };
+}
+
+export function retireKnowledgeGapById(
+  gaps: readonly KnowledgeGap[],
+  id: string
+): KnowledgeGap[] {
+  const index = gaps.findIndex((gap) => gap.id === id);
+  if (index < 0) throw new Error(`Unknown KnowledgeGap id: ${id}`);
+
+  const current = gaps[index];
+  const retired = retireKnowledgeGap(current);
+  if (retired === current) return [...gaps];
+
+  const next = [...gaps];
+  next[index] = retired;
+  return next;
+}
+
