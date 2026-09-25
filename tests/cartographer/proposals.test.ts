@@ -57,6 +57,11 @@ describe('v2 provider proposal envelope (P00)', () => {
       { xp: 500 },
       { damage: 999 },
       { outcome: 'victory' },
+      { objective: 'pacify' },
+      { statuses: ['pacifiable'] },
+      { intent: 'attack' },
+      { turnOrder: ['enemy', 'player'] },
+      { techniqueCharges: 99 },
       { rewards: ['loot'] },
       { gameEvent: { type: 'LEVEL_UP' } },
       { snapshotEligible: true }
