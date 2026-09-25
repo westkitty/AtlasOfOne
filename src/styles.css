@@ -2217,3 +2217,35 @@ html[data-reduced-motion="true"] .world-enter { animation: none; }
   font-style: italic;
 }
 .journal-history-empty { color: var(--muted); }
+
+/* ---- v2 CombatPanel (C13) ---- */
+.combat-panel { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); overflow-wrap: anywhere; }
+.combat-panel * { box-sizing: border-box; }
+.combat-panel ul { list-style: none; margin: 0; padding: 0; }
+.cp-objective__line { margin: 0; color: var(--ink); font-size: .95rem; }
+.cp-objective__progress { margin: 2px 0 8px; font-size: .8rem; }
+.cp-hp-list { display: grid; gap: 6px; margin-bottom: 8px; }
+.cp-hp { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name text" "bar bar"; gap: 2px 8px; font-size: .82rem; color: var(--ink); }
+.cp-hp__name { grid-area: name; min-width: 0; }
+.cp-hp__text { grid-area: text; font-variant-numeric: tabular-nums; }
+.cp-hp__bar { grid-area: bar; height: 8px; border: 1px solid var(--line-soft); border-radius: 4px; overflow: hidden; }
+.cp-hp__fill { display: block; height: 100%; background: var(--verdigris); }
+.cp-hp--enemy .cp-hp__fill { background: var(--ember); }
+.cp-hp.is-down { opacity: .6; text-decoration: line-through; }
+.cp-intents, .cp-statuses { display: grid; gap: 4px; margin-bottom: 8px; font-size: .8rem; color: var(--ink); }
+.cp-intent, .cp-status { display: flex; gap: 6px; align-items: flex-start; min-width: 0; }
+.cp-glyph { flex: 0 0 1.2em; text-align: center; font-weight: 800; }
+.cp-outcome { color: var(--gold-soft); font-weight: 700; }
+.cp-verbs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cp-verb, .cp-option { min-height: 44px; min-width: 44px; width: 100%; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--panel-2); color: var(--ink); font: inherit; font-weight: 700; text-align: center; }
+.cp-verb--leave { grid-column: 1 / -1; border-style: dashed; }
+.cp-verb:disabled, .cp-option:disabled { opacity: .55; cursor: not-allowed; }
+.cp-verb[aria-expanded="true"] { border-color: var(--gold); }
+.cp-reasons { margin-top: 6px; font-size: .74rem; color: var(--muted); }
+.cp-options { display: grid; gap: 6px; margin-top: 8px; }
+.cp-option { text-align: left; font-weight: 600; }
+.cp-option__reason { color: var(--muted); font-weight: 400; }
+@media (min-width: 420px) { .cp-verbs { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .combat-panel * { transition: none !important; animation: none !important; } }
+html[data-reduced-motion="true"] .combat-panel * { transition: none !important; animation: none !important; }
+/* ---- end v2 CombatPanel (C13) ---- */
