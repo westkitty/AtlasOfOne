@@ -208,6 +208,23 @@ export interface CombatState {
   completedActIds: string[];
   objectiveProgress: number;
   outcome?: CombatOutcome;
+  /**
+   * C09 engine-owned enemy telegraphs for the current round. Always computed
+   * by deterministic rules before the enemy phase resolves; never provider input.
+   */
+  telegraphedIntents?: CombatIntentPlan[];
+}
+
+export interface CombatIntentPlan {
+  round: number;
+  enemyId: string;
+  intent: CombatIntent;
+  /** Combatant the intent resolves against (player or ally). */
+  targetId: string;
+  /** Deterministic raw integer damage; 0 for non-damaging intents. */
+  rawDamage: number;
+  /** Stable key a narrator may word; the engine owns its meaning. */
+  telegraphKey: string;
 }
 
 /**
