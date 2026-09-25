@@ -823,7 +823,7 @@ export default function App() {
     setReply
   });
 
-  const saveJournalEntry = () => {
+  const saveJournalEntry = (sourcePrompt?: string) => {
     if (!journalDraft.trim() || journalSaveInFlight.current) return;
     journalSaveInFlight.current = true;
 
@@ -832,7 +832,8 @@ export default function App() {
       id: `journal_${crypto.randomUUID()}`,
       createdAt,
       text: journalDraft,
-      inputMode: journalDraftInputMode
+      inputMode: journalDraftInputMode,
+      ...(sourcePrompt === undefined ? {} : { sourcePrompt })
     });
 
     setState((current) => ({
@@ -858,6 +859,22 @@ export default function App() {
   };
 
   const latestJournalEntry = selectJournalEntriesNewestFirst(state.journalEntries)[0];
+
+  const makeJournalEntryPrivate = (id: string) => {
+    const entry = state.journalEntries.find((item) => item.id === id);
+    if (!entry || entry.privacy === 'private' || entry.status === 'retracted') return;
+    const updatedAt = new Date().toISOString();
+    setState((current) => privatizeJournalEntry(current, id, updatedAt));
+    setMessage('Journal entry is private. Exclusive derived state was retired.');
+  };
+
+  const retractJournalEntryById = (id: string) => {
+    const entry = state.journalEntries.find((item) => item.id === id);
+    if (!entry || entry.status === 'retracted') return;
+    const updatedAt = new Date().toISOString();
+    setState((current) => retractJournalEntryFromCampaign(current, id, updatedAt));
+    setMessage('Journal entry retracted. Its history is kept; its authority is retired.');
+  };
 
   const makeLatestJournalPrivate = () => {
     if (!latestJournalEntry || latestJournalEntry.privacy === 'private' || latestJournalEntry.status === 'retracted') return;
@@ -1792,6 +1809,9 @@ export default function App() {
             value={journalDraft}
             savedCount={state.journalEntries.length}
             latestEntry={latestJournalEntry}
+            entries={state.journalEntries}
+            onMakeEntryPrivate={makeJournalEntryPrivate}
+            onRetractEntry={retractJournalEntryById}
             dictationSupported={isAudioCaptureSupported() && !isOffline}
             dictationState={voiceState}
             dictationStatusLabel={voiceStateLabel(voiceState)}
