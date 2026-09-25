@@ -17,6 +17,8 @@ import {
   selectActiveAdventure,
   selectRecurringLine,
   startSliceAdventure,
+  pureFunOffer,
+  startPureFunAdventure,
   withdrawSliceAdventure
 } from './slice/loop';
 import { adventureSeedIsEligible } from './adventure/seeds';
@@ -916,9 +918,13 @@ export default function App() {
   const latestSliceState = useRef(state);
   latestSliceState.current = state;
   const activeAdventure = selectActiveAdventure(state);
+  const funOffer = pureFunOffer(state);
   const availableSeeds = activeAdventure
     ? []
-    : state.adventureSeeds.filter((seed) => adventureSeedIsEligible(state, seed));
+    : [
+        ...state.adventureSeeds.filter((seed) => adventureSeedIsEligible(state, seed)),
+        ...(state.adventureSeeds.some((seed) => seed.id === funOffer.id) ? [] : [funOffer])
+      ];
   const activeCombatDefinition = state.activeCombat
     ? ENCOUNTER_BANK.find((definition) => definition.id === state.activeCombat!.definitionId)
     : undefined;
@@ -967,11 +973,11 @@ export default function App() {
   };
 
   const startAdventure = (seedId: string) => {
-    runSlice('Adventure', (current) => startSliceAdventure(current, {
-      seedId,
-      runId: `run_${crypto.randomUUID()}`,
-      now: new Date().toISOString()
-    }));
+    const runId = `run_${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    runSlice('Adventure', (current) => current.adventureSeeds.some((seed) => seed.id === seedId)
+      ? startSliceAdventure(current, { seedId, runId, now })
+      : startPureFunAdventure(current, { runId, now }));
   };
 
   const finishedMessage = (next: CampaignState | undefined, runId: string) => {

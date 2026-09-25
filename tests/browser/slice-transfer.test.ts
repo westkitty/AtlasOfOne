@@ -89,7 +89,7 @@ describe('v2 whole-slice reload / export / delete / import (I08)', () => {
     await page.click('[data-testid="journal-history-entry"] button');
     await page.click('[data-testid="journal-explore"]');
     await page.click('[data-testid="journal-explore-place"][data-territory="identity"]');
-    await page.click('[data-testid="adventure-start"]');
+    await page.locator('[data-testid="adventure-start"]').first().click();
     for (let i = 0; i < 6 && !(await page.locator('[data-testid="adventure-combat"]').count()); i += 1) {
       await page.locator('[data-testid="adventure-option"]').first().click();
     }

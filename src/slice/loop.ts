@@ -7,7 +7,7 @@ import { selectRecurringReferences } from '../adventure/memory/recurring';
 import { completeAdventureRun, withdrawAdventureRun } from '../adventure/outcomes';
 import { reduceAdventureRun, startAdventureFromSeed } from '../adventure/run';
 import type { AdventureRun, AdventureSeed } from '../adventure/schema';
-import { admitAdventureSeed, adventureSeedIsEligible, createAdventureSeedFromRequest } from '../adventure/seeds';
+import { admitAdventureSeed, adventureSeedIsEligible, createAdventureSeedFromRequest, createPureFunAdventureSeed } from '../adventure/seeds';
 import { localReflectionWording } from '../cartographer/fallbacks/reflectionWording';
 import { ENCOUNTER_BANK } from '../combat/content/encounters';
 import { createActiveCombatRecord, resumeActiveCombat } from '../combat/persistence';
@@ -380,4 +380,30 @@ export function selectRecurringLine(state: CampaignState): string | null {
     currentRunId: active.run.id,
     currentSeedId: active.seed.id
   }).fallbackLine;
+}
+
+/**
+ * A09 in the slice: an always-available pure-fun adventure. It needs no Journal
+ * entry, targets no KnowledgeGap and never offers Reflection — play is a complete
+ * success on its own. Deterministic, not persisted until Greyson sets out; it
+ * rotates through the pure-fun templates so repeat play does not grind one theme.
+ */
+export function pureFunOffer(state: CampaignState): AdventureSeed {
+  const templates = [...CORE_ADVENTURE_TEMPLATES]
+    .filter((template) => template.kind === 'pure-fun' || template.learningTarget === 'none')
+    .sort((left, right) => left.id.localeCompare(right.id));
+  const played = state.adventureSeeds.filter((seed) => seed.learningTarget === 'none' && seed.status !== 'available').length;
+  const template = templates[played % templates.length];
+  return createPureFunAdventureSeed({
+    id: `seed_fun_${played + 1}`,
+    territoryId: template.validTerritories[0],
+    premise: template.beats.find((beat) => beat.beat === 'hook')?.intent ?? template.title
+  });
+}
+
+export function startPureFunAdventure(state: CampaignState, input: { runId: string; now: string }): CampaignState {
+  const offer = pureFunOffer(state);
+  const existing = state.adventureSeeds.find((seed) => seed.id === offer.id);
+  const withSeed = existing ? state : { ...state, adventureSeeds: [...state.adventureSeeds, offer] };
+  return startSliceAdventure(withSeed, { seedId: offer.id, runId: input.runId, now: input.now });
 }

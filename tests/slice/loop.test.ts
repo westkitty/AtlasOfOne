@@ -202,3 +202,21 @@ describe('World memory recurs across adventures (A07 + N05 via the slice)', () =
     expect(selectRecurringLine(hidden)).toBeNull();
   });
 });
+
+describe('Always-available pure-fun adventures (A09 via the slice)', () => {
+  it('needs no Journal entry, offers no Reflection, and rotates templates across plays', async () => {
+    const { pureFunOffer, startPureFunAdventure } = await import('../../src/slice/loop');
+    let state = createInitialCampaign();
+    const first = pureFunOffer(state);
+    expect(first).toMatchObject({ learningTarget: 'none', kind: 'pure-fun', sourceGapIds: [] });
+    expect(state.adventureSeeds).toEqual([]);
+
+    state = playThrough(startPureFunAdventure(state, { runId: 'fun_1', now: T(1) }), 'fun_1');
+    expect(state.reflections).toEqual([]);
+    expect(state.evidence).toEqual(createInitialCampaign().evidence);
+
+    const second = pureFunOffer(state);
+    expect(second.id).not.toBe(first.id);
+    expect(second.premise).not.toBe(first.premise);
+  });
+});

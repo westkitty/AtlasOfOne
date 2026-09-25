@@ -69,6 +69,7 @@ export function AdventurePanel({
               {available.map((seed) => (
                 <li key={seed.id}>
                   <p>{seed.premise}</p>
+                  {seed.learningTarget === 'none' && <small className="chip" data-testid="adventure-just-for-fun">Just for fun</small>}
                   <button type="button" className="primary" data-testid="adventure-start" onClick={() => onStart(seed.id)}>
                     Set out
                   </button>

@@ -77,8 +77,9 @@ describe('v2 vertical slice: Journal -> Adventure -> Encounter -> Reflection (I0
     await page.click('[data-testid="journal-save"]');
     await expect.poll(async () => (await persistedState())?.journalEntries?.length ?? 0).toBe(1);
 
-    // No adventure exists until Greyson explicitly asks for one.
-    expect(await page.locator('[data-testid="open-adventure"]').count()).toBe(0);
+    // Writing never creates an adventure about the entry; only an explicit "Explore this" does.
+    expect((await persistedState()).adventureSeeds).toEqual([]);
+    expect((await persistedState()).knowledgeGaps).toEqual([]);
 
     await page.click('[data-testid="open-journal"]');
     await page.click('[data-testid="journal-history-open"]');
@@ -88,7 +89,9 @@ describe('v2 vertical slice: Journal -> Adventure -> Encounter -> Reflection (I0
 
     await page.waitForSelector('[data-testid="adventure-panel"]');
     await expect.poll(async () => (await persistedState())?.adventureSeeds?.length ?? 0).toBe(1);
-    await page.click('[data-testid="adventure-start"]');
+    // The explored adventure is listed first; a just-for-fun one is always offered too.
+    expect(await page.locator('[data-testid="adventure-just-for-fun"]').count()).toBe(1);
+    await page.locator('[data-testid="adventure-start"]').first().click();
     await page.waitForSelector('[data-testid="adventure-beat"]');
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
