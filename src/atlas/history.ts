@@ -48,7 +48,16 @@ export function createAtlasSnapshotRecord(
 export function selectAtlasSnapshotsChronological(
   snapshots: readonly AtlasSnapshot[]
 ): AtlasSnapshot[] {
-  return snapshots.map((snapshot) => atlasSnapshotSchema.parse(snapshot)).sort(compareSnapshots);
+  return snapshots
+    .map((snapshot) => {
+      const parsed = atlasSnapshotSchema.parse(snapshot);
+      // Validate every record eagerly. Array#sort does not invoke its comparator
+      // for a one-item history, so comparator-only date validation would let a
+      // malformed single Snapshot escape this boundary.
+      snapshotTime(parsed);
+      return parsed;
+    })
+    .sort(compareSnapshots);
 }
 
 export function selectAtlasSnapshotsNewestFirst(
