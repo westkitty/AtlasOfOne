@@ -2,94 +2,45 @@ import { describe, expect, it } from 'vitest';
 import { canTransition, transitionVoiceState, voiceStateLabel } from '../../src/voice/state';
 import type { VoiceState } from '../../src/voice/types';
 
-describe('voice state machine', () => {
-  it('follows the sequential happy-path progression', () => {
+describe('speech-to-text state machine', () => {
+  it('follows the dictation happy path', () => {
     let current: VoiceState = 'idle';
-
-    expect(canTransition(current, 'requesting-permission')).toBe(true);
-    current = transitionVoiceState(current, 'requesting-permission');
-    expect(current).toBe('requesting-permission');
-
-    expect(canTransition(current, 'listening')).toBe(true);
-    current = transitionVoiceState(current, 'listening');
-    expect(current).toBe('listening');
-
-    expect(canTransition(current, 'transcribing')).toBe(true);
-    current = transitionVoiceState(current, 'transcribing');
-    expect(current).toBe('transcribing');
-
-    expect(canTransition(current, 'thinking')).toBe(true);
-    current = transitionVoiceState(current, 'thinking');
-    expect(current).toBe('thinking');
-
-    expect(canTransition(current, 'speaking')).toBe(true);
-    current = transitionVoiceState(current, 'speaking');
-    expect(current).toBe('speaking');
-
-    expect(canTransition(current, 'idle')).toBe(true);
-    current = transitionVoiceState(current, 'idle');
+    for (const next of ['requesting-permission', 'listening', 'transcribing', 'idle'] as VoiceState[]) {
+      expect(canTransition(current, next)).toBe(true);
+      current = transitionVoiceState(current, next);
+    }
     expect(current).toBe('idle');
   });
 
-  it('allows direct transition to listening from idle when permission is pre-granted', () => {
-    expect(canTransition('idle', 'listening')).toBe(true);
+  it('allows direct listening when microphone permission is already granted', () => {
     expect(transitionVoiceState('idle', 'listening')).toBe('listening');
   });
 
-  it('allows cancellation to idle from any active state', () => {
-    const activeStates: VoiceState[] = [
-      'requesting-permission',
-      'listening',
-      'transcribing',
-      'thinking',
-      'speaking',
-      'error'
-    ];
-
-    for (const state of activeStates) {
-      expect(canTransition(state, 'idle'), `transition from ${state} to idle`).toBe(true);
+  it('allows cancellation to idle from every active state', () => {
+    for (const state of ['requesting-permission', 'listening', 'transcribing', 'error'] as VoiceState[]) {
       expect(transitionVoiceState(state, 'idle')).toBe('idle');
     }
   });
 
-  it('allows transitioning to error from any active state on failure', () => {
-    const states: VoiceState[] = [
-      'idle',
-      'requesting-permission',
-      'listening',
-      'transcribing',
-      'thinking',
-      'speaking'
-    ];
-
-    for (const state of states) {
-      expect(canTransition(state, 'error'), `transition from ${state} to error`).toBe(true);
+  it('allows errors at every microphone stage', () => {
+    for (const state of ['idle', 'requesting-permission', 'listening', 'transcribing'] as VoiceState[]) {
       expect(transitionVoiceState(state, 'error')).toBe('error');
     }
   });
 
-  it('safely resets illegal transitions to idle', () => {
-    // Cannot jump from transcribing directly to speaking without thinking
-    expect(canTransition('transcribing', 'speaking')).toBe(false);
-    expect(transitionVoiceState('transcribing', 'speaking')).toBe('idle');
-
-    // Cannot jump from requesting-permission directly to thinking
-    expect(canTransition('requesting-permission', 'thinking')).toBe(false);
-    expect(transitionVoiceState('requesting-permission', 'thinking')).toBe('idle');
+  it('does not contain output-speech lifecycle states', () => {
+    const states: VoiceState[] = ['idle', 'requesting-permission', 'listening', 'transcribing', 'error'];
+    expect(states).not.toContain('speaking');
+    expect(states).not.toContain('thinking');
   });
 
-  it('provides player-facing labels for every state without backend jargon', () => {
-    const allStates: VoiceState[] = [
-      'idle',
-      'requesting-permission',
-      'listening',
-      'transcribing',
-      'thinking',
-      'speaking',
-      'error'
-    ];
+  it('falls back safely on illegal transitions', () => {
+    expect(canTransition('requesting-permission', 'transcribing')).toBe(false);
+    expect(transitionVoiceState('requesting-permission', 'transcribing')).toBe('idle');
+  });
 
-    for (const state of allStates) {
+  it('provides player-facing labels without backend jargon', () => {
+    for (const state of ['idle', 'requesting-permission', 'listening', 'transcribing', 'error'] as VoiceState[]) {
       const label = voiceStateLabel(state);
       expect(label.length).toBeGreaterThan(3);
       expect(label).not.toMatch(/api|http|schema|token|binding|worker|json/i);

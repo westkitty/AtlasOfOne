@@ -54,17 +54,30 @@ describe('encounter state persistence', () => {
 
   it('defaults encounter fields for older schema-v1 campaigns that predate them', () => {
     const legacy = campaignWithEncounters() as unknown as Record<string, unknown>;
+    legacy.schemaVersion = 1;
     delete legacy.bossRuns;
     delete legacy.activeBoss;
     delete legacy.doorRuns;
     delete legacy.activeDoor;
+    for (const field of [
+      'journalEntries',
+      'knowledgeGaps',
+      'adventureSeeds',
+      'adventureRuns',
+      'adventureActions',
+      'adventureObservations',
+      'reflections',
+      'adventureMemories',
+      'atlasSnapshots'
+    ]) delete legacy[field];
 
     const migrated = migrateCampaign(legacy);
-    expect(migrated.schemaVersion).toBe(1);
+    expect(migrated.schemaVersion).toBe(2);
     expect(migrated.bossRuns).toEqual([]);
     expect(migrated.doorRuns).toEqual([]);
     expect(migrated.activeBoss).toBeNull();
     expect(migrated.activeDoor).toBeNull();
+    expect(migrated.atlasSnapshots).toEqual([]);
   });
 
   it('still rejects malformed encounter data', () => {

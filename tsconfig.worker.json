@@ -8,5 +8,19 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["worker", "src/cartographer", "src/game/types.ts"]
+  "include": [
+    "worker",
+    "src/cartographer",
+    "src/game/types.ts",
+    "src/combat/types.ts",
+    "src/combat/persistence.ts",
+    "src/adventure/schema.ts",
+    "src/atlas/schema.ts",
+    "src/journal/schema.ts",
+    "src/knowledge/schema.ts",
+    "src/reflection/schema.ts"
+  ],
+  "exclude": [
+    "src/cartographer/modes"
+  ]
 }

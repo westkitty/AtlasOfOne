@@ -998,6 +998,7 @@ Journal supports:
 The inspectable record of what Atlas currently believes it knows, why it believes it, what Greyson confirmed or rejected, contradictions, memories, adventure history and dated Atlas Snapshots.
 
 ### 4.4 Me
+
 Settings, accessibility, input mode, export/import/delete, privacy explanation, current progression, snapshot history and project/account-free local data controls.
 
 ---
@@ -1997,6 +1998,7 @@ Required first-wave states:
 - talk/react;
 - one emotional variation;
 - portrait.
+
 NPC records must be separable from artwork so a character can recur with the same identity even if visual assets improve later.
 
 ### 18.7 Asset Lane E - combat and adventure environments
@@ -2995,7 +2997,8 @@ src/
     JournalPanel.tsx
   reflection/
     types.ts
-    engine.ts    ReflectionPanel.tsx
+    engine.ts
+    ReflectionPanel.tsx
   adventure/
     types.ts
     seeds.ts
@@ -3995,6 +3998,7 @@ Technique is not a large skill tree. A technique should do one tactical job such
 - trade damage for control.
 
 Techniques can be contextual to an adventure. The player does not need a permanent inventory of dozens of buttons.
+
 ### I.7 ACT/pacify progress
 
 When an encounter advertises a nonviolent route, deterministic state owns its progress. A simple default is 0-3 progress steps with specific scenario conditions. The model may narrate the interaction but cannot declare pacification complete.

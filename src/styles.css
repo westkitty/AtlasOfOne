@@ -569,7 +569,9 @@ html[data-reduced-motion="true"] .world-layer { transition: none; }
   box-shadow: 0 10px 30px #0007;
   animation: toast-in .18s ease-out;
 }
-.toast button { border: 0; background: transparent; font-size: 1.3rem; line-height: 1; color: var(--muted); }
+.toast button { border: 0; background: transparent; font-size: 1.3rem; line-height: 1; color: var(--muted); min-width: 44px; min-height: 44px; }
+/* Q10-D1: while a bottom-anchored dialog is open, the toast moves to the top so it never covers controls such as LEAVE. */
+.toast.is-top { bottom: auto; top: calc(env(safe-area-inset-top) + 8px); }
 
 .overlay {
   position: fixed; z-index: 80; inset: 0;
@@ -1027,11 +1029,8 @@ html[data-reduced-motion="true"] *::after { transition-duration: .01ms !importan
 .voice-badge.listening {
   color: var(--gold-soft); border-color: #6d6040; background: #262215;
 }
-.voice-badge.transcribing, .voice-badge.thinking {
+.voice-badge.transcribing {
   color: var(--verdigris); border-color: var(--verdigris-line); background: #13242b;
-}
-.voice-badge.speaking {
-  color: var(--gold); border-color: var(--gold); background: #211e15;
 }
 .voice-badge.error {
   color: var(--danger); border-color: var(--danger-line); background: #261618;
@@ -1707,27 +1706,646 @@ html[data-reduced-motion="true"] .world-enter { animation: none; }
   font-weight: 700;
 }
 
-/* ---- development voice lab (never shown in ordinary play) ------------- */
-
-.lab { max-width: 760px; margin: 0 auto; padding: 24px 18px 60px; }
-.lab-head h1 { font-size: clamp(1.5rem, 6vw, 2rem); margin: .3rem 0 .4rem; }
-.lab-note { font-size: .82rem; }
-.lab-rate { display: flex; align-items: center; gap: 12px; margin: 14px 0 10px; font-size: .8rem; color: var(--muted); }
-.lab-rate input { flex: 1; max-width: 280px; }
-.lab-actions { display: flex; gap: 8px; margin-bottom: 8px; }
-.lab-actions button, .lab-samples button {
-  min-height: 44px; padding: 10px 14px;
-  border: 1px solid var(--line-soft); border-radius: 12px;
-  background: var(--panel-2); color: var(--ink); font-size: .8rem;
+/* ---- v2 blank Journal -------------------------------------------------
+   Journal is the primary world action. The legacy Cartographer prompt remains
+   reachable as a quieter secondary action while J08 reframes it as optional. */
+.world-consult {
+  position: absolute;
+  z-index: 25;
+  left: calc(var(--pad) + var(--lane-dpad) + var(--lane-gap));
+  right: calc(var(--pad) + var(--lane-action) + var(--lane-gap));
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: #0f1620e8;
+  color: var(--muted);
+  font-size: clamp(.68rem, 3.6vw, .82rem);
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 6px 18px #0008;
 }
-.lab-list { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; }
-.lab-voice { padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-2); }
-.lab-voice.is-chosen { border-color: var(--gold); }
-.lab-voice-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
-.lab-voice-head strong { font: 700 1.05rem/1.2 Georgia, serif; }
-.lab-tags { display: flex; flex-wrap: wrap; gap: 8px; }
-.lab-tags em { font-style: normal; font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.lab-tags em.is-auto { color: var(--gold); }
-.lab-samples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.lab-samples button.is-speaking { border-color: var(--gold); color: var(--gold); }
-.lab-choose { border-color: #6d6040 !important; color: var(--gold-soft) !important; }
+.world-consult > span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.journal-composer-overlay {
+  position: fixed;
+  z-index: 28;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: auto;
+  max-width: 580px;
+  max-height: 76vh;
+  margin: 0 auto;
+  overflow-y: auto;
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  outline: 2px solid #080c12;
+  background: #0d141df5;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 0 1px rgba(244, 223, 162, .2), 0 -8px 32px rgba(0, 0, 0, .9);
+}
+.journal-composer-close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 2px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.journal-composer-head {
+  margin-bottom: 14px;
+}
+.journal-composer-eyebrow {
+  margin: 0 0 3px;
+  color: var(--gold-soft);
+  font-size: .64rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.journal-composer-head h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 700 1.24rem/1.25 Georgia, serif;
+}
+.journal-composer-head p:last-child {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: .82rem;
+  line-height: 1.45;
+}
+.journal-composer-field {
+  display: block;
+  color: var(--muted);
+  font-size: .64rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.journal-composer-field textarea {
+  width: 100%;
+  min-height: 160px;
+  margin-top: 7px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #0b1119;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+.journal-composer-field textarea::placeholder {
+  color: #4f5e73;
+}
+.journal-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.journal-composer-actions small {
+  color: var(--muted);
+  font-size: .72rem;
+}
+.journal-composer-actions .primary {
+  min-height: 46px;
+  padding: 11px 18px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 360px) {
+  .world-consult {
+    padding: 7px 6px;
+    font-size: .64rem;
+  }
+  .journal-composer-overlay {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .journal-composer-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .journal-composer-actions .primary {
+    width: 100%;
+  }
+}
+
+
+
+/* ---- v2 Journal privacy controls (J05) ------------------------------- */
+.journal-latest-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+.journal-latest-controls > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.journal-latest-controls b {
+  color: var(--ink);
+  font-size: .78rem;
+}
+.journal-latest-controls span {
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.35;
+}
+.journal-latest-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+.journal-latest-actions button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #111b27;
+  color: var(--ink);
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 750;
+}
+.journal-latest-actions button:disabled {
+  opacity: .58;
+}
+
+@media (max-width: 390px) {
+  .journal-latest-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .journal-latest-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .journal-latest-actions button {
+    width: 100%;
+  }
+}
+
+
+/* ---- Journal STT input (J04) ----------------------------------------- */
+.journal-dictation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.journal-dictation-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.journal-dictation-copy b {
+  color: var(--ink);
+  font-size: .78rem;
+}
+.journal-dictation-copy span {
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.35;
+}
+.journal-dictation > button,
+.journal-dictation-live button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 11px;
+}
+.journal-dictation-live {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.journal-dictation-live .mic-visualizer {
+  width: 52px;
+  min-width: 52px;
+}
+@media (max-width: 390px) {
+  .journal-dictation {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .journal-dictation-live {
+    display: grid;
+    grid-template-columns: 52px 1fr 1fr;
+    width: 100%;
+  }
+  .journal-dictation > button {
+    width: 100%;
+  }
+}
+
+
+/* ---- v2 Reflection human-authority surface (RF01) -------------------- */
+.world-reflect {
+  position: absolute;
+  z-index: 25;
+  left: calc(var(--pad) + var(--lane-dpad) + var(--lane-gap));
+  right: calc(var(--pad) + var(--lane-action) + var(--lane-gap));
+  bottom: calc(128px + env(safe-area-inset-bottom));
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--verdigris-line);
+  border-radius: 12px;
+  background: #0f1d23e8;
+  color: #b9e3de;
+  font: inherit;
+  font-size: clamp(.7rem, 3.6vw, .84rem);
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 6px 18px #0008;
+}
+.world-reflect > span {
+  overflow-wrap: anywhere;
+}
+
+.reflection-overlay {
+  position: fixed;
+  z-index: 29;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: auto;
+  max-width: 580px;
+  max-height: 78vh;
+  margin: 0 auto;
+  overflow-y: auto;
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
+  border: 2px solid var(--verdigris-line);
+  border-radius: 8px;
+  outline: 2px solid #080c12;
+  background: #0d171bf7;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 0 1px rgba(111, 194, 184, .16), 0 -8px 32px rgba(0, 0, 0, .9);
+}
+.reflection-close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 2px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+.reflection-head {
+  margin-bottom: 12px;
+}
+.reflection-eyebrow {
+  margin: 0 0 3px;
+  color: #9ed7d0;
+  font-size: .64rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.reflection-head h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 700 1.24rem/1.25 Georgia, serif;
+}
+.reflection-head p:last-child {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: .82rem;
+  line-height: 1.45;
+}
+.reflection-question {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: #0a1118;
+}
+.reflection-question > p {
+  margin: 0;
+  color: var(--ink);
+  font: 700 1rem/1.4 Georgia, serif;
+}
+.reflection-question blockquote {
+  margin: 10px 0 0;
+  padding: 9px 10px;
+  border-left: 3px solid var(--verdigris-line);
+  color: #c9d7d4;
+  font-size: .86rem;
+  line-height: 1.45;
+}
+.reflection-response {
+  display: block;
+  color: var(--muted);
+  font-size: .64rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.reflection-response textarea {
+  width: 100%;
+  min-height: 104px;
+  margin-top: 7px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #0b1119;
+  color: var(--ink);
+  font: inherit;
+  font-size: .95rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+.reflection-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+.reflection-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.reflection-actions button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 800;
+}
+.reflection-actions button:disabled {
+  opacity: .48;
+}
+
+@media (min-width: 520px) {
+  .reflection-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 360px) {
+  .world-reflect {
+    padding: 7px 6px;
+    font-size: .66rem;
+  }
+  .reflection-overlay {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* ---- v2 Journal history + optional prompt (J06/J08) ------------------ */
+.journal-prompt {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: .76rem;
+}
+.journal-prompt p {
+  margin: 0 0 4px;
+  color: var(--gold-soft);
+  font-style: italic;
+}
+.journal-prompt-actions,
+.journal-history-head {
+  display: flex;
+  gap: 12px;
+}
+.journal-history-head button,
+.journal-history-days button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #111b27;
+  color: var(--ink);
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 750;
+  padding: 8px 11px;
+}
+.journal-history-days button:disabled { opacity: .45; }
+.journal-history-days {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 6px;
+}
+.journal-history-days h3 {
+  margin: 0;
+  text-align: center;
+  color: var(--ink);
+  font-size: .86rem;
+}
+.journal-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.journal-history-summary {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: .76rem;
+  text-align: left;
+}
+.journal-history-summary time { color: var(--muted); }
+.journal-history-status {
+  color: var(--gold-soft);
+  font-size: .66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.journal-history-excerpt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.journal-history-detail { padding: 8px 10px; }
+.journal-history-text {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: .8rem;
+}
+.journal-history-prompt {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: .7rem;
+  font-style: italic;
+}
+.journal-history-empty { color: var(--muted); }
+
+/* ---- v2 CombatPanel (C13) ---- */
+.combat-panel { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); overflow-wrap: anywhere; }
+.combat-panel * { box-sizing: border-box; }
+.combat-panel ul { list-style: none; margin: 0; padding: 0; }
+.cp-objective__line { margin: 0; color: var(--ink); font-size: .95rem; }
+.cp-objective__progress { margin: 2px 0 8px; font-size: .8rem; }
+.cp-hp-list { display: grid; gap: 6px; margin-bottom: 8px; }
+.cp-hp { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name text" "bar bar"; gap: 2px 8px; font-size: .82rem; color: var(--ink); }
+.cp-hp__name { grid-area: name; min-width: 0; }
+.cp-hp__text { grid-area: text; font-variant-numeric: tabular-nums; }
+.cp-hp__bar { grid-area: bar; height: 8px; border: 1px solid var(--line-soft); border-radius: 4px; overflow: hidden; }
+.cp-hp__fill { display: block; height: 100%; background: var(--verdigris); }
+.cp-hp--enemy .cp-hp__fill { background: var(--ember); }
+.cp-hp.is-down { opacity: .6; text-decoration: line-through; }
+.cp-intents, .cp-statuses { display: grid; gap: 4px; margin-bottom: 8px; font-size: .8rem; color: var(--ink); }
+.cp-intent, .cp-status { display: flex; gap: 6px; align-items: flex-start; min-width: 0; }
+.cp-glyph { flex: 0 0 1.2em; text-align: center; font-weight: 800; }
+.cp-outcome { color: var(--gold-soft); font-weight: 700; }
+.cp-verbs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cp-verb, .cp-option { min-height: 44px; min-width: 44px; width: 100%; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--panel-2); color: var(--ink); font: inherit; font-weight: 700; text-align: center; }
+.cp-verb--leave { grid-column: 1 / -1; border-style: dashed; }
+.cp-verb:disabled, .cp-option:disabled { opacity: .55; cursor: not-allowed; }
+.cp-verb[aria-expanded="true"] { border-color: var(--gold); }
+.cp-reasons { margin-top: 6px; font-size: .74rem; color: var(--muted); }
+.cp-options { display: grid; gap: 6px; margin-top: 8px; }
+.cp-option { text-align: left; font-weight: 600; }
+.cp-option__reason { color: var(--muted); font-weight: 400; }
+@media (min-width: 420px) { .cp-verbs { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .combat-panel * { transition: none !important; animation: none !important; } }
+html[data-reduced-motion="true"] .combat-panel * { transition: none !important; animation: none !important; }
+/* ---- end v2 CombatPanel (C13) ---- */
+
+/* ---- v2 vertical slice: Adventure surface (I01/I02) ------------------ */
+.world-adventure {
+  position: absolute;
+  z-index: 25;
+  left: calc(var(--pad) + var(--lane-dpad) + var(--lane-gap));
+  right: calc(var(--pad) + var(--lane-action) + var(--lane-gap));
+  bottom: calc(180px + env(safe-area-inset-bottom));
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  background: #1d1a0fe8;
+  color: var(--gold-soft);
+  font: inherit;
+  font-size: clamp(.7rem, 3.6vw, .84rem);
+  font-weight: 800;
+}
+.adventure-overlay {
+  position: fixed;
+  z-index: 29;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  max-width: 580px;
+  max-height: 82vh;
+  margin: 0 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  background: #0d141df5;
+  color: var(--ink);
+}
+.adventure-overlay h2 { font-size: 1rem; line-height: 1.4; overflow-wrap: anywhere; }
+.adventure-options,
+.adventure-seed-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.adventure-options button,
+.adventure-seed-list button,
+.adventure-free button,
+.journal-explore button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #111b27;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 750;
+}
+.adventure-free { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.adventure-free label { display: grid; gap: 4px; font-size: .74rem; color: var(--muted); min-width: 0; }
+.adventure-free input {
+  min-height: 44px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0a1017;
+  color: var(--ink);
+  font: inherit;
+}
+.adventure-withdraw { display: block; margin-top: 12px; min-height: 44px; }
+.adventure-outcome { color: var(--gold-soft); }
+.journal-explore { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.journal-explore p { width: 100%; margin: 0; font-size: .74rem; color: var(--muted); }
+
+/* ---- v2 Atlas Snapshots (S04) ----------------------------------------- */
+.snapshot-reasons, .snapshot-change ul, .snapshot-list { margin: 8px 0; padding-left: 18px; }
+.snapshot-list { list-style: none; padding: 0; display: grid; gap: 6px; }
+.snapshot-summary {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  width: 100%; min-height: 44px; padding: 8px 10px;
+  border: 1px solid var(--line-soft); border-radius: 8px;
+  background: transparent; color: var(--ink); font: inherit; text-align: left;
+}
+.snapshot-body { padding: 8px 10px; overflow-wrap: anywhere; }
+.snapshot-domain h4 { margin: 10px 0 4px; }
+
+/* ---- v2 world adventure markers (W02/W09) ----------------------------- */
+.world-adventure-marker {
+  position: absolute;
+  z-index: 6;
+  transform: translate(-50%, -50%);
+  display: inline-flex; align-items: center; gap: 4px;
+  min-width: 44px; min-height: 44px; padding: 4px 8px;
+  border: 2px solid var(--gold); border-radius: 999px;
+  background: #121a24e6; color: var(--gold-soft);
+  font: inherit; font-size: .7rem; font-weight: 800;
+}
+.world-adventure-marker-label { white-space: nowrap; }

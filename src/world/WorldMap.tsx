@@ -52,6 +52,9 @@ export interface WorldMapProps {
   activeInterior?: string | null;
   onInteriorChange?: (interiorId: string | null) => void;
   onPositionSettled?: (position: { x: number; y: number; territoryId: string }) => void;
+  /** W02/W09: optional adventure markers (world pixels), distinguishable by glyph + text, never colour alone. */
+  adventureMarkers?: readonly { id: string; seedId: string; glyph: string; label: string; accessibleName: string; position: { x: number; y: number } }[];
+  onAdventureMarker?: (seedId: string) => void;
 }
 
 const STATUS_WORD: Record<TerritoryStatus, string> = {
@@ -100,7 +103,9 @@ export function WorldMap({
   controlsDisabled = false,
   activeInterior = null,
   onInteriorChange,
-  onPositionSettled
+  onPositionSettled,
+  adventureMarkers,
+  onAdventureMarker
 }: WorldMapProps) {
   usePreloadedFrames();
 
@@ -585,6 +590,26 @@ export function WorldMap({
               </button>
             );
           })}
+
+          {(adventureMarkers ?? []).map((marker) => (
+            <button
+              key={marker.id}
+              type="button"
+              className="world-adventure-marker"
+              data-testid="world-adventure-marker"
+              data-seed-id={marker.seedId}
+              aria-label={marker.accessibleName}
+              disabled={controlsDisabled}
+              style={{
+                left: `${(marker.position.x / WORLD.width) * 100}%`,
+                top: `${(marker.position.y / WORLD.height) * 100}%`
+              }}
+              onClick={() => onAdventureMarker?.(marker.seedId)}
+            >
+              <span aria-hidden="true">{marker.glyph}</span>
+              <span className="world-adventure-marker-label">{marker.label}</span>
+            </button>
+          ))}
 
           {mark && (
             <div

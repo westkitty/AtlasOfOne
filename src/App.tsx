@@ -1,4 +1,37 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { EncounterPanel } from './app/EncounterPanel';
+import { AgencyControls, AgencySheet, PrimaryActionBar, ProgressDisplay } from './app/PresentationControls';
+import { JournalComposer } from './journal/JournalComposer';
+import { AdventurePanel } from './slice/AdventurePanel';
+import { SnapshotHistory } from './atlas/SnapshotHistory';
+import { evaluateSnapshotEligibility } from './atlas/eligibility';
+import { synthesizeLocalSnapshot } from './atlas/synthesize';
+import { appendAtlasSnapshot, selectAtlasSnapshotsNewestFirst } from './atlas/history';
+import { compareAtlasSnapshots } from './atlas/compare';
+import { applyReflectionEvidence } from './slice/evidence';
+import { retractReflectionInCampaign } from './reflection/propagation';
+import {
+  exploreJournalEntry,
+  makeSliceChoice,
+  playSliceCombatRound,
+  selectActiveAdventure,
+  selectRecurringLine,
+  startSliceAdventure,
+  pureFunOffer,
+  startPureFunAdventure,
+  withdrawSliceAdventure
+} from './slice/loop';
+import { adventureSeedIsEligible } from './adventure/seeds';
+import { ENCOUNTER_BANK } from './combat/content/encounters';
+import { buildCombatPanelView } from './combat/ui/combatPanelView';
+import type { CombatPlayerIntent } from './combat/runner';
+import { JournalPanel } from './journal/JournalPanel';
+import { appendJournalEntry, createJournalEntry, selectJournalEntriesNewestFirst } from './journal/domain';
+import { privatizeJournalEntry, retractJournalEntryFromCampaign } from './journal/privacy';
+import { ReflectionPanel } from './reflection/ReflectionPanel';
+import { decideReflection } from './reflection/domain';
+import type { ReflectionDecision } from './reflection/schema';
+import { createV2ProvenanceVisibility } from './persistence/retirement';
 import { eventsFromTurn } from './cartographer/apply';
 import { createRemoteProvider, requestFinalAssessment, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
@@ -10,7 +43,10 @@ import { activeBossRun, activeDoorRun, availableBosses, availableDoors, bossDefi
 import { applyGameEvents, campaignReachedEndState, createInitialCampaign, xpIntoCurrentLevel } from './game/engine';
 import type { CampaignState, GameEvent, PresentationNotice, SassLevel, TerritoryStatus } from './game/types';
 import { WorldMap } from './world/WorldMap';
-import { neighboursOf, regionFor, routeBetween } from './world/geography';
+import { placeAdventureMarkers } from './world/markerPlacement';
+import { renderWorldMarker } from './world/markers';
+import { REGIONS } from './world/geography';
+import { useWorldInteraction } from './world/useWorldInteraction';
 import { sanctuaryFor } from './world/sanctuaries';
 import { playMenuSound, playStinger } from './world/audio';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
@@ -19,11 +55,10 @@ import { clearAccessSecret, getAccessHeaders, getAccessSecret, setAccessSecret }
 import { isAudioCaptureSupported, startAudioCapture, type ActiveAudioCapture } from './voice/capture';
 import { parseVoiceCommand } from './voice/commands';
 import { transitionVoiceState, voiceStateLabel } from './voice/state';
-import { cancelSpeech, speakText } from './voice/synthesis';
-import { availableVoices, forgetResolvedVoice, getVoicePreference, primeVoices, setVoicePreference } from './voice/voices';
 import type { VoiceCommandType, VoiceMode, VoiceState } from './voice/types';
 
 type Screen = 'world'|'vault'|'me';
+type DictationTarget = 'cartographer' | 'journal';
 /** The character record shows the restored 96x96 portrait from the art pack. */
 const GREYSON_PORTRAIT = '/assets/atlas/v3/greyson/portrait-neutral.png';
 const GREYSON_PORTRAITS = {
@@ -96,20 +131,6 @@ const SILENCE_HOLD_MS = 1400;
 /** Safety bound. Never fabricates an answer — it returns to a listening retry. */
 const MAX_LISTEN_MS = 45_000;
 
-/** Short spoken acknowledgement for a local command, so the loop stays audible. */
-function voiceCommandAcknowledgement(command: VoiceCommandType): string {
-  switch (command) {
-    case 'pass': return 'Passed. No penalty.';
-    case 'private': return 'Private. I will not intentionally return to that dimension.';
-    case 'serious': return 'Serious mode. I will keep this plain.';
-    case 'help': return 'You can say pass, private, stop, serious, help, or sass. Say stop any time.';
-    case 'sass-low':
-    case 'sass-medium':
-    case 'sass-risks': return 'Sass adjusted.';
-    default: return 'Understood.';
-  }
-}
-
 const hasCompletedOnboarding = (campaign: { onboardingCompleted?: boolean; turns: unknown[] }, markerSet: boolean) =>
   campaign.onboardingCompleted === true || markerSet || campaign.turns.length > 0;
 
@@ -139,29 +160,8 @@ export default function App() {
   const [micLevel, setMicLevel] = useState(0);
   const [micMeterLive, setMicMeterLive] = useState(false);
   const unsubscribeLevel = useRef<(() => void) | null>(null);
-  /**
-   * Talk is a conversation, not a recorder.
-   *
-   * `voiceState` says what the machinery is doing right now; `conversationActive`
-   * says whether Atlas should keep taking turns. A transient operation ending —
-   * a synthesis finishing, a transcription returning — never ends the
-   * conversation. Only an explicit lifecycle event does: Cancel, STOP, a switch
-   * to Type, an import, an unrecoverable failure, or unmount.
-   *
-   * Both a ref and state: the ref is the lifecycle authority because it mutates
-   * synchronously and a stale callback must not be able to reopen a microphone
-   * (DEC-029); the state exists so the UI can render.
-   */
-  const conversationActive = useRef(false);
-  const [conversing, setConversing] = useState(false);
-  /**
-   * Generation token. Every conversation start/stop bumps it, and every async
-   * continuation captures the value it began with. A callback from an obsolete
-   * cycle compares unequal and does nothing at all.
-   */
+  /** Capture generation token. Every start/stop invalidates stale microphone work. */
   const conversationId = useRef(0);
-  /** Reply awaiting speech, spoken together with the next prompt by an effect. */
-  const [pendingReply, setPendingReply] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
   // Async concurrency and request lifecycle guards
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -241,49 +241,30 @@ export default function App() {
    * island stays visible while the Cartographer is talking.
    */
   const [talking, setTalking] = useState(false);
-  /** Waystone / trail lore marker opened for inspection */
-  const [activeWaystone, setActiveWaystone] = useState<{ id: string; label: string; inscription?: string } | null>(null);
-  /** Walkable landmark interior sanctuary currently entered */
-  const [activeInterior, setActiveInterior] = useState<string | null>(null);
-  /** 16-bit JRPG region arrival announcement banner */
-  const [arrivalNotice, setArrivalNotice] = useState<{
-    territoryId: string;
-    label: string;
-    sanctuary: string;
-    glyph: string;
-  } | null>(null);
+  /** Blank, player-initiated Journal. It is separate from the legacy Cartographer prompt path. */
+  const [journalOpen, setJournalOpen] = useState(false);
+  const [journalDraft, setJournalDraft] = useState('');
+  const [journalDraftInputMode, setJournalDraftInputMode] = useState<'typed' | 'speech-to-text'>('typed');
+  /** Synchronous exclusion for same-task double taps on local Journal save. */
+  const journalSaveInFlight = useRef(false);
+  /** Optional human-authority surface for one already-created ReflectionRecord. */
+  const [reflectionOpen, setReflectionOpen] = useState(false);
+  const [adventureOpen, setAdventureOpen] = useState(false);
+  const [adventureOutcome, setAdventureOutcome] = useState('');
+  const [reflectionDraft, setReflectionDraft] = useState('');
+  const reflectionDecisionInFlight = useRef(false);
+  /** Restore focus only after React has committed the closed-dialog render. */
+  const reflectionRestoreFocusPending = useRef(false);
   /** Vault and the character record are places you visit, reached from one menu. */
   const [menuOpen, setMenuOpen] = useState(false);
-  /** True while Greyson is actually crossing the island, so he can walk. */
-  const [travelling, setTravelling] = useState(false);
-  /** The region a journey departed from, so travel follows the trail between them. */
-  const [travelFrom, setTravelFrom] = useState<string | null>(null);
   /** The conversation panel scrolls; an opened sheet must not open off-screen. */
   const agencySheetRef = useRef<HTMLDivElement | null>(null);
-  /**
-   * Which voice the Cartographer speaks with. Stored locally on the device only:
-   * it never enters CampaignState, an export, or a provider payload.
-   */
-  const [voiceChoices, setVoiceChoices] = useState<ReturnType<typeof availableVoices>>([]);
-  const [voiceUri, setVoiceUri] = useState<string | null>(() => getVoicePreference());
-  useEffect(() => { void primeVoices().then(() => setVoiceChoices(availableVoices())); }, []);
-  /**
-   * Transient reaction to a committed turn: how much XP the engine just granted
-   * and where the mark landed. Derived by observing state that has ALREADY been
-   * committed, never by predicting it, so this cannot become a second source of
-   * progression truth.
-   */
-  const [pulse, setPulse] = useState<{ xp: number; territoryId: string; key: number } | null>(null);
   const [isImpact, setIsImpact] = useState(false);
   const triggerImpact = () => {
     if (state.settings.reducedMotion) return;
     setIsImpact(true);
     window.setTimeout(() => setIsImpact(false), 140);
   };
-  const turnSnapshot = useRef<{ xp: number; turns: number } | null>(null);
-  /** Which way Greyson faces as he crosses the map; presentation only. */
-  const [facing, setFacing] = useState<'front' | 'back' | 'left' | 'right'>('front');
-  const previousTerritory = useRef<string | null>(null);
   /**
    * The Final Atlas is an end-state artifact. Deciding availability here keeps
    * it on the engine's deterministic authority rather than on a feeling about
@@ -308,11 +289,10 @@ export default function App() {
       .finally(() => { if (live) setHydrated(true); });
     return () => { live = false; };
   }, []);
-  useEffect(() => { void primeVoices(); }, []);
   useEffect(() => { if (hydrated) void saveCampaign(state).catch(() => setMessage('Automatic save failed. Export before leaving.')); }, [state, hydrated]);
   useEffect(() => { document.documentElement.dataset.reducedMotion = String(state.settings.reducedMotion); }, [state.settings.reducedMotion]);
   // No live audio context may outlive the component.
-  useEffect(() => () => { conversationActive.current = false; conversationId.current += 1; unsubscribeLevel.current?.(); unsubscribeLevel.current = null; }, []);
+  useEffect(() => () => { conversationId.current += 1; unsubscribeLevel.current?.(); unsubscribeLevel.current = null; }, []);
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
@@ -331,7 +311,6 @@ export default function App() {
   }, []);
   // Reset voice actions on navigation or unmount
   useEffect(() => {
-    cancelSpeech();
     if (activeCapture) {
       activeCapture.abort();
       setActiveCapture(null);
@@ -351,22 +330,6 @@ export default function App() {
   }, []);
   // Toasts are transient status, not a panel: clear them after a few seconds.
   useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 6000); return () => window.clearTimeout(timer); }, [message]);
-
-  /**
-   * World reaction to a committed answer.
-   *
-   * Fires only on a single new turn, so hydrating a saved campaign with many
-   * turns never replays a reward the player already had. The XP figure is the
-   * engine's committed delta — read after the fact, never computed here.
-   */
-  useEffect(() => {
-    const previous = turnSnapshot.current;
-    turnSnapshot.current = { xp: state.xp, turns: state.turns.length };
-    if (!previous || !hydrated) return;
-    if (state.turns.length !== previous.turns + 1) return;
-    const landed = state.turns[state.turns.length - 1];
-    setPulse({ xp: state.xp - previous.xp, territoryId: landed?.territoryId ?? state.activeTerritory, key: Date.now() });
-  }, [state.turns.length, state.xp, state.activeTerritory, hydrated]);
 
   /**
    * Milestones are shown in the world and then let go.
@@ -393,12 +356,6 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [state.presentationQueue, state.presentation]);
 
-  useEffect(() => {
-    if (!pulse) return;
-    const timer = window.setTimeout(() => setPulse(null), 1200);
-    return () => window.clearTimeout(timer);
-  }, [pulse]);
-
   /**
    * A move restates the current question; it does not change which coordinate is
    * being mapped. Once the engine moves to a genuinely different question the
@@ -411,41 +368,6 @@ export default function App() {
     setPromptOverride(null);
     setRerollCount(0);
   }, [basePrompt.id]);
-
-  /**
-   * Greyson crosses the island rather than teleporting: he turns to face the way
-   * he is going and keeps walking until he arrives. Reduced motion still moves
-   * him — it just does not animate the journey.
-   */
-  useEffect(() => {
-    const from = previousTerritory.current;
-    previousTerritory.current = state.activeTerritory;
-    if (!from || from === state.activeTerritory) return;
-    setActiveInterior(null);
-    const reg = regionFor(state.activeTerritory);
-    const sanc = sanctuaryFor(state.activeTerritory);
-    setArrivalNotice({
-      territoryId: state.activeTerritory,
-      label: reg.label,
-      sanctuary: sanc.name,
-      glyph: sanc.glyph
-    });
-    playStinger('discover', state.presentation === 'quiet');
-    const noticeTimer = window.setTimeout(() => setArrivalNotice(null), 2800);
-
-    const start = regionFor(from).stand;
-    const end = regionFor(state.activeTerritory).stand;
-    if (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y)) setFacing(end.x >= start.x ? 'right' : 'left');
-    else setFacing(end.y < start.y ? 'back' : 'front');
-    if (state.settings.reducedMotion) return () => window.clearTimeout(noticeTimer);
-    setTravelFrom(from);
-    setTravelling(true);
-    const timer = window.setTimeout(() => { setTravelling(false); setTravelFrom(null); }, 2700);
-    return () => {
-      window.clearTimeout(noticeTimer);
-      window.clearTimeout(timer);
-    };
-  }, [state.activeTerritory, state.settings.reducedMotion, state.presentation]);
 
   // Transient surfaces close when the player moves between places.
   useEffect(() => { setMoreOpen(false); }, [screen, talking]);
@@ -471,21 +393,7 @@ export default function App() {
     });
     setReply(turn.reply); setAnswer('');
     setPromptOverride(null); setRerollCount(0);
-    if (voiceMode === 'talk' && conversationActive.current) {
-      // The effect below speaks the reply together with whatever Atlas is asking
-      // next, so the player never has to read the screen to know their cue.
-      setVoiceState('thinking');
-      setPendingReply(turn.reply);
-    } else if (voiceMode === 'talk') {
-      setVoiceState('speaking');
-      speakText(turn.reply, {
-        quiet: state.presentation === 'quiet',
-        onEnd: () => setVoiceState('idle'),
-        onError: () => setVoiceState('idle')
-      });
-    } else {
-      setVoiceState('idle');
-    }
+    setVoiceState('idle');
   };
 
   /**
@@ -517,50 +425,10 @@ export default function App() {
     }
   };
 
-  /**
-   * The conversational half of a turn: say what happened, establish what is
-   * being asked next, then hand the microphone back — with no tap in between.
-   *
-   * `prompt` is derived from the freshly committed state, so the question spoken
-   * here is the real next question. It is only appended when the reply does not
-   * already contain it, so Atlas never asks the same thing twice in one breath.
-   */
-  useEffect(() => {
-    if (pendingReply === null) return;
-    if (!conversationActive.current || voiceMode !== 'talk') { setPendingReply(null); return; }
-    const generation = conversationId.current;
-    const question = prompt.question.trim();
-    const spoken = pendingReply.includes(question) || !question ? pendingReply : `${pendingReply} ${question}`;
-    setPendingReply(null);
-    setVoiceState('speaking');
-    speakText(spoken, {
-      quiet: state.presentation === 'quiet',
-      onEnd: () => {
-        // A finished utterance does not end a conversation.
-        if (conversationActive.current && generation === conversationId.current) void beginListeningTurn(generation);
-        else setVoiceState('idle');
-      },
-      onError: () => {
-        if (conversationActive.current && generation === conversationId.current) void beginListeningTurn(generation);
-        else setVoiceState('idle');
-      }
-    });
-    // Speech is driven by the reply arriving; re-running on other state would
-    // interrupt an utterance mid-sentence.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingReply]);
-
-  /**
-   * Start a spoken conversation. This is the ONE deliberate action: Atlas states
-   * the current question aloud and then listens on its own.
-   */
+  /** Start one speech-to-text capture. Atlas responses remain visual text only. */
   const startConversation = () => {
-    conversationActive.current = true;
     conversationId.current += 1;
-    const generation = conversationId.current;
-    setConversing(true);
-    void generation;
-    setPendingReply(prompt.question);
+    void beginListeningTurn(conversationId.current, 'cartographer');
   };
 
   const submitText = (text: string) => {
@@ -584,17 +452,12 @@ export default function App() {
   const canGoDeeper = Boolean(state.unlocks.find((item) => item.id === 'go-deeper')?.unlockedAt);
   const canReroll = Boolean(state.unlocks.find((item) => item.id === 'reroll')?.unlockedAt);
 
-  const speakIfConversing = (line: string) => {
-    if (voiceMode === 'talk' && conversationActive.current) { setVoiceState('thinking'); setPendingReply(line); }
-  };
-
   const invokeGoDeeper = () => {
     if (!canGoDeeper || state.sessionStatus === 'paused') return;
     setPromptOverride({ kind: 'deeper', prompt: deeperPrompt(basePrompt) });
     setMoreOpen(false);
     const line = 'Going deeper on the same thread. Nothing is scored for asking.';
     setReply(line);
-    speakIfConversing(line);
   };
 
   const invokeReroll = () => {
@@ -605,25 +468,21 @@ export default function App() {
     setMoreOpen(false);
     const line = 'Reframed. Same coordinate, different way in. Rerolling costs nothing.';
     setReply(line);
-    speakIfConversing(line);
   };
 
   const toggleVoiceMode = (mode: VoiceMode) => {
     if (mode === voiceMode) return;
-    // Whichever direction, the current loop stops first and every in-flight
-    // continuation is invalidated, so a late transcription or a finishing
-    // utterance can never submit or reopen the microphone (BUG-004).
+    // Whichever direction, invalidate every in-flight capture/transcription first.
     pendingCaptureCancelled.current = true;
     endConversation();
     stopLevelMeter();
-    cancelSpeech();
     if (activeCapture) {
       activeCapture.abort();
       setActiveCapture(null);
     }
     setVoiceState('idle');
     setVoiceMode(mode);
-    // Choosing Talk is the single deliberate act that starts the conversation.
+    // Choosing Talk starts one dictation capture.
     if (mode === 'talk') startConversation();
   };
 
@@ -635,10 +494,12 @@ export default function App() {
    * audio is transmitted to decide when someone stopped. Silence before speech
    * never submits — Atlas just keeps listening.
    */
-  const beginListeningTurn = async (generation = conversationId.current) => {
-    if (state.sessionStatus === 'paused' || isSubmitting) return;
+  const beginListeningTurn = async (
+    generation = conversationId.current,
+    target: DictationTarget = 'cartographer'
+  ) => {
+    if ((target === 'cartographer' && state.sessionStatus === 'paused') || isSubmitting) return;
     if (generation !== conversationId.current) return;
-    cancelSpeech();
     pendingCaptureCancelled.current = false;
     setVoiceState('requesting-permission');
     try {
@@ -654,7 +515,7 @@ export default function App() {
       const closeTurn = () => {
         if (closed || generation !== conversationId.current) return;
         closed = true;
-        void stopRecordingAndProcess(capture, generation);
+        void stopRecordingAndProcess(capture, generation, target);
       };
 
       if (capture.levelMonitoringAvailable) {
@@ -679,10 +540,14 @@ export default function App() {
 
   /** Manual entry point kept for retry and for the visible recording affordance. */
   const startRecording = async () => {
-    conversationActive.current = true;
     conversationId.current += 1;
-    setConversing(true);
-    await beginListeningTurn(conversationId.current);
+    await beginListeningTurn(conversationId.current, 'cartographer');
+  };
+
+  const startJournalDictation = () => {
+    if (!journalOpen || !isAudioCaptureSupported() || isOffline) return;
+    conversationId.current += 1;
+    void beginListeningTurn(conversationId.current, 'journal');
   };
 
   /**
@@ -692,7 +557,11 @@ export default function App() {
    * end-of-turn cannot race a re-render, and `generation` is checked at every
    * await boundary so an obsolete cycle can never submit or resume.
    */
-  const stopRecordingAndProcess = async (explicit?: ActiveAudioCapture, generation = conversationId.current) => {
+  const stopRecordingAndProcess = async (
+    explicit?: ActiveAudioCapture,
+    generation = conversationId.current,
+    target: DictationTarget = 'cartographer'
+  ) => {
     const capture = explicit ?? activeCapture;
     if (!capture) return;
     setActiveCapture(null);
@@ -713,26 +582,32 @@ export default function App() {
       }
       const text = res.text.trim();
       if (!text) {
-        // Never fabricate a turn. Keep listening if the conversation is running.
-        setMessage('No speech detected. Still listening.');
-        if (conversationActive.current && generation === conversationId.current) { void beginListeningTurn(generation); return; }
+        // Never fabricate a turn and never reopen the microphone automatically.
+        setMessage('No speech detected. Try again or type instead.');
         setVoiceState('idle');
         return;
       }
+      if (target === 'journal') {
+        setJournalDraft((current) => {
+          if (!current) return text;
+          return `${current}${/\s$/.test(current) ? '' : ' '}${text}`;
+        });
+        setJournalDraftInputMode('speech-to-text');
+        setVoiceState('idle');
+        return;
+      }
+
       const command = parseVoiceCommand(text);
       if (command) {
         // Local commands never reach the Cartographer and never award progress.
         executeVoiceCommand(command.type);
-        if (command.type !== 'stop' && conversationActive.current && generation === conversationId.current) {
-          setPendingReply(voiceCommandAcknowledgement(command.type));
-          return;
-        }
         setVoiceState('idle');
         return;
       }
+      // STT produces editable text. The player decides whether and when to submit.
       setAnswer(text);
-      setVoiceState('thinking');
-      submitText(text);
+      setVoiceState('idle');
+      setVoiceMode('type');
     } catch {
       setVoiceState('error');
       setMessage('Audio processing failed. You can type below.');
@@ -748,15 +623,9 @@ export default function App() {
     setMicLevel(0);
   };
 
-  /**
-   * Ends the conversational loop. Bumping the generation invalidates every
-   * in-flight continuation, so nothing can reopen the microphone afterwards.
-   */
+  /** Invalidate every in-flight capture/transcription continuation. */
   const endConversation = () => {
-    conversationActive.current = false;
     conversationId.current += 1;
-    setConversing(false);
-    setPendingReply(null);
   };
 
   const cancelVoice = () => {
@@ -767,13 +636,12 @@ export default function App() {
       activeCapture.abort();
       setActiveCapture(null);
     }
-    cancelSpeech();
     setVoiceState('idle');
   };
 
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState !== 'visible' && conversationActive.current) cancelVoice();
+      if (document.visibilityState !== 'visible' && (activeCapture || voiceState !== 'idle')) cancelVoice();
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
@@ -869,19 +737,19 @@ export default function App() {
   const generateAssessment = async () => {
     if (isFinalizing || !campaignEnded) return;
     setIsFinalizing(true);
-    setMessage('Synthesizing holistic character assessment...');
+    setMessage('Synthesizing a dated whole-map reading...');
     try {
       if (isOffline || provider.id === 'disabled') {
         const local = generateLocalAssessment(state);
         dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: local });
-        setMessage('Final Atlas assessment generated locally.');
+        setMessage('Whole-map reading generated locally.');
         return;
       }
       const context = compileFinalizeContext(state);
       const result = await requestFinalAssessment(context, { headers: getAccessHeaders });
       if (result.ok) {
         dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: result.assessment });
-        setMessage('Final Atlas assessment generated.');
+        setMessage('Whole-map reading generated.');
       } else {
         setMessage(`Cloud synthesis unavailable (${result.message}). Generating with local synthesizer.`);
         const local = generateLocalAssessment(state);
@@ -916,128 +784,423 @@ export default function App() {
    * from real state and carries no XP: it describes the campaign, it does not
    * reward it.
    */
-  /**
-   * Where the player may legitimately go next.
-   *
-   * A neighbour is offered only if it still has an askable dimension, which is
-   * the engine's own viability rule read back — the map never invents a
-   * destination the campaign would refuse. Travelling awards nothing; it only
-   * changes where the next question comes from.
-   */
-  const reachableRegions = useMemo(() => neighboursOf(state.activeTerritory).filter((id) => {
-    const territory = state.territories.find((item) => item.id === id);
-    return Boolean(territory) && territory!.requiredDimensions.some(
-      (dimension) => !state.privateTopics.includes(dimension) && !territory!.coveredDimensions.includes(dimension)
-    );
-  }), [state.activeTerritory, state.territories, state.privateTopics]);
-
   const chartedCount = state.territories.filter((t) => t.status === 'charted' || t.status === 'deeply-charted').length;
   const objective = quest
     ? { eyebrow: 'CURRENT QUEST', label: quest.label, detail: quest.description, progress: quest.progress, target: quest.target }
     : campaignEnded
-      ? { eyebrow: 'EXPEDITION COMPLETE', label: 'Every territory charted', detail: 'The Atlas is finished. The final assessment is available on your character record.', progress: state.territories.length, target: state.territories.length }
+      ? { eyebrow: 'EXPEDITION COMPLETE', label: 'Every territory charted', detail: 'Every territory has been charted. Your Atlas keeps changing as you write — see Atlas Snapshots on your record.', progress: state.territories.length, target: state.territories.length }
       : { eyebrow: 'STANDING OBJECTIVE', label: 'Chart the Atlas', detail: 'Recover a fragment from every territory on the map.', progress: chartedCount, target: state.territories.length };
   const quiet = state.presentation === 'quiet';
+  const reflectionVisibility = useMemo(() => createV2ProvenanceVisibility(state), [state]);
+  const activeReflection = useMemo(
+    () => [...state.reflections]
+      .filter((record) =>
+        record.recordStatus === 'active'
+        && record.privacy === 'normal'
+        && record.epistemicStatus === 'pending'
+        && record.decision === undefined
+        && reflectionVisibility.reflectionIsEligible(record.id)
+      )
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))[0],
+    [state.reflections, reflectionVisibility]
+  );
+  useEffect(() => {
+    if (!reflectionOpen || activeReflection) return;
+    setReflectionOpen(false);
+    setReflectionDraft('');
+  }, [reflectionOpen, activeReflection]);
 
-  // Level and XP shown as one unit so progress is legible on Map and Me.
-  const renderProgress = () => <div className="xp">
-    <div className="xp-head">
-      <span>XP {state.xp}</span>
-      <b className="level">L{state.level}</b>
-      <span className="xp-into">{atMaxLevel ? 'Highest level reached' : `${xp.current} / ${xp.required} to L${state.level + 1}`}</span>
-    </div>
-    <div className="xp-track"><i style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></div>
-  </div>;
+  useEffect(() => {
+    if (reflectionOpen || !reflectionRestoreFocusPending.current) return;
+    reflectionRestoreFocusPending.current = false;
+    const target = [
+      'open-reflection',
+      'open-journal',
+      'enter-encounter',
+      'resume-encounter',
+      'open-menu'
+    ]
+      .map((testId) => document.querySelector<HTMLElement>(`[data-testid="${testId}"]`))
+      .find((element): element is HTMLElement => Boolean(element));
+    target?.focus();
+  }, [reflectionOpen, activeReflection]);
+  const {
+    activeWaystone,
+    dismissWaystone,
+    activeInterior,
+    setActiveInterior,
+    arrivalNotice,
+    travelling,
+    travelFrom,
+    pulse,
+    facing,
+    reachableRegions,
+    controlsDisabled: worldControlsDisabled,
+    onSelectRegion: handleWorldSelectRegion,
+    onPositionSettled: handleWorldPositionSettled,
+    onInteract: handleWorldInteract
+  } = useWorldInteraction({
+    state,
+    hydrated,
+    talking: talking || journalOpen || reflectionOpen || adventureOpen,
+    encounterActive: Boolean(encounter),
+    menuOpen,
+    worldVisible: screen === 'world',
+    dispatch,
+    setTalking,
+    setReply
+  });
+
+  const saveJournalEntry = (sourcePrompt?: string) => {
+    if (!journalDraft.trim() || journalSaveInFlight.current) return;
+    journalSaveInFlight.current = true;
+
+    const createdAt = new Date().toISOString();
+    const entry = createJournalEntry({
+      id: `journal_${crypto.randomUUID()}`,
+      createdAt,
+      text: journalDraft,
+      inputMode: journalDraftInputMode,
+      ...(sourcePrompt === undefined ? {} : { sourcePrompt })
+    });
+
+    setState((current) => ({
+      ...current,
+      journalEntries: appendJournalEntry(current.journalEntries, entry),
+      updatedAt: createdAt
+    }));
+    setJournalDraft('');
+    setJournalDraftInputMode('typed');
+    setJournalOpen(false);
+    setMessage('Journal added to your local Atlas.');
+
+    // The state mutation is synchronous; hold only through this browser task so
+    // two dispatches against the same render closure cannot duplicate the entry.
+    queueMicrotask(() => { journalSaveInFlight.current = false; });
+  };
+
+  const closeJournal = () => {
+    // Always invalidate the capture generation. React state may still read
+    // "idle" during the same task that started permission/capture.
+    cancelVoice();
+    setJournalOpen(false);
+  };
+
+  const latestJournalEntry = selectJournalEntriesNewestFirst(state.journalEntries)[0];
+
+  const makeJournalEntryPrivate = (id: string) => {
+    const entry = state.journalEntries.find((item) => item.id === id);
+    if (!entry || entry.privacy === 'private' || entry.status === 'retracted') return;
+    const updatedAt = new Date().toISOString();
+    setState((current) => privatizeJournalEntry(current, id, updatedAt));
+    setMessage('Journal entry is private. Exclusive derived state was retired.');
+  };
+
+  const retractJournalEntryById = (id: string) => {
+    const entry = state.journalEntries.find((item) => item.id === id);
+    if (!entry || entry.status === 'retracted') return;
+    const updatedAt = new Date().toISOString();
+    setState((current) => retractJournalEntryFromCampaign(current, id, updatedAt));
+    setMessage('Journal entry retracted. Its history is kept; its authority is retired.');
+  };
+
+  const makeLatestJournalPrivate = () => {
+    if (!latestJournalEntry || latestJournalEntry.privacy === 'private' || latestJournalEntry.status === 'retracted') return;
+    const updatedAt = new Date().toISOString();
+    setState((current) => privatizeJournalEntry(current, latestJournalEntry.id, updatedAt));
+    setMessage('Latest Journal entry is private. Exclusive derived state was retired.');
+  };
+
+  const retractLatestJournalEntry = () => {
+    if (!latestJournalEntry || latestJournalEntry.status === 'retracted') return;
+    const updatedAt = new Date().toISOString();
+    setState((current) => retractJournalEntryFromCampaign(current, latestJournalEntry.id, updatedAt));
+    setMessage('Latest Journal entry retracted. Its history is kept; its authority is retired.');
+  };
+
+  const latestSliceState = useRef(state);
+  latestSliceState.current = state;
+  const activeAdventure = selectActiveAdventure(state);
+  const funOffer = pureFunOffer(state);
+  const availableSeeds = activeAdventure
+    ? []
+    : [
+        ...state.adventureSeeds.filter((seed) => adventureSeedIsEligible(state, seed)),
+        ...(state.adventureSeeds.some((seed) => seed.id === funOffer.id) ? [] : [funOffer])
+      ];
+  const activeCombatDefinition = state.activeCombat
+    ? ENCOUNTER_BANK.find((definition) => definition.id === state.activeCombat!.definitionId)
+    : undefined;
+  const combatView = state.activeCombat && activeCombatDefinition
+    ? buildCombatPanelView(activeCombatDefinition, state.activeCombat.state)
+    : undefined;
+
+  // Slice handlers: every transition is a pure state function with injected ids/time.
+  // A domain error (e.g. an ineligible seed) is shown, never swallowed silently.
+  //
+  // Sequential dispatches in one browser task (double-taps) must see each
+  // other's result, so the base is the latest state known to this component,
+  // not the render-time closure. If some other update lands first, the pure
+  // step is re-applied to that newer state instead of overwriting it.
+  const runSlice = (label: string, step: (current: CampaignState) => CampaignState) => {
+    const base = latestSliceState.current;
+    try {
+      const next = step(base);
+      latestSliceState.current = next;
+      setState((current) => {
+        if (current === base) return next;
+        try { return step(current); } catch { return current; }
+      });
+      return next;
+    } catch (error) {
+      setMessage(`${label}: ${error instanceof Error ? error.message : 'not possible right now.'}`);
+      return undefined;
+    }
+  };
+
+  const exploreJournal = (journalEntryId: string, territoryId: string) => {
+    const now = new Date().toISOString();
+    const next = runSlice('Explore', (current) => exploreJournalEntry(current, {
+      journalEntryId,
+      territoryId,
+      gapId: `gap_${crypto.randomUUID()}`,
+      seedId: `seed_${crypto.randomUUID()}`,
+      now
+    }).state);
+    if (next) {
+      setJournalOpen(false);
+      setAdventureOutcome('');
+      setAdventureOpen(true);
+      setMessage('An optional adventure is waiting. You can set out now or later.');
+    }
+  };
+
+  // W02/W09: available adventures appear on the map as glyph+label markers.
+  const adventureMarkers = activeInterior ? [] : placeAdventureMarkers(
+    availableSeeds,
+    REGIONS.map((region) => ({ territoryId: region.id, label: region.label, centre: region.centre })),
+    () => true
+  ).map((marker) => {
+    const region = REGIONS.find((item) => item.id === marker.territoryId);
+    return { ...marker, ...renderWorldMarker(marker.kind, region?.label) };
+  });
+
+  const startAdventure = (seedId: string) => {
+    const runId = `run_${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    runSlice('Adventure', (current) => current.adventureSeeds.some((seed) => seed.id === seedId)
+      ? startSliceAdventure(current, { seedId, runId, now })
+      : startPureFunAdventure(current, { runId, now }));
+  };
+
+  const finishedMessage = (next: CampaignState | undefined, runId: string) => {
+    const run = next?.adventureRuns.find((item) => item.id === runId);
+    if (!next || !run || run.status === 'active') return;
+    const offered = next.reflections.some((record) => record.sourceKind === 'adventure' && record.id === `reflection_${runId}`);
+    setAdventureOutcome(offered
+      ? 'The adventure is over. A Reflection is waiting if you want it — it is optional.'
+      : 'The adventure is over. The world will remember it.');
+  };
+
+  const chooseInAdventure = (label: string) => {
+    if (!activeAdventure) return;
+    const runId = activeAdventure.run.id;
+    const id = crypto.randomUUID();
+    const next = runSlice('Adventure', (current) => makeSliceChoice(current, {
+      runId,
+      label,
+      actionId: `action_${id}`,
+      observationId: `observation_${id}`,
+      combatId: `combat_${id}`,
+      now: new Date().toISOString()
+    }));
+    finishedMessage(next, runId);
+  };
+
+  const combatIntent = (intent: CombatPlayerIntent) => {
+    const runId = activeAdventure?.run.id;
+    const next = runSlice('Combat', (current) => playSliceCombatRound(current, {
+      intent,
+      // Stable per encounter round: a double-tap in the same round is a no-op (Q05-D2).
+      consequenceActionId: `action_${current.activeCombat?.id ?? 'none'}_r${current.activeCombat?.state.round ?? 0}_${current.activeCombat?.state.phase ?? 'none'}`,
+      now: new Date().toISOString()
+    }));
+    if (runId) finishedMessage(next, runId);
+  };
+
+  const withdrawAdventure = () => {
+    if (!activeAdventure) return;
+    const next = runSlice('Adventure', (current) => withdrawSliceAdventure(current, {
+      runId: activeAdventure.run.id,
+      now: new Date().toISOString()
+    }));
+    if (next) setAdventureOutcome('You stepped away. The story will carry on without you for now.');
+  };
+
+  // S01/S02/S04: dated, revisable Snapshots (replace terminal "final" semantics).
+  const snapshotsNewestFirst = selectAtlasSnapshotsNewestFirst(state.atlasSnapshots);
+  const snapshotEligibility = evaluateSnapshotEligibility(state, {
+    trigger: 'explicit-request',
+    requestedAt: new Date().toISOString()
+  });
+  let latestSnapshotChange: ReturnType<typeof compareAtlasSnapshots> | undefined;
+  if (snapshotsNewestFirst.length >= 2) {
+    try {
+      latestSnapshotChange = compareAtlasSnapshots(state, snapshotsNewestFirst[1].id, snapshotsNewestFirst[0].id);
+    } catch {
+      latestSnapshotChange = undefined;
+    }
+  }
+  const takeSnapshot = () => {
+    const next = runSlice('Snapshot', (current) => {
+      const eligibility = evaluateSnapshotEligibility(current, {
+        trigger: 'explicit-request',
+        requestedAt: new Date().toISOString()
+      });
+      if (!eligibility.eligible) throw new Error('not available yet.');
+      const snapshot = synthesizeLocalSnapshot(current, {
+        id: `snapshot_${crypto.randomUUID()}`,
+        request: eligibility.request
+      });
+      return { ...current, atlasSnapshots: appendAtlasSnapshot(current.atlasSnapshots, snapshot), updatedAt: eligibility.request.requestedAt };
+    });
+    if (next) setMessage('Dated Snapshot saved. It is a reading for today, not a final verdict.');
+  };
+
+  // I07: confirmed-by-Greyson statements are visible and withdrawable.
+  const confirmedStatements = state.evidence.filter((item) => item.status === 'active' && (item.sourceReflectionIds?.length ?? 0) > 0);
+  const withdrawConfirmed = (reflectionId: string) => {
+    const next = runSlice('Withdraw', (current) => retractReflectionInCampaign(current, reflectionId, new Date().toISOString()).state);
+    if (next) setMessage('Withdrawn. Its history is kept; Atlas no longer relies on it.');
+  };
+
+  const openReflection = () => {
+    if (!activeReflection) return;
+    setReflectionDraft(activeReflection.response);
+    setReflectionOpen(true);
+  };
+
+  const closeReflection = () => {
+    reflectionRestoreFocusPending.current = true;
+    setReflectionOpen(false);
+    setReflectionDraft('');
+  };
+
+  const submitReflectionDecision = (decision: ReflectionDecision) => {
+    if (!activeReflection || reflectionDecisionInFlight.current) return;
+    if ((decision === 'partial' || decision === 'revise') && !reflectionDraft.trim()) return;
+
+    reflectionDecisionInFlight.current = true;
+    const reflectionId = activeReflection.id;
+    const response = reflectionDraft;
+    const updatedAt = new Date().toISOString();
+
+    setState((current) => {
+      const index = current.reflections.findIndex((record) => record.id === reflectionId);
+      if (index < 0) return current;
+      const record = current.reflections[index];
+      if (
+        record.recordStatus !== 'active'
+        || record.privacy !== 'normal'
+        || record.epistemicStatus !== 'pending'
+      ) return current;
+
+      const reflections = current.reflections.slice();
+      reflections[index] = decideReflection(record, decision, response);
+      const decided = { ...current, reflections, updatedAt };
+      // I06: only an explicit confirm/partial response can become Evidence (RF02 firewall).
+      return applyReflectionEvidence(decided, { reflectionId, evidenceId: `evidence_${reflectionId}` });
+    });
+
+    reflectionRestoreFocusPending.current = true;
+    setReflectionOpen(false);
+    setReflectionDraft('');
+    setMessage(
+      decision === 'confirm' ? 'Reflection confirmed.'
+        : decision === 'partial' ? 'Partial reflection saved in your words.'
+          : decision === 'reject' ? 'Reflection rejected. Atlas will keep that rejection as history.'
+            : decision === 'uncertain' ? 'Reflection left uncertain.'
+              : decision === 'revise' ? 'Revision saved. Atlas will not treat it as settled yet.'
+                : 'Reflection is private.'
+    );
+    queueMicrotask(() => { reflectionDecisionInFlight.current = false; });
+  };
 
   // The six permanent controls. They are rendered identically for ordinary
   // encounters, Boss Fights and Mystery Doors, and never depend on progression.
   // PRIVATE / STOP / SERIOUS carry a steadier "protective" style; PASS / HELP /
   // SASS are quieter utilities. All stay >=44px and always visible.
-  const renderAgency = (onPass: () => void, privateDimension: string) => <div className="agency" data-testid="agency" role="group" aria-label="Always-available controls">
-    <button className="agency-util" data-testid="agency-pass" onClick={onPass}>PASS</button>
-    <button className="agency-protect" data-testid="agency-private" onClick={()=>{dispatch({type:'PRIVATE_TOPIC_ADDED',topic:privateDimension});setReply('Private. I will not intentionally return to that dimension.');}}>PRIVATE</button>
-    <button className={`agency-protect${state.sessionStatus==='paused'?' is-active':''}`} data-testid="agency-stop" aria-pressed={state.sessionStatus==='paused'} onClick={()=>{const pausing=state.sessionStatus!=='paused';if(pausing)cancelVoice();dispatch({type:'SESSION_SET',status:pausing?'paused':'active'});}}>{state.sessionStatus==='paused'?'RESUME':'STOP'}</button>
-    <button className={`agency-protect${quiet?' is-active':''}`} data-testid="agency-serious" aria-pressed={quiet} onClick={()=>{dispatch({type:'PRESENTATION_SET',mode:'quiet'});setReply('Serious mode. Plain language; no fanfare.');}}>SERIOUS</button>
-    <button className="agency-util" data-testid="agency-help" onClick={()=>setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}>HELP</button>
-    <button className="agency-util" data-testid="agency-sass" onClick={()=>dispatch({type:'SASS_SET',sass:state.settings.sass==='low'?'medium':state.settings.sass==='medium'?'risks-understood':'low'})}>SASS</button>
-  </div>;
+  const renderAgency = (onPass: () => void, privateDimension: string) => (
+    <AgencyControls
+      paused={state.sessionStatus === 'paused'}
+      quiet={quiet}
+      onPass={onPass}
+      onPrivate={() => {
+        dispatch({ type: 'PRIVATE_TOPIC_ADDED', topic: privateDimension });
+        setReply('Private. I will not intentionally return to that dimension.');
+      }}
+      onStopToggle={() => {
+        const pausing = state.sessionStatus !== 'paused';
+        if (pausing) cancelVoice();
+        dispatch({ type: 'SESSION_SET', status: pausing ? 'paused' : 'active' });
+      }}
+      onSerious={() => {
+        dispatch({ type: 'PRESENTATION_SET', mode: 'quiet' });
+        setReply('Serious mode. Plain language; no fanfare.');
+      }}
+      onHelp={() => setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}
+      onSass={() => dispatch({ type: 'SASS_SET', sass: state.settings.sass === 'low' ? 'medium' : state.settings.sass === 'medium' ? 'risks-understood' : 'low' })}
+    />
+  );
 
   const renderEncounter = () => {
     if (!encounter) return null;
     const isBoss = encounter.kind === 'boss';
+    const stages = isBoss && bossRun
+      ? bossRun.stages.map((stage, index) => ({
+          id: stage.id,
+          index,
+          cleared: stage.outcome !== 'pending',
+          current: bossRun.stages.indexOf(bossStage!) === index
+        }))
+      : [];
+    const crossing: [string, string] | null = !isBoss && doorRun
+      ? [
+          territoryLabels[doorRun.territoryIds[0]] ?? doorRun.territoryIds[0],
+          territoryLabels[doorRun.territoryIds[1]] ?? doorRun.territoryIds[1]
+        ]
+      : null;
+
     return (
-      <section
-        className={`screen encounter-screen ${isBoss ? 'is-boss-arena' : 'is-door-chamber'}`}
-        data-testid={`encounter-${encounter.kind}`}
-      >
-        <div className="eyebrow">{isBoss ? 'BOSS FIGHT' : 'MYSTERY DOOR'}</div>
-        <header>
-          <div>
-            <h1 className="screen-title">{encounter.kind==='door' ? encounter.title : encounter.heading}</h1>
-            <p>{encounter.step}{encounter.kind==='boss' ? ' · your own mapped positions, put under load' : ' · optional to open, safe to close'}</p>
-          </div>
-          {quiet && <span className="chip">{state.presentation}</span>}
-          {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
-        </header>
-
-        {/* 16-Bit JRPG Combat / Threshold Arena Staging Frame */}
-        <div className="encounter-stage-frame" aria-hidden="true">
-          <div className="encounter-portrait">
-            <img
-              src={quiet || isBoss ? GREYSON_PORTRAITS.serious : (state.settings.sass === 'risks-understood' ? GREYSON_PORTRAITS.wry : GREYSON_PORTRAITS.neutral)}
-              alt="Greyson"
-              draggable={false}
-            />
-          </div>
-          <div className="encounter-stage-meta">
-            <span className="encounter-sigil-badge">
-              <i className="encounter-sigil-glyph">{isBoss ? '🔥' : '◈'}</i>
-              <strong>{isBoss ? 'Trial Monolith' : 'Threshold Portal'}</strong>
-            </span>
-            <span className="encounter-dimension-badge">{encounter.dimension}</span>
-          </div>
-        </div>
-
-        {encounter.kind==='boss' && bossRun && (
-          <ol className="stage-track" aria-label={`Boss Fight progress: ${encounter.step}`}>
-            {bossRun.stages.map((stage, index) => {
-              const current = bossRun.stages.indexOf(bossStage!) === index;
-              const cleared = stage.outcome !== 'pending';
-              return (
-                <li key={stage.id} className={cleared?'done':current?'now':'next'} aria-current={current?'step':undefined}>
-                  <span aria-hidden="true">{cleared?'✓':index+1}</span>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-        {encounter.kind==='door' && doorRun && (
-          <div className="crossing" aria-hidden="true">
-            <span>{territoryLabels[doorRun.territoryIds[0]] ?? doorRun.territoryIds[0]}</span>
-            <i>⟷</i>
-            <span>{territoryLabels[doorRun.territoryIds[1]] ?? doorRun.territoryIds[1]}</span>
-          </div>
-        )}
-        <article className={`card encounter ${encounter.kind}`}>
-          {reply && <p className="reply" role="status">{reply}</p>}
-          <h2>{encounter.question}</h2>
-          {encounter.evidenceClaims.length>0 && (
-            <>
-              <p className="evidence-caption">From evidence you already mapped</p>
-              <ul className="evidence-list">
-                {encounter.evidenceClaims.map((claim,index)=><li key={index}>{claim}</li>)}
-              </ul>
-            </>
-          )}
-          <small>Dimension: {encounter.dimension}</small>
-        </article>
-        {state.sessionStatus==='paused' && <div className="quiet">Session paused. Your Atlas is safe.</div>}
-        <label className="answer">Your position<textarea rows={4} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="encounter-input" /></label>
-        <button className="primary full" data-testid="encounter-submit" onClick={submitEncounter} disabled={!answer.trim()||state.sessionStatus==='paused'}>{encounter.kind==='boss'?'Hold this position':'Walk through'}</button>
-        <button className="full leave" data-testid="encounter-leave" onClick={leaveEncounter}>{encounter.kind==='boss'?'Step back for now':'Close the door for now'}</button>
-        <p className="safe-note">PASS clears {encounter.kind==='boss'?'a stage':'this crossing'} at no cost. Stepping back keeps every point you have earned.</p>
-        {renderAgency(()=>{dispatch(encounter.kind==='boss'?{type:'BOSS_STAGE_PASSED'}:{type:'DOOR_CLOSED'});setReply('Passed. No penalty, no cost.');setAnswer('');}, encounter.dimension)}
-      </section>
+      <EncounterPanel
+        kind={encounter.kind}
+        title={encounter.kind === 'door' ? encounter.title : encounter.heading}
+        step={encounter.step}
+        dimension={encounter.dimension}
+        question={encounter.question}
+        evidenceClaims={encounter.evidenceClaims}
+        quiet={quiet}
+        presentationLabel={state.presentation}
+        offline={isOffline}
+        portraitSrc={quiet || isBoss
+          ? GREYSON_PORTRAITS.serious
+          : state.settings.sass === 'risks-understood'
+            ? GREYSON_PORTRAITS.wry
+            : GREYSON_PORTRAITS.neutral}
+        stages={stages}
+        crossing={crossing}
+        reply={reply}
+        paused={state.sessionStatus === 'paused'}
+        answer={answer}
+        onAnswerChange={setAnswer}
+        onSubmit={submitEncounter}
+        onLeave={leaveEncounter}
+        agency={renderAgency(() => {
+          dispatch(encounter.kind === 'boss' ? { type: 'BOSS_STAGE_PASSED' } : { type: 'DOOR_CLOSED' });
+          setReply('Passed. No penalty, no cost.');
+          setAnswer('');
+        }, encounter.dimension)}
+      />
     );
   };
 
@@ -1079,37 +1242,14 @@ export default function App() {
       mark={pulse}
       reachable={reachableRegions}
       reducedMotion={state.settings.reducedMotion}
-      onSelectRegion={(territoryId) => {
-        if (territoryId === state.activeTerritory) return;
-        const from = state.activeTerritory;
-        dispatch(...(routeBetween(from, territoryId) ? [{ type: 'ROUTE_TRAVERSED', from, to: territoryId } as GameEvent] : []), { type: 'ACTIVE_TERRITORY_SET', territoryId });
-      }}
-      onPositionSettled={(position) => dispatch({ type: 'WORLD_POSITION_SET', ...position })}
-      onInteract={(target) => {
-        if (!target || target.type === 'landmark') {
-          const regionId = target?.id ?? state.activeTerritory;
-          dispatch(...(regionId !== state.activeTerritory ? [{ type: 'ACTIVE_TERRITORY_SET', territoryId: regionId } as GameEvent] : []), { type: 'LANDMARK_DISCOVERED', landmarkId: regionId, territoryId: regionId });
-          playStinger('dialogue', quiet);
-          setTalking(true);
-          setReply('');
-        } else if (target.type === 'door') {
-          playStinger('door', quiet);
-          dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'door', id: target.id, territoryId: state.activeTerritory }, { type: 'DOOR_OPENED', doorId: target.id });
-          setReply('');
-          setTalking(true);
-        } else if (target.type === 'boss') {
-          playStinger('boss', quiet);
-          dispatch({ type: 'ENCOUNTER_LOCATED', kind: 'boss', id: target.id, territoryId: state.activeTerritory }, { type: 'BOSS_STARTED', bossId: target.id });
-          setReply('');
-          setTalking(true);
-        } else if (target.type === 'waystone') {
-          playStinger('discover', quiet);
-          setActiveWaystone({ id: target.id, label: target.label, inscription: target.inscription });
-        }
-      }}
-      controlsDisabled={talking || Boolean(encounter) || menuOpen || screen !== 'world' || Boolean(activeWaystone)}
+      onSelectRegion={handleWorldSelectRegion}
+      onPositionSettled={handleWorldPositionSettled}
+      onInteract={handleWorldInteract}
+      controlsDisabled={worldControlsDisabled}
       activeInterior={activeInterior}
       onInteriorChange={setActiveInterior}
+      adventureMarkers={adventureMarkers}
+      onAdventureMarker={() => { setAdventureOutcome(''); setAdventureOpen(true); }}
     />
 
     <div className="hud" data-testid="hud">
@@ -1120,16 +1260,47 @@ export default function App() {
           <span className="hud-track"><b style={{ width: `${atMaxLevel ? 100 : xpPercent}%` }} /></span>
         </span>
       </div>
-      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => { playMenuSound('open'); setMenuOpen(true); }}>
+      <button className="hud-menu" data-testid="open-menu" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} disabled={journalOpen || reflectionOpen || adventureOpen} onClick={() => { playMenuSound('open'); setMenuOpen(true); }}>
         <span aria-hidden="true">☰</span>
       </button>
       {isOffline && <span className="chip offline" data-testid="offline-indicator">Offline</span>}
     </div>
 
-    {!talking && !encounter && <button className="world-enter" data-testid="enter-encounter" onClick={() => { setTalking(true); setReply(''); }}>
-      <span>{activeInterior ? 'Consult Cartographer' : state.turns.length === 0 ? 'Begin' : 'Continue'}</span>
-    </button>}
-    {!talking && encounter && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
+    {!talking && !encounter && !journalOpen && !reflectionOpen && !adventureOpen && <>
+      <button
+        className="world-enter world-journal"
+        data-testid="open-journal"
+        onClick={() => setJournalOpen(true)}
+      >
+        <span>Journal</span>
+      </button>
+      <button
+        className="world-consult"
+        data-testid="enter-encounter"
+        onClick={() => { setTalking(true); setReply(''); }}
+      >
+        <span>{activeInterior ? 'Consult Cartographer' : state.turns.length === 0 ? 'Ask Cartographer' : 'Continue Cartographer'}</span>
+      </button>
+      {(activeAdventure || availableSeeds.length > 0) && (
+        <button
+          className="world-adventure"
+          data-testid="open-adventure"
+          onClick={() => { setAdventureOutcome(''); setAdventureOpen(true); }}
+        >
+          <span>{activeAdventure ? 'Continue adventure' : 'Adventure'}</span>
+        </button>
+      )}
+      {activeReflection && (
+        <button
+          className="world-reflect"
+          data-testid="open-reflection"
+          onClick={openReflection}
+        >
+          <span>Reflect</span>
+        </button>
+      )}
+    </>}
+    {!talking && encounter && !journalOpen && !reflectionOpen && !adventureOpen && <button className="world-enter" data-testid="resume-encounter" onClick={() => setTalking(true)}>
       <span>Resume {encounter.kind === 'door' ? encounter.title : encounter.heading}</span>
     </button>}
 
@@ -1143,7 +1314,7 @@ export default function App() {
             type="button"
             className="primary waystone-dismiss"
             data-testid="waystone-dismiss"
-            onClick={() => setActiveWaystone(null)}
+            onClick={dismissWaystone}
           >
             Continue Journey
           </button>
@@ -1159,21 +1330,34 @@ export default function App() {
    * stop impersonating the game. STOP is deliberately first so the control that
    * has to work fastest is the one the thumb reaches first.
    */
-  const renderAgencySheet = (privateDimension: string) => moreOpen && <div ref={agencySheetRef} className="more-sheet" data-testid="more-sheet" role="dialog" aria-label="Agency controls and moves" onKeyDown={(event)=>{ if(event.key==='Escape') setMoreOpen(false); }}>
-    <div className="more-head">
-      <span className="eyebrow">ALWAYS AVAILABLE</span>
-      <button className="more-close" data-testid="more-close" aria-label="Close controls" onClick={()=>setMoreOpen(false)}>×</button>
-    </div>
-    <div className="agency" data-testid="agency" role="group" aria-label="Always-available controls">
-      <button className={`agency-protect${state.sessionStatus==='paused'?' is-active':''}`} data-testid="agency-stop" aria-pressed={state.sessionStatus==='paused'} onClick={()=>{const pausing=state.sessionStatus!=='paused';if(pausing)cancelVoice();dispatch({type:'SESSION_SET',status:pausing?'paused':'active'});}}>{state.sessionStatus==='paused'?'RESUME':'STOP'}</button>
-      <button className="agency-protect" data-testid="agency-private" onClick={()=>{dispatch({type:'PRIVATE_TOPIC_ADDED',topic:privateDimension});setReply('Private. I will not intentionally return to that dimension.');setMoreOpen(false);}}>PRIVATE</button>
-      <button className={`agency-protect${quiet?' is-active':''}`} data-testid="agency-serious" aria-pressed={quiet} onClick={()=>{dispatch({type:'PRESENTATION_SET',mode:'quiet'});setReply('Serious mode. Plain language; no fanfare.');setMoreOpen(false);}}>SERIOUS</button>
-      <button className="agency-util" data-testid="agency-help" onClick={()=>setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}>HELP</button>
-      <button className="agency-util" data-testid="agency-sass" onClick={()=>dispatch({type:'SASS_SET',sass:state.settings.sass==='low'?'medium':state.settings.sass==='medium'?'risks-understood':'low'})}>SASS</button>
-      <button className="agency-util" data-testid="agency-status" onClick={()=>setMessage(`Level ${state.level}, ${state.xp} XP. ${activeTerritory.label}: ${activeTerritory.coveredDimensions.length} of ${activeTerritory.requiredDimensions.length} dimensions mapped. ${state.mapFragments.length} of ${state.territories.length} fragments recovered.`)}>STATUS</button>
-    </div>
-    <p className="more-note">Sass: {state.settings.sass}. None of these cost you progress.</p>
-  </div>;
+  const renderAgencySheet = (privateDimension: string) => (
+    <AgencySheet
+      open={moreOpen}
+      sheetRef={agencySheetRef}
+      paused={state.sessionStatus === 'paused'}
+      quiet={quiet}
+      sass={state.settings.sass}
+      onClose={() => setMoreOpen(false)}
+      onStopToggle={() => {
+        const pausing = state.sessionStatus !== 'paused';
+        if (pausing) cancelVoice();
+        dispatch({ type: 'SESSION_SET', status: pausing ? 'paused' : 'active' });
+      }}
+      onPrivate={() => {
+        dispatch({ type: 'PRIVATE_TOPIC_ADDED', topic: privateDimension });
+        setReply('Private. I will not intentionally return to that dimension.');
+        setMoreOpen(false);
+      }}
+      onSerious={() => {
+        dispatch({ type: 'PRESENTATION_SET', mode: 'quiet' });
+        setReply('Serious mode. Plain language; no fanfare.');
+        setMoreOpen(false);
+      }}
+      onHelp={() => setMessage('PASS skips. PRIVATE closes a topic for good. STOP pauses. SERIOUS drops the fanfare. SASS re-tunes the Cartographer. None of these cost you anything.')}
+      onSass={() => dispatch({ type: 'SASS_SET', sass: state.settings.sass === 'low' ? 'medium' : state.settings.sass === 'medium' ? 'risks-understood' : 'low' })}
+      onStatus={() => setMessage(`Level ${state.level}, ${state.xp} XP. ${activeTerritory.label}: ${activeTerritory.coveredDimensions.length} of ${activeTerritory.requiredDimensions.length} dimensions mapped. ${state.mapFragments.length} of ${state.territories.length} fragments recovered.`)}
+    />
+  );
 
   /**
    * The primary action row is the GAME's surface: skip, whatever moves the
@@ -1198,13 +1382,14 @@ export default function App() {
       moves.push({ id: 'reroll', label: 'Reroll', hint: 'Ask this a different way', run: invokeReroll });
     }
     return <>
-      <div className="action-bar" data-testid="action-bar" role="group" aria-label="Encounter actions">
-        {state.sessionStatus === 'paused'
-          ? <button className="action action-resume" data-testid="action-resume" onClick={()=>dispatch({type:'SESSION_SET',status:'active'})}>Resume</button>
-          : <button className="action" data-testid="agency-pass" onClick={onPass}>Pass</button>}
-        {moves.slice(0, 2).map((move) => <button key={move.id} className="action action-move" data-testid={`move-${move.id}`} aria-label={`${move.label}: ${move.hint}`} onClick={move.run} disabled={state.sessionStatus==='paused'}>{move.label}</button>)}
-        <button className="action action-more" data-testid="action-more" aria-expanded={moreOpen} aria-haspopup="dialog" aria-label="More controls, including stop, private and serious" onClick={()=>setMoreOpen((open)=>!open)}>More</button>
-      </div>
+      <PrimaryActionBar
+        paused={state.sessionStatus === 'paused'}
+        moves={moves}
+        moreOpen={moreOpen}
+        onResume={() => dispatch({ type: 'SESSION_SET', status: 'active' })}
+        onPass={onPass}
+        onToggleMore={() => setMoreOpen((open) => !open)}
+      />
       {renderAgencySheet(privateDimension)}
     </>;
   };
@@ -1217,120 +1402,47 @@ export default function App() {
    */
   const renderConversation = () => {
     const activeSanctuary = sanctuaryFor(activeTerritory.id);
-    return <div className="convo" data-testid="convo">
-    <button className="convo-close" data-testid="leave-encounter" aria-label="Back to the map" onClick={()=>{ if(voiceMode==='talk') cancelVoice(); setTalking(false); setMoreOpen(false); }}>
-      <span aria-hidden="true">▾</span>
-    </button>
-
-    <div className="convo-header">
-      <div className="convo-portrait" aria-hidden="true">
-        <img
-          src={quiet ? GREYSON_PORTRAITS.serious : (state.settings.sass === 'risks-understood' ? GREYSON_PORTRAITS.wry : (banners.length > 0 ? GREYSON_PORTRAITS.warm : GREYSON_PORTRAITS.neutral))}
-          alt="Greyson"
-          draggable={false}
-        />
-      </div>
-      <div className="convo-meta">
-        <div className="convo-sanctuary" data-testid="convo-sanctuary">
-          <span className="convo-sanctuary-glyph" aria-hidden="true">{activeSanctuary.glyph}</span>
-          <strong className="convo-sanctuary-name">{activeSanctuary.name}</strong>
-          <span className="convo-sanctuary-atmosphere">· {activeSanctuary.atmosphere}</span>
-        </div>
-        <p className="convo-speaker">The Cartographer{quiet && <span className="chip">{state.presentation}</span>}</p>
-        <small className="convo-dimension" data-testid="prompt-dimension">Evidence dimension: {prompt.dimension}{promptOverride ? ` · ${promptOverride.kind === 'deeper' ? 'going deeper' : 'reframed'}` : ''}</small>
-      </div>
-    </div>
-
-    {reply && <p className="convo-reply" role="status">{reply}</p>}
-    <h2 className="convo-question" data-testid="prompt-question">{prompt.question}</h2>
-    {state.sessionStatus==='paused' && <p className="convo-paused">Session paused. Your Atlas is safe.</p>}
-
-    {voiceMode==='type' ? (
-      <div className="composer">
-        <label className="answer">Your answer
-          <textarea rows={2} value={answer} onChange={(e)=>setAnswer(e.target.value)} disabled={state.sessionStatus==='paused'} data-testid="answer-input" placeholder="Say it however it comes out." />
-        </label>
-        <div className="composer-send">
-          <button className="link-btn" data-testid="mode-talk" onClick={()=>toggleVoiceMode('talk')}>Speak instead</button>
-          <button className="primary" data-testid="submit-answer" onClick={submit} disabled={!answer.trim()||state.sessionStatus==='paused'||isSubmitting}>{isSubmitting ? 'Mapping coordinate...' : 'Map this answer'}</button>
-        </div>
-      </div>
-    ) : (
-      <div className="voice-card" data-testid="voice-card">
-        <span className={`voice-badge ${voiceState}`} data-testid="voice-status">{voiceStateLabel(voiceState)}</span>
-        {voiceState === 'idle' && (
-          <button className="mic-btn" data-testid="mic-button" aria-label="Start the conversation" onClick={startConversation} disabled={state.sessionStatus==='paused'}>
-            🎙
-          </button>
-        )}
-        {voiceState === 'listening' && (
-          <>
-            {/* Live recording feedback. Present whenever capture is live, so
-                silence still reads as "the microphone is on"; the bars grow with
-                measured amplitude when there is something to hear. */}
-            <div
-              className={`mic-visualizer${micMeterLive ? '' : ' is-static'}`}
-              data-testid="mic-visualizer"
-              data-level={Math.round(micLevel * 100)}
-              data-metering={micMeterLive ? 'live' : 'unavailable'}
-              role="img"
-              aria-label={micMeterLive ? 'Microphone is live and listening' : 'Microphone is recording'}
-            >
-              {[0.55, 0.8, 1, 0.8, 0.55].map((weight, index) => (
-                <span
-                  key={index}
-                  className="mic-bar"
-                  style={{ transform: `scaleY(${(0.18 + micLevel * weight * 0.82).toFixed(3)})` }}
-                />
-              ))}
-            </div>
-            <button className="mic-btn is-listening" data-testid="mic-stop" aria-label="Done speaking" onClick={() => void stopRecordingAndProcess()}>
-              ◼
-            </button>
-            <div className="voice-actions">
-              <button className="primary" data-testid="voice-submit-done" onClick={() => void stopRecordingAndProcess()}>Done speaking</button>
-              <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
-            </div>
-          </>
-        )}
-        {voiceState === 'requesting-permission' && (
-          <div className="voice-actions">
-            <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
-          </div>
-        )}
-        {(voiceState === 'transcribing' || voiceState === 'thinking') && (
-          <div className="voice-actions">
-            <button data-testid="voice-cancel" onClick={cancelVoice}>Cancel</button>
-          </div>
-        )}
-        {voiceState === 'speaking' && (
-          <div className="voice-actions">
-            {/* Barge-in: the player takes the floor without waiting for the
-                Cartographer to finish, and the conversation stays alive. This
-                used to cancel the whole voice session, which is not what
-                interrupting someone means. */}
-            <button
-              data-testid="voice-interrupt"
-              onClick={() => { cancelSpeech(); if (conversationActive.current) void beginListeningTurn(conversationId.current); else cancelVoice(); }}
-            >
-              Interrupt
-            </button>
-            <button data-testid="voice-cancel-speaking" onClick={cancelVoice}>Cancel</button>
-          </div>
-        )}
-        {voiceState === 'error' && (
-          <div className="voice-actions">
-            <button className="primary" data-testid="voice-retry" onClick={startRecording}>Try again</button>
-            <button data-testid="voice-fallback-type" onClick={()=>toggleVoiceMode('type')}>Switch to typing</button>
-          </div>
-        )}
-        <button className="link-btn" data-testid="mode-type" onClick={()=>toggleVoiceMode('type')}>Type instead</button>
-      </div>
-    )}
-
-    {renderActionBar(()=>setReply('Passed. No penalty.'), prompt.dimension)}
-  </div>;
-};
+    return (
+      <JournalPanel
+        sanctuary={activeSanctuary}
+        portraitSrc={quiet
+          ? GREYSON_PORTRAITS.serious
+          : state.settings.sass === 'risks-understood'
+            ? GREYSON_PORTRAITS.wry
+            : banners.length > 0
+              ? GREYSON_PORTRAITS.warm
+              : GREYSON_PORTRAITS.neutral}
+        quiet={quiet}
+        presentationLabel={state.presentation}
+        dimension={prompt.dimension}
+        dimensionSuffix={promptOverride ? ` · ${promptOverride.kind === 'deeper' ? 'going deeper' : 'reframed'}` : ''}
+        reply={reply}
+        question={prompt.question}
+        paused={state.sessionStatus === 'paused'}
+        voiceMode={voiceMode}
+        voiceState={voiceState}
+        voiceStatusLabel={voiceStateLabel(voiceState)}
+        answer={answer}
+        isSubmitting={isSubmitting}
+        micMeterLive={micMeterLive}
+        micLevel={micLevel}
+        actions={renderActionBar(() => setReply('Passed. No penalty.'), prompt.dimension)}
+        onClose={() => {
+          if (voiceMode === 'talk') cancelVoice();
+          setTalking(false);
+          setMoreOpen(false);
+        }}
+        onAnswerChange={setAnswer}
+        onUseTalk={() => toggleVoiceMode('talk')}
+        onSubmit={submit}
+        onStartDictation={startConversation}
+        onStopDictation={() => void stopRecordingAndProcess(undefined, conversationId.current, 'cartographer')}
+        onCancelVoice={cancelVoice}
+        onRetryVoice={startRecording}
+        onUseType={() => toggleVoiceMode('type')}
+      />
+    );
+  };
 
   const fragmentCount = state.territories.filter((t)=>state.mapFragments.some((f)=>f.territoryId===t.id)).length;
   const unlockedAchievements = state.achievements.filter((a)=>a.unlockedAt);
@@ -1347,6 +1459,21 @@ export default function App() {
     <div className="eyebrow">LOCAL EVIDENCE VAULT</div>
     <h1>Vault</h1>
     <p>Evidence, fragments, contradictions, and things the map is not allowed to pretend it knows.</p>
+
+    <section className="vault-section" data-testid="vault-confirmed">
+      <h2>Confirmed in your own words <span className="count">{confirmedStatements.length}</span></h2>
+      {confirmedStatements.length === 0
+        ? <div className="empty">Nothing here yet. Only things you confirm yourself in a Reflection appear here — never guesses from play.</div>
+        : <>
+          <p className="section-note">You can withdraw any of these. History is kept; Atlas stops relying on it everywhere.</p>
+          {confirmedStatements.map((item) => <article className="card" key={item.id} data-testid="vault-confirmed-item" data-evidence-id={item.id}>
+            <span className="eyebrow">{item.strength === 2 ? 'CONFIRMED' : 'PARTLY CONFIRMED'} · {item.dimension.toUpperCase()}</span>
+            <h3>{item.claim}</h3>
+            <small>From a Reflection after an adventure. Adventures alone never count as evidence.</small>
+            <div className="row"><button type="button" data-testid="vault-confirmed-withdraw" onClick={() => withdrawConfirmed(item.sourceReflectionIds![0])}>Withdraw</button></div>
+          </article>)}
+        </>}
+    </section>
 
     <section className="vault-section">
       <h2>Insight Cards <span className="count">{state.insights.length}</span></h2>
@@ -1425,7 +1552,6 @@ export default function App() {
     try {
       currentRequestId.current++;
       pendingCaptureCancelled.current = true;
-      cancelSpeech();
       if (activeCapture) {
         activeCapture.abort();
         setActiveCapture(null);
@@ -1446,7 +1572,7 @@ export default function App() {
   const renderMe = () => <section className="screen">
     <div className="eyebrow">CHARACTER RECORD</div>
     <div className="profile"><div className="portrait"><img src={GREYSON_PORTRAIT} alt="Greyson character avatar" draggable={false}/></div><div><h1>Greyson</h1><p>{state.player.pronouns}</p></div></div>
-    {renderProgress()}
+    <ProgressDisplay xp={state.xp} level={state.level} atMaxLevel={atMaxLevel} current={xp.current} required={xp.required} percent={xpPercent} />
     <div className="stats">
       <div><b>{state.evidence.filter((e)=>e.status==='active').length}</b><small>Evidence</small></div>
       <div><b>{state.insights.filter((i)=>i.status==='confirmed').length}</b><small>Confirmed insights</small></div>
@@ -1454,16 +1580,24 @@ export default function App() {
       <div><b>{state.unlocks.filter((u)=>u.unlockedAt).length}</b><small>Unlocks</small></div>
     </div>
 
+    <SnapshotHistory
+      snapshots={snapshotsNewestFirst}
+      eligible={snapshotEligibility.eligible}
+      reasons={snapshotEligibility.eligible ? [] : snapshotEligibility.reasons}
+      latestChange={latestSnapshotChange}
+      onTakeSnapshot={takeSnapshot}
+    />
+
     <article className="card assessment-section" data-testid="final-assessment-section">
       <div className="assessment-head">
         <div>
-          <h2>Final Atlas Assessment</h2>
-          <p className="settings-note">Holistic synthesis of mapped coordinates, values, contradictions, and open questions.</p>
+          <h2>Whole-map synthesis (older format)</h2>
+          <p className="settings-note">A dated whole-map reading from the original Cartographer questions. It is not a final verdict about you; Atlas Snapshots above are the ongoing, revisable record.</p>
         </div>
         <div className="assessment-actions no-print">
           {campaignEnded && (
             <button className="primary" data-testid="synthesize-assessment-btn" onClick={generateAssessment} disabled={isFinalizing}>
-              {isFinalizing ? 'Synthesizing...' : state.finalAssessment ? 'Re-synthesize Atlas' : 'Synthesize Final Atlas'}
+              {isFinalizing ? 'Synthesizing...' : state.finalAssessment ? 'Re-synthesize reading' : 'Synthesize whole-map reading'}
             </button>
           )}
           {state.finalAssessment && (
@@ -1476,7 +1610,7 @@ export default function App() {
 
       {!campaignEnded && (
         <div className="empty" data-testid="assessment-locked">
-          The final Atlas is written once the map is finished. {chartedTerritories} of {state.territories.length} territories are charted so far — keep mapping, and it will be waiting.
+          This older whole-map reading becomes available once every territory is charted. {chartedTerritories} of {state.territories.length} territories are charted so far — keep mapping, and it will be waiting.
         </div>
       )}
 
@@ -1583,22 +1717,7 @@ export default function App() {
       )}
     </article>
 
-    <article className="card settings"><h2>Cartographer</h2><label>Sass<select data-testid="sass-select" value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label>
-      {voiceChoices.length>1&&<label>Voice<select
-        data-testid="voice-select"
-        value={voiceUri ?? ''}
-        onChange={(event)=>{
-          const chosen = event.target.value || null;
-          setVoicePreference(chosen);
-          forgetResolvedVoice();
-          setVoiceUri(chosen);
-          setMessage(chosen ? `Cartographer voice set to ${voiceChoices.find((v)=>v.voiceURI===chosen)?.name ?? 'your choice'}.` : 'Cartographer voice set automatically.');
-        }}
-      >
-        <option value="">Automatic ({voiceChoices[0]?.name})</option>
-        {voiceChoices.map((voice)=><option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} · {voice.lang}</option>)}
-      </select></label>}
-      {voiceChoices.length>0&&<p className="settings-note">Spoken by {voiceChoices.find((v)=>v.voiceURI===voiceUri)?.name ?? voiceChoices[0]?.name}. Stored on this device only.</p>}</article>
+    <article className="card settings"><h2>Cartographer</h2><label>Sass<select data-testid="sass-select" value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label></article>
     <article className="card settings"><h2>Your Atlas</h2><p className="settings-note">Everything lives on this device. Export a copy before you switch phones or clear data.</p><button onClick={()=>downloadCampaign(state)}>Export Atlas</button><label className="file">Import Atlas<input type="file" accept="application/json,.json,.atlas" onChange={(e)=>void importFile(e.target.files?.[0])}/></label></article>
     <article className="card settings access-section">
       <h2>Cartographer Access Code</h2>
@@ -1708,7 +1827,7 @@ export default function App() {
           <span className="eyebrow">STEP 2 OF 3</span>
           <h2>Interaction Mode</h2>
           <p className="onboarding-desc">
-            Choose how you would like to explore. You can switch freely between voice and typing anytime on the Talk screen.
+            Choose how you would like to explore. You can switch freely between microphone dictation and typing anytime.
           </p>
           <div className="onboarding-choices">
             <button
@@ -1719,7 +1838,7 @@ export default function App() {
               onClick={() => setOnboardingMode('talk')}
             >
               <strong>Talk</strong>
-              <span>Spoken conversation via microphone and speech synthesis.</span>
+              <span>Speak into the microphone; your words become editable text. Atlas replies stay on screen.</span>
             </button>
             <button
               type="button"
@@ -1861,7 +1980,7 @@ export default function App() {
 
   /** One menu, holding the places that are not the world. */
   const renderMenu = () => menuOpen && <div className="menu-scrim" data-testid="menu" onClick={()=>{ playMenuSound('close'); setMenuOpen(false); }}>
-    <div className="menu" role="dialog" aria-label="Menu" onClick={(event)=>event.stopPropagation()} onKeyDown={(event)=>{ if(event.key==='Escape') { playMenuSound('close'); setMenuOpen(false); } }}>
+    <div className="menu" role="dialog" aria-modal="true" aria-label="Menu" onClick={(event)=>event.stopPropagation()} onKeyDown={(event)=>{ if(event.key==='Escape') { playMenuSound('close'); setMenuOpen(false); } }}>
       <button className="menu-item" data-testid="go-vault" onClick={()=>{ playMenuSound('open'); setScreen('vault'); setMenuOpen(false); }}>
         <span aria-hidden="true">▤</span><span><strong>Vault</strong><small>{state.mapFragments.length} of {state.territories.length} fragments · {state.insights.length} insight{state.insights.length===1?'':'s'}</small></span>
       </button>
@@ -1878,7 +1997,7 @@ export default function App() {
   </div>;
 
   /** Vault and the character record are visited, then left behind. */
-  const renderSheet = (title: string, body: ReactNode) => <div className="sheet" data-testid="sheet">
+  const renderSheet = (title: string, body: ReactNode) => <div className="sheet" data-testid="sheet" role="dialog" aria-modal="true" aria-label={title}>
     <div className="sheet-bar">
       <button className="sheet-back" data-testid="close-sheet" aria-label="Back to the map" onClick={()=>setScreen('world')}><span aria-hidden="true">←</span> Map</button>
       <span className="sheet-title">{title}</span>
@@ -1890,12 +2009,63 @@ export default function App() {
   const banners = notices.filter((notice) => notice.kind !== 'territory').slice(0, MAX_BANNERS);
 
   return <div className={`shell${waking ? ' is-waking' : ''}`}>
-    {message&&<div className="toast" role="status">{message}<button aria-label="Dismiss" onClick={()=>setMessage('')}>×</button></div>}
+    {message&&<div className={`toast${journalOpen || adventureOpen || reflectionOpen ? ' is-top' : ''}`} role="status">{message}<button aria-label="Dismiss" onClick={()=>setMessage('')}>×</button></div>}
     {showOnboarding ? (
       renderOnboarding()
     ) : (
       <>
         {renderWorld()}
+        {adventureOpen && (
+          <AdventurePanel
+            active={activeAdventure}
+            available={availableSeeds}
+            combatView={combatView}
+            lastOutcome={adventureOutcome}
+            recurringLine={selectRecurringLine(state)}
+            onStart={startAdventure}
+            onChoice={chooseInAdventure}
+            onCombatIntent={combatIntent}
+            onWithdraw={withdrawAdventure}
+            onClose={() => setAdventureOpen(false)}
+          />
+        )}
+        {reflectionOpen && activeReflection && (
+          <ReflectionPanel
+            record={activeReflection}
+            value={reflectionDraft}
+            onChange={setReflectionDraft}
+            onDecision={submitReflectionDecision}
+            onClose={closeReflection}
+          />
+        )}
+        {journalOpen && (
+          <JournalComposer
+            value={journalDraft}
+            savedCount={state.journalEntries.length}
+            latestEntry={latestJournalEntry}
+            entries={state.journalEntries}
+            onMakeEntryPrivate={makeJournalEntryPrivate}
+            onRetractEntry={retractJournalEntryById}
+            exploreTerritories={state.territories.map((territory) => ({ id: territory.id, label: territory.label }))}
+            onExploreEntry={exploreJournal}
+            dictationSupported={isAudioCaptureSupported() && !isOffline}
+            dictationState={voiceState}
+            dictationStatusLabel={voiceStateLabel(voiceState)}
+            micMeterLive={micMeterLive}
+            micLevel={micLevel}
+            onChange={(value) => {
+              setJournalDraft(value);
+              if (!value) setJournalDraftInputMode('typed');
+            }}
+            onSave={saveJournalEntry}
+            onClose={closeJournal}
+            onStartDictation={startJournalDictation}
+            onStopDictation={() => void stopRecordingAndProcess(undefined, conversationId.current, 'journal')}
+            onCancelDictation={cancelVoice}
+            onMakeLatestPrivate={makeLatestJournalPrivate}
+            onRetractLatest={retractLatestJournalEntry}
+          />
+        )}
         {talking && (encounter ? renderEncounter() : renderConversation())}
 
         {/* Milestones land on the world, briefly, without blocking anything. */}

@@ -1,4 +1,10 @@
+import type { ActiveCombatRecord } from '../combat/persistence';
+import type { AdventureAction, AdventureMemory, AdventureObservation, AdventureRun, AdventureSeed } from '../adventure/schema';
+import type { AtlasSnapshot } from '../atlas/schema';
 import type { FinalAssessment } from '../cartographer/finalize';
+import type { JournalEntry } from '../journal/schema';
+import type { KnowledgeGap } from '../knowledge/schema';
+import type { ReflectionRecord } from '../reflection/schema';
 
 export type TerritoryStatus =
   | 'fogged'
@@ -27,7 +33,7 @@ export interface QuestState { id: string; label: string; description: string; pr
 export interface UnlockState { id: string; label: string; description: string; levelRequired: number; unlockedAt?: string; }
 export interface AchievementState { id: string; label: string; description: string; unlockedAt?: string; }
 export interface TurnRecord { id: string; createdAt: string; territoryId: string; dimension: string; question: string; answer: string; substantive: boolean; behavioralExample: boolean; revision: boolean; retracted: boolean; }
-export interface EvidenceRecord { id: string; dimension: string; claim: string; sourceTurnIds: string[]; basis: EvidenceBasis; strength: 1 | 2 | 3; territories: string[]; counterEvidenceIds: string[]; status: EvidenceStatus; origin: EvidenceOrigin; /** Provider that authored the claim, e.g. `mock` or `workers-ai:<model>`. */ providerId?: string; }
+export interface EvidenceRecord { id: string; dimension: string; claim: string; sourceTurnIds: string[]; basis: EvidenceBasis; strength: 1 | 2 | 3; territories: string[]; counterEvidenceIds: string[]; status: EvidenceStatus; origin: EvidenceOrigin; /** Provider that authored the claim, e.g. `mock` or `workers-ai:<model>`. */ providerId?: string; /** v2 (I06): Reflection(s) whose explicit human decision authorized this claim. */ sourceReflectionIds?: string[]; }
 export interface InsightRecord { id: string; title: string; summary: string; evidenceIds: string[]; confidence: 'low' | 'moderate' | 'strong'; status: InsightStatus; createdAt: string; }
 export interface ContradictionRecord { id: string; claim: string; evidenceIds: string[]; status: 'open' | 'resolved'; }
 export interface MapFragment { id: string; territoryId: string; label: string; unlockedAt: string; }
@@ -56,7 +62,7 @@ export interface BossRunState { id: string; bossId: string; territoryId: string;
 export interface DoorRunState { id: string; doorId: string; territoryIds: string[]; evidenceIds: string[]; dimensions: string[]; status: DoorRunStatus; openedAt: string; completedAt?: string; }
 
 export interface CampaignState {
-  schemaVersion: 1;
+  schemaVersion: 2;
   campaignId: string;
   player: PlayerState;
   settings: SettingsState;
@@ -86,6 +92,16 @@ export interface CampaignState {
   worldJourney: WorldJourneyState;
   finalAssessment?: FinalAssessment | null;
   onboardingCompleted?: boolean;
+  journalEntries: JournalEntry[];
+  knowledgeGaps: KnowledgeGap[];
+  adventureSeeds: AdventureSeed[];
+  adventureRuns: AdventureRun[];
+  adventureActions: AdventureAction[];
+  adventureObservations: AdventureObservation[];
+  reflections: ReflectionRecord[];
+  adventureMemories: AdventureMemory[];
+  atlasSnapshots: AtlasSnapshot[];
+  activeCombat: ActiveCombatRecord | null;
   updatedAt: string;
 }
 

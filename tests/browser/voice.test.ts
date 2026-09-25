@@ -36,7 +36,7 @@ afterAll(async () => {
 describe('browser voice mode and access gate', () => {
   it('loads cleanly and navigates to Talk screen', async () => {
     await navigateTo(page, 'Talk');
-    // The conversation is a layer over the world, so the speaker is named there.
+    // The interaction layer sits over the world, so the Cartographer is named there.
     await page.waitForSelector('.convo-speaker');
     expect(await page.textContent('.convo-speaker')).toMatch(/the cartographer/i);
   });
@@ -52,7 +52,7 @@ describe('browser voice mode and access gate', () => {
     await talkBtn.click();
     await page.waitForSelector('[data-testid="voice-card"]');
     const typeBtn = page.locator('[data-testid="mode-type"]');
-    expect(await typeBtn.isVisible(), 'Type instead is offered while speaking').toBe(true);
+    expect(await typeBtn.isVisible(), 'Type instead is offered while dictating').toBe(true);
     expect((await typeBtn.boundingBox())?.height).toBeGreaterThanOrEqual(44);
 
     await typeBtn.click();
@@ -67,7 +67,7 @@ describe('browser voice mode and access gate', () => {
     // that Talk mode is reachable and legible on a machine that may have no
     // microphone at all — the state it settles into depends on the host, and
     // asserting a particular one here would be testing the runner. The
-    // conversational loop itself is proven against stubbed media primitives in
+    // capture/transcription path itself is proven against stubbed media primitives in
     // `voice-conversation.test.ts`.
     const statusBadge = page.locator('[data-testid="voice-status"]');
     expect(await statusBadge.isVisible()).toBe(true);
