@@ -34,3 +34,29 @@ export const reflectionProposalSchema = reflectionProposalEnvelopeSchema.extend(
 });
 
 export type ReflectionProposal = z.infer<typeof reflectionProposalSchema>;
+
+/**
+ * Validate that every provenance reference came from the already-compiled,
+ * privacy-filtered context for this Reflection operation.
+ *
+ * Zod can prove shape, but it cannot know which source IDs the caller actually
+ * supplied. This semantic boundary prevents a model from fabricating provenance
+ * by naming an arbitrary syntactically-valid ID.
+ */
+export function parseReflectionProposalForContext(
+  value: unknown,
+  allowedSourceIds: readonly string[]
+): ReflectionProposal {
+  const proposal = reflectionProposalSchema.parse(value);
+  const allowed = new Set(allowedSourceIds);
+  const unknownIds = proposal.supportingSourceIds.filter((id) => !allowed.has(id));
+
+  if (unknownIds.length > 0) {
+    throw new Error(
+      `Reflection proposal referenced source IDs outside bounded context: ${unknownIds.join(', ')}`
+    );
+  }
+
+  return proposal;
+}
+
