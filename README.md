@@ -6,32 +6,28 @@ Atlas is a game with a strict boundary running through it. Campaign truth and pr
 
 ## What exists today
 
-- React 19 + TypeScript + Vite PWA with a four-screen mobile shell (Map, Talk, Vault, Me).
-- Deterministic campaign engine: XP, levels, evidence-coverage territory progression, quests, unlocks, map fragments, Boss Fights and Mystery Doors across all eight territories.
-- Permanent agency controls — `PASS`, `PRIVATE`, `STOP`, `SERIOUS`, `HELP` and sass — always available and never progression-gated.
-- Cartographer backed by **Cloudflare Workers AI** on the free plan, behind a typed failure boundary with a bounded context compiler, structured-output validation and a one-attempt repair limit. Configured model: `@cf/qwen/qwen3-30b-a3b-fp8`.
-- Voice path: `MediaRecorder` capture, an explicit voice state machine, client-side agency commands, `/api/transcribe` (`@cf/openai/whisper-tiny-en`), and browser speech synthesis. Text always remains a full alternative.
-- Local-first persistence with export, import and delete; a Final Atlas Assessment; and a five-step first-run onboarding.
-- Deployed as a Cloudflare Worker serving the PWA, with `/api/turn`, `/api/transcribe` and `/api/finalize` behind an access secret.
+Two lines of code exist and must not be confused:
 
-Atlas is pre-v1 and has not been validated by a real player. Verification to date is automated tests plus desktop Chrome; no physical mobile device and no browser other than Chrome has been exercised.
+- **`main`** — what is deployed. The v1 product: Map/Talk/Vault/Me, a questioning Cartographer, browser speech synthesis, and a single Final Atlas Assessment.
+- **v2 integration branches** (`integration/atlas-v2-journal-adventure-combat`, and `feat/v2-combat-mechanics` on top of it) — **not merged, not deployed**. Journal-first Atlas:
+  - A blank-page **Journal** (typed or optional speech-to-text; text-to-speech is removed), with privacy/retraction, an optional prompt, and a **Journey** list of adventures (fiction, labelled as not evidence).
+  - **Reflection** as the only path from anything to evidence about Greyson; fictional choices are recorded as `AdventureObservation`s, never evidence.
+  - **Worldwalker adventures**: Journal → knowledge gap → explicit seed → world marker → a six-beat local adventure with a deterministic **JRPG encounter** (ATTACK / TECHNIQUE / GUARD / ACT / LEAVE, visible enemy intent, pacify/defeat/interrupt objectives, fail-forward), persisted mid-combat; completed adventures leave **memory markers** in the world.
+  - **Atlas Snapshots**: dated, immutable syntheses with "what changed since the last one", replacing the terminal Final Assessment; legacy assessments migrate into history.
+- Both lines keep: deterministic TypeScript authority over all progression and combat, permanent agency controls (`PASS`, `PRIVATE`, `STOP`, `SERIOUS`, `HELP`, sass), local-first IndexedDB with export/import/delete, and Cloudflare Workers AI (free plan) as a validated, subordinate provider behind an access secret.
+
+Atlas has not been validated by a real player. Verification is automated tests plus desktop Chrome (headless); no physical mobile device and no browser other than Chrome has been exercised.
 
 ## Status
 
-| | Commit | State |
-|---|---|---|
-| **Production** | `60ce565` | Deployed at `atlas-of-one.atlas-of-one.workers.dev` |
-| **Development candidate** | `e940788` | Locally verified — **not pushed, not deployed** |
-
-`e940788` hardens the Final Assessment trust boundary. It is not in production. Pushing `main` auto-deploys via Cloudflare Workers Builds, so a push is a deployment decision.
-
-`OPERATIONAL_STATE.md` is the evidence ledger and records what is verified, what is merely reported, and what is still open. Read it before trusting any completion claim, including one in a commit message.
+Pushing `main` auto-deploys via Cloudflare Workers Builds, so a push to `main` is a deployment decision. `OPERATIONAL_STATE.md` is the evidence ledger and separates repository HEAD, deployed application content and branch state. Read it before trusting any completion claim, including one in a commit message.
 
 ## Commands
 
 ```bash
 npm install
 npm run dev
+npm run typecheck
 npm test
 npm run build
 npm run test:browser   # real-browser journey; needs Chrome installed
