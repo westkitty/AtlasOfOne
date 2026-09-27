@@ -33,28 +33,30 @@ describe('SNES Overworld Verbs', () => {
     expect(await page.locator('[data-testid="interact-action-btn"]').isVisible()).toBe(true);
   });
 
-  it('opens conversation overlay when pressing [A] Interact button near landmark', async () => {
-    // Greyson is in the Identity clearing; tapping [A] initiates Cartographer dialogue
+  it('opens the Journal when pressing [A] Interact near a landmark (v2 Journal-first)', async () => {
+    // MASTER_INTEGRATION_PLAN §4.2/§16.2: [A] at a landmark opens a blank Journal,
+    // not the v1 prompted Cartographer questionnaire. A prompt is optional.
     await page.locator('[data-testid="interact-action-btn"]').click();
     await page.waitForSelector('[data-testid="convo"]');
     expect(await page.locator('[data-testid="convo"]').isVisible()).toBe(true);
-    expect(await page.locator('[data-testid="prompt-question"]').isVisible()).toBe(true);
+    expect(await page.locator('[data-testid="prompt-question"]').count()).toBe(0);
 
-    // Verify 16-bit landmark architectural sanctuary header
+    // The landmark's sanctuary header still frames the Journal.
     expect(await page.locator('[data-testid="convo-sanctuary"]').isVisible()).toBe(true);
     expect(await page.textContent('[data-testid="convo-sanctuary"]')).toContain('Origin Grove Shrine');
 
-    // Answering a question
-    await page.fill('[data-testid="answer-input"]', 'I value honesty and authentic growth.');
-    await page.click('[data-testid="submit-answer"]');
+    // An optional prompt is available on request.
+    await page.click('[data-testid="request-prompt"]');
+    expect(await page.locator('[data-testid="prompt-question"]').isVisible()).toBe(true);
 
-    // After answer commits, world visibly reacts
-    await page.waitForSelector('[data-testid="world-mark"]', { timeout: 10_000 });
-    expect(await page.locator('[data-testid="world-mark"]').isVisible()).toBe(true);
+    // Saving an entry lands in History.
+    await page.fill('[data-testid="answer-input"]', 'Synthetic overworld journal entry.');
+    await page.click('[data-testid="save-journal"]');
+    await page.waitForSelector('[data-testid="journal-history"] li');
 
-    // Return to exploration
+    // Return to exploration; the overlay must actually close so later checks can move.
     await page.click('[data-testid="leave-encounter"]');
-    await page.waitForTimeout(400);
+    await page.waitForSelector('[data-testid="convo"]', { state: 'detached' });
   });
 
   it('allows free movement via keyboard input (Arrow keys / WASD)', async () => {
@@ -314,7 +316,8 @@ describe('SNES Overworld Verbs', () => {
     await page.waitForTimeout(400);
     await page.waitForSelector('[data-testid="enter-sanctuary"]');
     const primaryLabel = (await page.locator('[data-testid="enter-encounter"] span').textContent())?.trim();
-    expect(['Begin', 'Continue']).toContain(primaryLabel);
+    // v2 Journal-first primary action (was Begin/Continue for the v1 questionnaire).
+    expect(primaryLabel).toBe('Open Journal');
     await assertFullyRendered('enter-encounter', primaryLabel!);
     await assertFullyRendered('enter-sanctuary', 'Enter Origin Grove Shrine');
 
