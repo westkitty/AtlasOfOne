@@ -487,7 +487,7 @@ UNV-001, UNV-002, UNV-005, UNV-006, UNV-008, UNV-011, UNV-012, UNV-013, UNV-014,
 
 - **Artifact/source identity:** branch `feat/v2-combat-mechanics` (from integration HEAD `6c2864d`), application-content head `6f345bc`, pushed to origin as a feature branch. `main` and deployed content untouched; no merge, no deployment.
 - **State deltas:** VER-093..VER-098; UNV-023 resolved (branch); UNV-024 superseded (branch); PND-016 closed (branch); UNV-025..UNV-027 opened. Ledger rows V01, C05-C11, C13, I02, I03 (partial), W07 (partial), W02R, S00-S05, Q-PND016, UNV023 are `SELF_VERIFIED` with receipt `docs/v2/proof/V2-SLICE-2026-09-26.md`.
-- **Protected limitations:** no independent review (so nothing here is `MERGE_READY`); headless desktop Chrome only; no physical device; no live inference; PND-015 (untracked lockfile) still open — this pass ran on the checkout's installed toolchain (vitest 5.0.0, vite 8.2.2).
+- **Protected limitations:** no independent review (so nothing here is `MERGE_READY`); headless desktop Chrome only; no physical device; no live inference; PND-015 (untracked lockfile) still open — this pass ran on the checkout's installed toolchain (vitest 5.0.0, vite 8.2.2). `origin/main` is at `1b51033` (docs-only "adopt Atlas v2 authority and integration plan"), which is NOT an ancestor of the v2 branches; any PR to `main` must first merge it and reconcile `docs/MASTER_INTEGRATION_PLAN.md`/authority docs.
 
 ### Revision 54 — 2026-09-22
 
