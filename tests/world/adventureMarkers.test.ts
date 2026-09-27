@@ -166,3 +166,28 @@ describe('W02 deterministic available-seed world marker state', () => {
     expect(marker).not.toHaveProperty('locationId');
   });
 });
+
+import { LANDMARK_CLEARANCE, positionFor } from '../../src/world/adventureMarkers';
+import { isWalkable } from '../../src/world/collision';
+import { REGIONS as ALL_REGIONS } from '../../src/world/geography';
+import { findNearbyInteractable } from '../../src/world/playerController';
+import { createInitialCampaign as freshCampaign } from '../../src/game/engine';
+
+describe('marker placement keeps adventures reachable (landmark-shadowing regression)', () => {
+  it('every territory slot is walkable, clear of the landmark, and wins interaction when the player stands on it', () => {
+    const state = freshCampaign();
+    for (const region of ALL_REGIONS) {
+      for (const slot of [0, 1, 2, 3, 16, 17]) {
+        const position = positionFor(region.id, slot);
+        expect(position, `${region.id} slot ${slot}`).not.toBeNull();
+        const { x, y } = position!;
+        expect(isWalkable(x, y), `${region.id} slot ${slot} walkable`).toBe(true);
+        expect(Math.hypot(x - region.centre.x, y - region.centre.y)).toBeGreaterThanOrEqual(LANDMARK_CLEARANCE);
+        for (const [ox, oy] of [[0, 0], [4, 0], [-4, 0], [0, 4], [0, -4]]) {
+          const target = findNearbyInteractable(x + ox, y + oy, state, [{ type: 'adventure', id: 'probe', label: 'Adventure opportunity', x, y }]);
+          expect(target?.id, `${region.id} slot ${slot} offset ${ox},${oy}`).toBe('probe');
+        }
+      }
+    }
+  });
+});

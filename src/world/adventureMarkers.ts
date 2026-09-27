@@ -1,6 +1,7 @@
 import { selectWorldMemories } from '../adventure/journey';
 import { selectAvailableAdventureSeeds } from '../adventure/seeds';
 import type { CampaignState } from '../game/types';
+import { isWalkable } from './collision';
 import { REGIONS, WORLD } from './geography';
 import {
   createWorldMarkerRenderModel,
@@ -25,19 +26,34 @@ const regionById = new Map(REGIONS.map((region) => [region.id, region]));
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 /**
+ * Keep markers out of the landmark's pull. Target selection is nearest-wins,
+ * and the first slot used to land 0-14 units from the landmark centre (on it,
+ * in Politics), so the landmark's Talk usually beat the marker's Start and the
+ * adventure could not be begun.
+ */
+export const LANDMARK_CLEARANCE = 26;
+const ROTATE_STEP = Math.PI / 12;
+
+/**
  * Deterministic presentation-only position near a territory's canonical stand.
  * Placement is derived state: it never mutates AdventureSeed.locationId or worldJourney.
+ * Each slot starts at its golden-angle spot and rotates, then steps outward, until
+ * it is walkable and clear of the landmark.
  */
-function positionFor(territoryId: string, slotIndex: number): { x: number; y: number } | null {
+export function positionFor(territoryId: string, slotIndex: number): { x: number; y: number } | null {
   const region = regionById.get(territoryId);
   if (!region) return null;
   const ring = Math.floor(slotIndex / RING_SIZE);
-  const radius = BASE_RADIUS + ring * RING_STEP;
-  const angle = -Math.PI / 2 + slotIndex * GOLDEN_ANGLE;
-  return {
-    x: clamp(Math.round(region.stand.x + Math.cos(angle) * radius), MARKER_MARGIN, WORLD.width - MARKER_MARGIN),
-    y: clamp(Math.round(region.stand.y + Math.sin(angle) * radius), MARKER_MARGIN, WORLD.height - MARKER_MARGIN)
-  };
+  for (let grow = 0; grow < 4; grow += 1) {
+    const radius = BASE_RADIUS + ring * RING_STEP + grow * RING_STEP;
+    for (let turn = 0; turn < 24; turn += 1) {
+      const angle = -Math.PI / 2 + slotIndex * GOLDEN_ANGLE + turn * ROTATE_STEP;
+      const x = clamp(Math.round(region.stand.x + Math.cos(angle) * radius), MARKER_MARGIN, WORLD.width - MARKER_MARGIN);
+      const y = clamp(Math.round(region.stand.y + Math.sin(angle) * radius), MARKER_MARGIN, WORLD.height - MARKER_MARGIN);
+      if (Math.hypot(x - region.centre.x, y - region.centre.y) >= LANDMARK_CLEARANCE && isWalkable(x, y)) return { x, y };
+    }
+  }
+  return null;
 }
 
 /**
