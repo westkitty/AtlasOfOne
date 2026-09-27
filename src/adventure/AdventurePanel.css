@@ -1,0 +1,104 @@
+.fallback-adventure-card {
+  width: min(100%, 720px);
+  margin: 12px auto 0;
+  padding: 16px;
+  border: 1px solid rgba(122, 243, 255, .24);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(9, 23, 31, .96), rgba(5, 13, 19, .96));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .26);
+}
+
+.fallback-adventure-card h2 {
+  margin: 6px 0 8px;
+  font-size: clamp(1rem, 4.7vw, 1.3rem);
+  line-height: 1.12;
+}
+
+.fallback-adventure-card > p { margin: 0; line-height: 1.48; }
+
+.fallback-adventure-kicker {
+  font-size: .69rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--cyan-soft, #8de8ef);
+}
+
+.fallback-adventure-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.fallback-adventure-suggestions span {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .045);
+  font-size: .78rem;
+}
+
+.fallback-adventure-note {
+  margin-top: 14px !important;
+  color: var(--muted, #9eaab1);
+  font-size: .74rem;
+}
+
+@media (max-width: 390px) {
+  .fallback-adventure-card { margin-top: 10px; padding: 14px; border-radius: 16px; }
+}
+
+.adventure-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.adventure-actions button {
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(122, 243, 255, .34);
+  background: rgba(122, 243, 255, .08);
+  color: inherit;
+  font: inherit;
+  flex: 1 1 auto;
+}
+.adventure-actions button:disabled { opacity: .45; }
+.adventure-encounter-intro, .adventure-outcome { margin: 12px 0 0 !important; }
+.adventure-outcome { padding: 10px 12px; border-left: 3px solid var(--verdigris, #6bb0b0); background: rgba(107, 176, 176, .08); }
+.adventure-agency { margin-top: 12px; }
+
+/* The world owns the viewport (fixed), so the adventure layers over it like
+   the encounter screens do, instead of rendering hidden underneath. */
+.adventure-overlay {
+  position: fixed; inset: 0; z-index: 25;
+  overflow-y: auto;
+  padding: max(12px, env(safe-area-inset-top)) var(--pad, 16px) max(20px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, #0b1219f2, #070b10f7);
+  backdrop-filter: blur(6px);
+}
+.adventure-minimize {
+  float: right;
+  min-height: 44px;
+  margin: -4px -4px 4px 8px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: .8rem;
+}
+.adventure-resume-chip {
+  position: fixed; z-index: 20;
+  top: max(64px, calc(env(safe-area-inset-top) + 56px));
+  left: 50%; transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(122, 243, 255, .4);
+  background: rgba(9, 23, 31, .94);
+  color: var(--ink, #f3eddb);
+  font: inherit;
+  font-size: .85rem;
+}

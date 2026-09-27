@@ -13,8 +13,9 @@ import type { CampaignState, GameEvent, SassLevel } from './game/types';
 import { neighboursOf, regionFor, routeBetween } from './world/geography';
 import { sanctuaryFor } from './world/sanctuaries';
 import { playMenuSound, playStinger } from './world/audio';
-import { FallbackAdventureCard } from './adventure/FallbackAdventureCard';
-import { localFallbackTemplateForSeed, renderLocalAdventureScene } from './adventure/fallback';
+import { AdventurePanel } from './adventure/AdventurePanel';
+import { localFallbackTemplateForSeed } from './adventure/fallback';
+import { adventurePlayView, beginAdventureEncounter, commandAdventureCombat, continueAdventure } from './adventure/play';
 import { materializeJournalAdventureSeed } from './adventure/journalSeed';
 import { selectActiveAdventureRun, startAdventureRun } from './adventure/runs';
 import { enterAdventureTemplate } from './adventure/runtime';
@@ -264,11 +265,9 @@ export default function App() {
    * how much has been said.
    */
   const adventureWorldMarkers = useMemo(() => selectAdventureWorldMarkers(state), [state]);
-  const localFallbackScene = useMemo(() => {
-    if (!isOffline && provider.id !== 'disabled') return null;
-    const activeRun = selectActiveAdventureRun(state);
-    return activeRun ? renderLocalAdventureScene(state, activeRun.id) : null;
-  }, [state, isOffline, provider.id]);
+  // No provider adventure mode exists yet, so the deterministic local
+  // adventure is the adventure, online or offline.
+  const adventureView = useMemo(() => adventurePlayView(state), [state]);
 
   const campaignEnded = campaignReachedEndState(state);
   const chartedTerritories = state.territories.filter((t) => t.status === 'charted' || t.status === 'deeply-charted').length;
@@ -1642,7 +1641,18 @@ export default function App() {
     ) : (
       <>
         {renderWorld()}
-        {screen === 'world' && localFallbackScene && <FallbackAdventureCard scene={localFallbackScene} />}
+        {screen === 'world' && adventureView && !talking && <AdventurePanel
+          key={adventureView.run.id}
+          view={adventureView}
+          paused={state.sessionStatus === 'paused'}
+          quiet={quiet}
+          onContinue={() => { const at = new Date().toISOString(); const runId = adventureView.run.id; setState((current) => current.sessionStatus === 'paused' ? current : continueAdventure(current, runId, { now: () => at })); }}
+          onFaceEncounter={() => { const runId = adventureView.run.id; playStinger('boss', quiet); setState((current) => current.sessionStatus === 'paused' ? current : beginAdventureEncounter(current, runId)); }}
+          onCombatCommand={(command, expectedTurn) => { const at = new Date().toISOString(); setState((current) => current.sessionStatus === 'paused' ? current : commandAdventureCombat(current, command, { expectedTurn }, { now: () => at }).state); }}
+          onToggleStop={() => dispatch({ type: 'SESSION_SET', status: state.sessionStatus === 'paused' ? 'active' : 'paused' })}
+          onSerious={() => dispatch({ type: 'PRESENTATION_SET', mode: 'quiet' })}
+          onHelp={() => setMessage('STOP pauses everything. SERIOUS drops the fanfare. Step away leaves any encounter with no penalty. Nothing in an adventure is evidence about you.')}
+        />}
         {talking && (encounter ? renderEncounter() : renderConversation())}
 
         {/* Milestones land on the world, briefly, without blocking anything. */}

@@ -1,0 +1,58 @@
+.combat-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--ember-line, #7d4a4a);
+  border-radius: 16px;
+  background: rgba(20, 12, 14, .82);
+  min-width: 0;
+}
+.combat-panel.is-quiet { border-color: var(--line, #2a3748); background: rgba(12, 16, 22, .9); }
+.combat-kicker, .combat-options-label {
+  font-size: .69rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted, #98a7ba);
+}
+.combat-head h2 { margin: 4px 0 4px; font-size: clamp(1rem, 4.6vw, 1.2rem); line-height: 1.15; }
+.combat-objective { margin: 0 0 10px; font-size: .86rem; }
+.combat-roster { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+.combat-roster li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(64px, 30%) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: .84rem;
+}
+.combat-roster li.is-down { opacity: .5; }
+.combat-name { overflow-wrap: anywhere; }
+.combat-roster meter { width: 100%; height: 10px; }
+.combat-hp { font-variant-numeric: tabular-nums; }
+.combat-status {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 1px 8px;
+  border: 1px solid var(--line-soft, #37465a);
+  border-radius: 999px;
+  font-size: .7rem;
+}
+.combat-intents { margin: 0 0 8px; padding-left: 18px; font-size: .82rem; color: var(--gold-soft, #f1dda5); }
+.combat-log { margin: 0 0 8px; min-height: 2.6em; font-size: .84rem; line-height: 1.4; }
+.combat-paused { margin: 0 0 8px; color: var(--muted, #98a7ba); font-size: .82rem; }
+.combat-commands, .combat-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+.combat-options-label { flex-basis: 100%; }
+.combat-commands button, .combat-options button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line-soft, #37465a);
+  background: var(--panel, #121923);
+  color: var(--ink, #f3eddb);
+  font: inherit;
+  font-size: .9rem;
+  flex: 1 1 auto;
+  max-width: 100%;
+  white-space: normal;
+}
+.combat-commands button:disabled, .combat-options button:disabled { opacity: .45; }
+.combat-leave { border-color: var(--verdigris-line, #4a6a7d) !important; }

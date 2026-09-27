@@ -36,9 +36,10 @@ afterAll(async () => {
 describe('browser voice mode and access gate', () => {
   it('loads cleanly and navigates to Talk screen', async () => {
     await navigateTo(page, 'Talk');
-    // The conversation is a layer over the world, so the speaker is named there.
+    // v2 is Journal-first (MASTER_INTEGRATION_PLAN §4.2): the conversation layer
+    // is the Journal, no longer the questioning Cartographer of v1.
     await page.waitForSelector('.convo-speaker');
-    expect(await page.textContent('.convo-speaker')).toMatch(/the cartographer/i);
+    expect(await page.textContent('.convo-speaker')).toMatch(/^journal$/i);
   });
 
   it('offers the other input mode as a real touch target, in both directions', async () => {

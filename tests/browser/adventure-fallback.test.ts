@@ -102,6 +102,13 @@ describe('A06 local fallback Adventure in the production bundle', () => {
     const card = page.locator('[data-testid="fallback-adventure"]');
     await card.waitFor({ state: 'visible' });
     expect(await page.textContent('[data-testid="fallback-adventure-title"]')).toContain('mystery');
+    // Occlusion, not just CSS visibility: the card must be above the fixed world.
+    expect(await page.evaluate(() => {
+      const node = document.querySelector('[data-testid="fallback-adventure-title"]')!;
+      const box = node.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      return Boolean(hit && (hit === node || node.contains(hit)));
+    })).toBe(true);
     const body = await page.textContent('[data-testid="fallback-adventure-body"]');
     expect(body).toContain('actually in front of you');
     const cardText = await card.textContent();
