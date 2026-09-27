@@ -111,11 +111,27 @@ const combatStateSchema = z.object({
   statuses: z.array(z.string()), objectiveProgress: z.number(), outcome: z.enum(['victory', 'pacified', 'escaped', 'defeat', 'story']).optional()
 });
 
+const combatRuntimeSchema = z.object({
+  definitionId: z.string(),
+  scenario: z.object({ options: z.array(z.object({
+    id: z.string(), label: z.string(), targetTeam: z.enum(['enemy', 'ally', 'none']), effect: z.enum(['act-progress', 'reveal']), repeatable: z.boolean(),
+    requiredGimmicks: z.array(z.string()).optional(), requiredTargetStatuses: z.array(z.string()).optional(), forbiddenTargetStatuses: z.array(z.string()).optional(),
+    requiresUsed: z.array(z.string()).optional(), observationKey: z.string().optional()
+  })).max(12) }),
+  turn: z.number().int().nonnegative(),
+  techniques: z.object({ chargesRemaining: z.number().int().nonnegative(), cooldowns: z.array(z.object({ techniqueId: z.string(), nextReadyRound: z.number().int().positive() })) }),
+  acts: z.object({ usedOptionIds: z.array(z.string()) }),
+  pendingGuard: z.object({ combatantId: z.string(), timing: z.enum(['base', 'timed']) }).optional(),
+  log: z.array(z.object({ kind: z.string() }).passthrough()).max(16)
+});
+
 /** Full durable v2 aggregate. Empty collections are valid until their lanes land. */
 export const campaignStateSchemaV2 = campaignStateSchemaV1.extend({
   schemaVersion: z.literal(2),
   journalEntries: z.array(journalEntrySchema), knowledgeGaps: z.array(knowledgeGapSchema), reflections: z.array(reflectionRecordSchema),
   adventureSeeds: z.array(adventureSeedSchema), adventureRuns: z.array(adventureRunSchema), adventureActions: z.array(adventureActionSchema),
   adventureObservations: z.array(adventureObservationSchema), adventureMemories: z.array(adventureMemorySchema),
-  atlasSnapshots: z.array(atlasSnapshotSchema), combatDefinitions: z.array(combatDefinitionSchema), activeCombat: combatStateSchema.nullable()
+  atlasSnapshots: z.array(atlasSnapshotSchema), combatDefinitions: z.array(combatDefinitionSchema), activeCombat: combatStateSchema.nullable(),
+  // Additive within v2: saves written before C11 parse with no runtime, i.e. no resumable combat ledgers.
+  activeCombatRuntime: combatRuntimeSchema.nullable().default(null)
 });

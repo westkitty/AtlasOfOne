@@ -20,7 +20,7 @@ const beat = (role: AdventureBeatRole, nextRole?: AdventureBeatRole) => ({
   id: `local-fallback-investigation:${role}`,
   role,
   required: true,
-  allowedEncounterKinds: role === 'encounter' ? ['social', 'puzzle', 'mixed'] as const : ['none'] as const,
+  allowedEncounterKinds: role === 'encounter' ? ['social', 'puzzle', 'mixed', 'combat'] as const : ['none'] as const,
   exits: nextRole ? [`local-fallback-investigation:${nextRole}`] : []
 });
 

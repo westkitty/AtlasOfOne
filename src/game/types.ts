@@ -12,6 +12,7 @@ import type {
   KnowledgeGap,
   ReflectionRecord
 } from '../contracts';
+import type { PersistedCombatRuntime } from '../combat/session';
 
 export type TerritoryStatus =
   | 'fogged'
@@ -131,6 +132,8 @@ export interface CampaignState extends Omit<CampaignStateV1, 'schemaVersion'> {
   atlasSnapshots: PersistedAtlasSnapshot[];
   combatDefinitions: CombatDefinition[];
   activeCombat: CombatState | null;
+  /** Session-only combat ledgers for `activeCombat`; null whenever no combat is active. */
+  activeCombatRuntime: PersistedCombatRuntime | null;
 }
 
 export type GameEvent =

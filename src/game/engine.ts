@@ -42,7 +42,7 @@ export function createInitialCampaign(): CampaignState {
     finalAssessment: null, onboardingCompleted: false,
     journalEntries: [], knowledgeGaps: [], reflections: [], adventureSeeds: [], adventureRuns: [],
     adventureActions: [], adventureObservations: [], adventureMemories: [], atlasSnapshots: [],
-    combatDefinitions: [], activeCombat: null,
+    combatDefinitions: [], activeCombat: null, activeCombatRuntime: null,
     updatedAt: now()
   };
 }

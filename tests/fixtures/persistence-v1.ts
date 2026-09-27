@@ -5,12 +5,12 @@ import type { CampaignState, CampaignStateV1 } from '../../src/game/types';
 const toV1 = (state: CampaignState): CampaignStateV1 => {
   const {
     journalEntries, knowledgeGaps, reflections, adventureSeeds, adventureRuns, adventureActions,
-    adventureObservations, adventureMemories, atlasSnapshots, combatDefinitions, activeCombat,
+    adventureObservations, adventureMemories, atlasSnapshots, combatDefinitions, activeCombat, activeCombatRuntime,
     ...legacy
   } = state;
   void journalEntries; void knowledgeGaps; void reflections; void adventureSeeds; void adventureRuns;
   void adventureActions; void adventureObservations; void adventureMemories; void atlasSnapshots;
-  void combatDefinitions; void activeCombat;
+  void combatDefinitions; void activeCombat; void activeCombatRuntime;
   return { ...legacy, schemaVersion: 1 };
 };
 

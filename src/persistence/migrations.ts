@@ -51,7 +51,7 @@ export function migrateV1ToV2(legacy: CampaignStateV1): CampaignState {
     schemaVersion: 2,
     journalEntries: [], knowledgeGaps: [], reflections: [], adventureSeeds: [], adventureRuns: [],
     adventureActions: [], adventureObservations: [], adventureMemories: [],
-    atlasSnapshots: historicalSnapshot ? [historicalSnapshot] : [], combatDefinitions: [], activeCombat: null
+    atlasSnapshots: historicalSnapshot ? [historicalSnapshot] : [], combatDefinitions: [], activeCombat: null, activeCombatRuntime: null
   };
   return campaignStateSchemaV2.parse(retireIneligibleV2State(migrated)) as CampaignState;
 }

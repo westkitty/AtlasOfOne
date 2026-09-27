@@ -46,6 +46,34 @@ export interface CombatSession {
   log: CombatLogEntry[];
 }
 
+/** What CampaignState persists beside `combatDefinitions` + `activeCombat` (C11). */
+export type PersistedCombatRuntime = Omit<CombatSession, 'definition' | 'state' | 'failForward'> & { definitionId: string };
+
+export function dehydrateCombatSession(session: CombatSession): PersistedCombatRuntime {
+  const { definition, state, failForward, ...runtime } = session;
+  void state; void failForward;
+  return { ...runtime, definitionId: definition.id };
+}
+
+/**
+ * Rebuild a session from persisted parts. Any mismatch or invalid part fails
+ * closed (null) rather than guessing: the caller keeps the saved data intact
+ * and simply offers no resumable combat.
+ */
+export function hydrateCombatSession(
+  definitions: readonly CombatDefinition[],
+  state: CombatState | null,
+  runtime: PersistedCombatRuntime | null
+): CombatSession | null {
+  if (!state || !runtime || runtime.definitionId !== state.definitionId) return null;
+  const definition = definitions.find((candidate) => candidate.id === state.definitionId);
+  if (!definition) return null;
+  const { definitionId, ...rest } = runtime;
+  void definitionId;
+  const session: CombatSession = { ...rest, definition, state };
+  return validateCombatSession(session) ? session : null;
+}
+
 export type SessionIssueCode =
   | 'invalid-definition'
   | 'invalid-scenario'
