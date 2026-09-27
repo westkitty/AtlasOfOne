@@ -49,7 +49,7 @@ const retractedSource = {
   evidence: [{ ...mature.evidence[0], id: 'evidence_synthetic_retracted', sourceTurnIds: ['turn_synthetic_retracted'], status: 'retracted', claim: 'synthetic-retracted-canary-82c1' }]
 };
 const olderMinimal = (() => {
-  const legacy = structuredClone(mature) as Record<string, unknown>;
+  const legacy = structuredClone(mature) as unknown as Record<string, unknown>;
   delete legacy.bossRuns; delete legacy.activeBoss; delete legacy.doorRuns; delete legacy.activeDoor;
   delete legacy.worldJourney; delete legacy.finalAssessment; delete legacy.onboardingCompleted;
   return legacy;

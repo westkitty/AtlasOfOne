@@ -23,7 +23,7 @@ describe('RF06 runtime revision reconciliation', () => {
     const { previous, next } = validPair();
     const providerOnly = { ...next, turns: next.turns.map((item) => item.id === 'turn-new' ? { ...item, revision: false } : item) };
     expect(reconcileRevisionCounterEvidence(previous, providerOnly)).toBe(providerOnly);
-    const ordinary = { ...next, evidence: next.evidence.map((item) => item.id === 'new' ? { ...item, basis: 'explicit' } : item) };
+    const ordinary = { ...next, evidence: next.evidence.map((item) => item.id === 'new' ? { ...item, basis: 'explicit' as const } : item) };
     expect(reconcileRevisionCounterEvidence(previous, ordinary)).toBe(ordinary);
   });
 

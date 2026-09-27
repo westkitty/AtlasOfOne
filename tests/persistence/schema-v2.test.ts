@@ -3,7 +3,8 @@ import { providerEligibleV2State, retireIneligibleV2State } from '../../src/pers
 import { CURRENT_SCHEMA_VERSION, migrateCampaign, migrateV1ToV2 } from '../../src/persistence/migrations';
 import { campaignStateSchemaV1 } from '../../src/persistence/schema';
 import { deserializeCampaign, serializeCampaign } from '../../src/persistence/transfer';
-import type { AdventureObservation, EvidenceRecord } from '../../src/game/types';
+import type { AdventureObservation } from '../../src/contracts/adventure';
+import type { EvidenceRecord } from '../../src/game/types';
 import { canonicalV1Fixtures, cloneV1Fixture } from '../fixtures/persistence-v1';
 import { syntheticV2Campaign } from '../fixtures/persistence-v2';
 
@@ -145,6 +146,6 @@ describe('M00-M06 schema-v2 migration foundation', () => {
   });
 
   it('keeps fictional observations structurally separate from evidence', () => {
-    expectTypeOf<AdventureObservation>().not.toMatchTypeOf<EvidenceRecord>();
+    expectTypeOf<AdventureObservation>().not.toExtend<EvidenceRecord>();
   });
 });

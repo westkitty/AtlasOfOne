@@ -7,7 +7,7 @@ export interface EncounterPresentation {
   kind: 'boss' | 'door'; heading: string; title?: string; step: string; dimension: string; question: string; evidenceClaims: string[];
 }
 export interface EncounterPanelProps {
-  encounter: EncounterPresentation; state: CampaignState; bossRun: BossRunState | null; bossStage: BossStage | null | undefined; doorRun: DoorRunState | null;
+  encounter: EncounterPresentation; state: CampaignState; bossRun: BossRunState | null | undefined; bossStage: BossStage | null | undefined; doorRun: DoorRunState | null | undefined;
   territoryLabels: Record<string, string>; reply: string; answer: string; quiet: boolean; isOffline: boolean; agencyControls: ReactNode;
   onAnswerChange: (answer: string) => void; onSubmit: () => void; onLeave: () => void;
 }
