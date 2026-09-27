@@ -363,6 +363,15 @@ function collectStrings(value: unknown, out: string[] = []): string[] {
 const normalizeQuote = (value: string) =>
   value.trim().replace(/^["'“”‘’\s]+|["'“”‘’\s]+$/g, '').replace(/\s+/g, ' ').toLowerCase();
 
+/** Language that turns a dated snapshot into a permanent verdict about a real person. */
+export const TERMINAL_IDENTITY_CLAIMS: readonly RegExp[] = [
+  /\bfinal (assessment|verdict|answer|truth|word|portrait)\b/i,
+  /\b(the )?(atlas|map|picture) is (now )?(complete|finished|done)\b/i,
+  /\b(true|real|authentic) self (is|has been) (revealed|discovered|uncovered)\b/i,
+  /\bdefinitively (is|are|was)\b/i,
+  /\bwill (always|never) (be|change)\b/i
+];
+
 export function validateFinalAssessment(assessment: FinalAssessment, context: FinalizeContext): FinalAssessmentValidation {
   const problems: string[] = [];
   const prose = collectStrings(assessment);
@@ -406,6 +415,14 @@ export function validateFinalAssessment(assessment: FinalAssessment, context: Fi
   for (const estimate of assessment.frameworkEstimates) {
     if (!estimate.caveat.trim()) problems.push(`Framework estimate "${estimate.framework}" carried no caveat.`);
     if (!estimate.framework.trim() || !estimate.estimate.trim()) problems.push('Framework estimate was empty.');
+  }
+
+  // 6. v2 Snapshot semantics (MASTER_INTEGRATION_PLAN §15): a snapshot is dated
+  //    and revisable. Terminal-identity framing is refused, not rewritten.
+  for (const text of prose) {
+    for (const pattern of TERMINAL_IDENTITY_CLAIMS) {
+      if (pattern.test(text)) problems.push(`Synthesis claimed terminal identity: ${pattern}`);
+    }
   }
 
   const unique = [...new Set(problems)];

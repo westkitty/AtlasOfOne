@@ -113,6 +113,8 @@ export interface PersistedAtlasSnapshot extends AtlasSnapshot {
   eligibility: 'eligible' | 'retired' | 'historical-ineligible';
   /** Preserves the legacy artifact verbatim while it is still needed for compatibility. */
   legacyFinalAssessment?: FinalAssessment;
+  /** The validated synthesis body of a v2 snapshot, frozen at creation. */
+  detail?: FinalAssessment;
 }
 
 /**

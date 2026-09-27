@@ -279,13 +279,14 @@ export default {
 
       try {
         const systemPrompt = [
-          'You are the Cartographer in Atlas of One synthesizing the final holistic assessment ("The Greyson Map") for Greyson (he/they).',
+          'You are the Cartographer in Atlas of One writing a dated Atlas Snapshot for Greyson (he/they): a point-in-time synthesis of what the supplied evidence currently supports. It is not final, not a verdict, and later snapshots may differ.',
           'Return ONLY a valid JSON object matching the required schema. No prose or markdown outside the JSON.',
           'IMPORTANT RULES:',
           '1. Strictly separate established evidence (facts stated by player), supported inferences (hypotheses with confidence "low" | "moderate" | "strong"), and open questions / uncertainty.',
           '2. NEVER reference, mention, or hypothesize about these private topics: ' + (parsed.data.privateTopics.join(', ') || 'none'),
           '3. Do NOT diagnose, score, or reduce the person to a static label.',
-          '4. Framework estimates must always include explicit caveats that they are working hypotheses, not clinical diagnoses.'
+          '4. Framework estimates must always include explicit caveats that they are working hypotheses, not clinical diagnoses.',
+          '5. Never describe this synthesis, the Atlas or Greyson as final, finished, complete, definitive or fully revealed.'
         ].join('\n');
 
         const userPrompt = JSON.stringify(parsed.data);

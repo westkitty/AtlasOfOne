@@ -241,10 +241,10 @@ describe('PND-004 — one continuous retraction → export → delete → import
     expect(derived.length, 'exactly one derived evidence record').toBe(1);
     expect(derived[0].status).toBe('active');
 
-    // The Final Assessment action is offered because the gate is satisfied.
+    // The first Atlas Snapshot is offered because the deterministic milestone is satisfied.
     await goto('Me');
-    expect(await page.locator('[data-testid="synthesize-assessment-btn"]').count()).toBe(1);
-    expect(await page.locator('[data-testid="assessment-locked"]').count()).toBe(0);
+    expect(await page.locator('[data-testid="take-snapshot-btn"]').count()).toBe(1);
+    expect(await page.locator('[data-testid="snapshot-locked"]').count()).toBe(0);
   }, 180_000);
 
   it('stage 1. the player takes an answer back through the real Vault control', async () => {
@@ -379,29 +379,31 @@ describe('PND-004 — one continuous retraction → export → delete → import
     await goto('Me');
     const before = (await persisted())!;
 
-    const synthesize = page.locator('[data-testid="synthesize-assessment-btn"]');
+    const synthesize = page.locator('[data-testid="take-snapshot-btn"]');
     expect(await synthesize.count(), 'the restored campaign still satisfies the end-state gate').toBe(1);
     await synthesize.click();
-    await expect.poll(() => page.isVisible('[data-testid="assessment-content"]'), { timeout: 30_000 }).toBe(true);
+    await expect.poll(() => page.isVisible('[data-testid="snapshot-summary"]'), { timeout: 30_000 }).toBe(true);
     await page.waitForTimeout(600);
 
     const after = (await persisted())!;
-    expect(after.finalAssessment, 'assessment created').toBeTruthy();
-    expect(after.finalAssessment.provider, 'deterministic local path, no Workers AI').toBe('local-synthesizer');
+    expect(after.atlasSnapshots.filter((s: any) => s.provenance.kind === 'snapshot'), 'exactly one dated snapshot created').toHaveLength(1);
+    const snapshot = after.atlasSnapshots.at(-1);
+    expect(snapshot.detail.provider, 'deterministic local path, no Workers AI').toBe('local-synthesizer');
+    expect(after.finalAssessment ?? null, 'the legacy single-assessment field is no longer written').toBeNull();
 
     // Finalization owns no progression.
     expect(anchorsOf(after), 'nothing about the campaign moved').toEqual(anchorsOf(before));
 
-    // The retracted answer cannot reach the assessment, by any route.
-    const serialized = JSON.stringify(after.finalAssessment);
-    expect(serialized, 'retracted canary absent from the whole assessment').not.toContain(RETRACTION_CANARY);
-    for (const quote of after.finalAssessment.representativeQuotes as string[]) {
+    // The retracted answer cannot reach the snapshot, by any route.
+    const serialized = JSON.stringify(snapshot);
+    expect(serialized, 'retracted canary absent from the whole snapshot').not.toContain(RETRACTION_CANARY);
+    for (const quote of snapshot.detail.representativeQuotes as string[]) {
       expect(quote).not.toContain(RETRACTION_CANARY);
       expect(CANARY_ANSWER).not.toContain(quote.replace(/^"|"$/g, ''));
     }
 
     // The synthesis is still grounded in what remains.
-    expect(after.finalAssessment.whoIsGreyson).toContain('strictly by what this campaign recorded');
+    expect(snapshot.detail.whoIsGreyson).toContain('strictly by what this campaign recorded');
 
     // And it survives hydration.
     await page.reload({ waitUntil: 'load' });
@@ -409,9 +411,9 @@ describe('PND-004 — one continuous retraction → export → delete → import
   await wakeAtlas(page);
     await page.waitForTimeout(700);
     const reloaded = (await persisted())!;
-    expect(reloaded.finalAssessment?.id, 'assessment persisted across reload').toBe(after.finalAssessment.id);
-    expect(JSON.stringify(reloaded.finalAssessment)).not.toContain(RETRACTION_CANARY);
+    expect(reloaded.atlasSnapshots.at(-1)?.id, 'snapshot persisted across reload').toBe(snapshot.id);
+    expect(JSON.stringify(reloaded.atlasSnapshots)).not.toContain(RETRACTION_CANARY);
     await goto('Me');
-    expect(await page.isVisible('[data-testid="assessment-content"]'), 'and renders after reload').toBe(true);
+    expect(await page.isVisible('[data-testid="snapshot-summary"]'), 'and renders after reload').toBe(true);
   }, 180_000);
 });

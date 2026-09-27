@@ -3,7 +3,9 @@ import { eventsFromTurn } from './cartographer/apply';
 import { reconcileRevisionCounterEvidence } from './reflection/runtime';
 import { createRemoteProvider, requestFinalAssessment, transcribeAudio } from './cartographer/client';
 import { compileContext } from './cartographer/context';
-import { compileFinalizeContext, generateLocalAssessment } from './cartographer/finalize';
+import { compileFinalizeContext, generateLocalAssessment, type FinalAssessment } from './cartographer/finalize';
+import { SnapshotPanel } from './atlas/SnapshotPanel';
+import { currentSnapshotSources, recordAtlasSnapshot, snapshotEligibility, snapshotHistory } from './atlas/snapshots';
 import { createMockTurn, deeperPrompt, describeBossStage, describeDoor, doorInsightFrom, encounterTurnRecord, getMockPrompt, rerolledPrompt, type MockPrompt } from './cartographer/mock';
 import { type AIProvider, disabledProvider, playerMessageForFailure } from './cartographer/provider';
 import type { CartographerTurn } from './cartographer/schema';
@@ -259,16 +261,12 @@ export default function App() {
   /** Which way Greyson faces as he crosses the map; presentation only. */
   const [facing, setFacing] = useState<'front' | 'back' | 'left' | 'right'>('front');
   const previousTerritory = useRef<string | null>(null);
-  /**
-   * The Final Atlas is an end-state artifact. Deciding availability here keeps
-   * it on the engine's deterministic authority rather than on a feeling about
-   * how much has been said.
-   */
   const adventureWorldMarkers = useMemo(() => selectAdventureWorldMarkers(state), [state]);
   // No provider adventure mode exists yet, so the deterministic local
   // adventure is the adventure, online or offline.
   const adventureView = useMemo(() => adventurePlayView(state), [state]);
 
+  // The first-Snapshot milestone stays on the engine's deterministic authority.
   const campaignEnded = campaignReachedEndState(state);
   const chartedTerritories = state.territories.filter((t) => t.status === 'charted' || t.status === 'deeply-charted').length;
   const dispatch = (...events: GameEvent[]) => setState((current) => applyGameEvents(current, events));
@@ -774,31 +772,40 @@ export default function App() {
     }
   };
 
+  /**
+   * Take one dated Atlas Snapshot. Eligibility is deterministic and re-checked
+   * inside the state update, so a double tap or a slow remote synthesis cannot
+   * append two. The body is the non-fabricating local synthesis unless the
+   * remote draft passes schema + semantic validation.
+   */
+  const latestState = useRef(state);
+  latestState.current = state;
   const generateAssessment = async () => {
-    if (isFinalizing || !campaignEnded) return;
+    if (isFinalizing || !snapshotEligibility(state, new Date().toISOString()).eligible) return;
     setIsFinalizing(true);
-    setMessage('Synthesizing holistic character assessment...');
-    try {
-      if (isOffline || provider.id === 'disabled') {
-        const local = generateLocalAssessment(state);
-        dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: local });
-        setMessage('Final Atlas assessment generated locally.');
+    setMessage('Writing an Atlas Snapshot…');
+    // A remote draft can return after a retraction or PRIVATE; its prose would
+    // then carry withdrawn material. Bind the body to the sources it was built from.
+    const synthesizedFrom = currentSnapshotSources(state);
+    const save = (body: FinalAssessment, note: string) => {
+      if (JSON.stringify(currentSnapshotSources(latestState.current)) !== JSON.stringify(synthesizedFrom)) {
+        setMessage('Something changed while the Snapshot was being written, so it was not saved. You can take it again.');
         return;
       }
-      const context = compileFinalizeContext(state);
-      const result = await requestFinalAssessment(context, { headers: getAccessHeaders });
-      if (result.ok) {
-        dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: result.assessment });
-        setMessage('Final Atlas assessment generated.');
-      } else {
-        setMessage(`Cloud synthesis unavailable (${result.message}). Generating with local synthesizer.`);
-        const local = generateLocalAssessment(state);
-        dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: local });
+      const at = new Date().toISOString();
+      setState((current) => recordAtlasSnapshot(current, body, at, synthesizedFrom));
+      setMessage(note);
+    };
+    try {
+      if (isOffline || provider.id === 'disabled') {
+        save(generateLocalAssessment(state), 'Atlas Snapshot saved, written on this device.');
+        return;
       }
+      const result = await requestFinalAssessment(compileFinalizeContext(state), { headers: getAccessHeaders });
+      if (result.ok) save(result.assessment, 'Atlas Snapshot saved.');
+      else save(generateLocalAssessment(state), `The model draft was unavailable (${result.message}). Snapshot written on this device instead.`);
     } catch {
-      const local = generateLocalAssessment(state);
-      dispatch({ type: 'FINAL_ASSESSMENT_SET', assessment: local });
-      setMessage('Generated via local fallback.');
+      save(generateLocalAssessment(state), 'Atlas Snapshot saved, written on this device.');
     } finally {
       setIsFinalizing(false);
     }
@@ -843,7 +850,7 @@ export default function App() {
   const objective = quest
     ? { eyebrow: 'CURRENT QUEST', label: quest.label, detail: quest.description, progress: quest.progress, target: quest.target }
     : campaignEnded
-      ? { eyebrow: 'EXPEDITION COMPLETE', label: 'Every territory charted', detail: 'The Atlas is finished. The final assessment is available on your character record.', progress: state.territories.length, target: state.territories.length }
+      ? { eyebrow: 'EVERY TERRITORY CHARTED', label: 'Every territory charted', detail: 'Your first Atlas Snapshot is ready on your character record. The Atlas keeps going.', progress: state.territories.length, target: state.territories.length }
       : { eyebrow: 'STANDING OBJECTIVE', label: 'Chart the Atlas', detail: 'Recover a fragment from every territory on the map.', progress: chartedCount, target: state.territories.length };
   const quiet = state.presentation === 'quiet';
 
@@ -1220,134 +1227,14 @@ export default function App() {
       <div><b>{state.unlocks.filter((u)=>u.unlockedAt).length}</b><small>Unlocks</small></div>
     </div>
 
-    <article className="card assessment-section" data-testid="final-assessment-section">
-      <div className="assessment-head">
-        <div>
-          <h2>Final Atlas Assessment</h2>
-          <p className="settings-note">Holistic synthesis of mapped coordinates, values, contradictions, and open questions.</p>
-        </div>
-        <div className="assessment-actions no-print">
-          {campaignEnded && (
-            <button className="primary" data-testid="synthesize-assessment-btn" onClick={generateAssessment} disabled={isFinalizing}>
-              {isFinalizing ? 'Synthesizing...' : state.finalAssessment ? 'Re-synthesize Atlas' : 'Synthesize Final Atlas'}
-            </button>
-          )}
-          {state.finalAssessment && (
-            <button className="print-btn" data-testid="print-assessment-btn" onClick={() => window.print()}>
-              Print / Save as PDF
-            </button>
-          )}
-        </div>
-      </div>
-
-      {!campaignEnded && (
-        <div className="empty" data-testid="assessment-locked">
-          The final Atlas is written once the map is finished. {chartedTerritories} of {state.territories.length} territories are charted so far — keep mapping, and it will be waiting.
-        </div>
-      )}
-
-      {state.finalAssessment && (
-        <div className="assessment-body" data-testid="assessment-content">
-          <div className="assessment-meta">
-            <span className="chip">Generated {new Date(state.finalAssessment.generatedAt).toLocaleDateString()}</span>
-            <span className="chip">Provider: {state.finalAssessment.provider}</span>
-          </div>
-
-          <blockquote className="who-is-greyson" data-testid="who-is-greyson">
-            <h3>Who is Greyson?</h3>
-            <p>{state.finalAssessment.whoIsGreyson}</p>
-          </blockquote>
-
-          <div className="domain-grid">
-            {[
-              state.finalAssessment.temperament,
-              state.finalAssessment.valuesAndMorals,
-              state.finalAssessment.politicalAndIdeology,
-              state.finalAssessment.relationshipsAndSocial,
-              state.finalAssessment.cognitiveStyle,
-              state.finalAssessment.interestsAndPreferences,
-              state.finalAssessment.fearsAndHopes,
-              state.finalAssessment.idealFutureAndAmbition
-            ].map((domain) => (
-              <div key={domain.title} className="domain-card">
-                <h4>{domain.title}</h4>
-                <p className="domain-summary">{domain.summary}</p>
-                <div className="epistemic-group">
-                  <strong className="epistemic-label evidence-label">Established Evidence</strong>
-                  <ul className="claim-list">
-                    {domain.establishedEvidence.map((ev, idx) => <li key={idx}>{ev}</li>)}
-                  </ul>
-                </div>
-                <div className="epistemic-group">
-                  <strong className="epistemic-label inference-label">Supported Inferences</strong>
-                  <ul className="hypothesis-list">
-                    {domain.supportedInferences.map((inf, idx) => (
-                      <li key={idx}>
-                        <span>{inf.hypothesis}</span>
-                        <small className={`conf-badge ${inf.confidence}`}>{inf.confidence}</small>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="epistemic-group">
-                  <strong className="epistemic-label uncertainty-label">Open Uncertainty</strong>
-                  <ul className="uncertainty-list">
-                    {domain.openQuestionsAndUncertainty.map((uq, idx) => <li key={idx}>{uq}</li>)}
-                  </ul>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {state.finalAssessment.contradictionsAndTensions.length > 0 && (
-            <div className="assessment-subblock">
-              <h3>Contradictions & Tensions</h3>
-              <div className="tensions-list">
-                {state.finalAssessment.contradictionsAndTensions.map((t, idx) => (
-                  <div key={idx} className="tension-card">
-                    <b>{t.tension}</b>
-                    <small>Status: {t.status}</small>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {state.finalAssessment.frameworkEstimates.length > 0 && (
-            <div className="assessment-subblock">
-              <h3>Personality Framework Estimates</h3>
-              <div className="framework-list">
-                {state.finalAssessment.frameworkEstimates.map((f, idx) => (
-                  <div key={idx} className="framework-card">
-                    <strong>{f.framework}</strong>
-                    <p>{f.estimate}</p>
-                    <small className="framework-caveat">{f.caveat}</small>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {state.finalAssessment.representativeQuotes.length > 0 && (
-            <div className="assessment-subblock">
-              <h3>Representative Words</h3>
-              <ul className="quotes-list">
-                {state.finalAssessment.representativeQuotes.map((q, idx) => <li key={idx}>{q}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {state.finalAssessment.openQuestions.length > 0 && (
-            <div className="assessment-subblock">
-              <h3>Open Horizon Questions</h3>
-              <ul className="open-questions-list">
-                {state.finalAssessment.openQuestions.map((oq, idx) => <li key={idx}>{oq}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-    </article>
+    <SnapshotPanel
+      history={snapshotHistory(state)}
+      eligibility={snapshotEligibility(state, new Date().toISOString())}
+      synthesizing={isFinalizing}
+      chartedCount={chartedTerritories}
+      territoryCount={state.territories.length}
+      onTakeSnapshot={generateAssessment}
+    />
 
     <article className="card settings"><h2>Cartographer</h2><label>Sass<select data-testid="sass-select" value={state.settings.sass} onChange={(e)=>dispatch({type:'SASS_SET',sass:e.target.value as SassLevel})}><option value="low">Low</option><option value="medium">Medium</option><option value="risks-understood">I Understand the Risks</option></select></label><label>Reduced motion<input type="checkbox" checked={state.settings.reducedMotion} onChange={(e)=>setState((s)=>({...s,settings:{...s.settings,reducedMotion:e.target.checked}}))}/></label></article>
     <article className="card settings"><h2>Your Atlas</h2><p className="settings-note">Everything lives on this device. Export a copy before you switch phones or clear data.</p><button onClick={()=>downloadCampaign(state)}>Export Atlas</button><label className="file">Import Atlas<input type="file" accept="application/json,.json,.atlas" onChange={(e)=>void importFile(e.target.files?.[0])}/></label></article>

@@ -93,7 +93,8 @@ const atlasSnapshotSchema = z.object({
   synthesis: z.object({ summary: z.string(), territorySummaries: z.array(z.object({ territoryId: z.string(), summary: z.string() })) }),
   previousSnapshotId: z.string().optional(),
   provenance: z.object({ kind: z.enum(['snapshot', 'legacy-final-assessment']), sourceFinalAssessmentId: z.string().optional() }),
-  eligibility: z.enum(['eligible', 'retired', 'historical-ineligible']), legacyFinalAssessment: finalAssessmentSchema.optional()
+  eligibility: z.enum(['eligible', 'retired', 'historical-ineligible']), legacyFinalAssessment: finalAssessmentSchema.optional(),
+  detail: finalAssessmentSchema.optional()
 });
 
 const combatDefinitionSchema = z.object({

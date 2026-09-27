@@ -359,17 +359,17 @@ describe('Atlas browser journey', () => {
     await page.setViewportSize(PHONE);
   });
 
-  it('21a. an unfinished campaign cannot synthesize a Final Atlas Assessment', async () => {
+  it('21a. an unfinished campaign cannot take its first Atlas Snapshot', async () => {
     await goto('Me');
-    expect(await page.isVisible('[data-testid="final-assessment-section"]')).toBe(true);
+    expect(await page.isVisible('[data-testid="snapshot-section"]')).toBe(true);
 
     // The map is not finished, so the end-state artifact is not offered at all.
-    expect(await page.isVisible('[data-testid="assessment-locked"]')).toBe(true);
-    expect(await page.locator('[data-testid="synthesize-assessment-btn"]').count()).toBe(0);
-    expect(await page.locator('[data-testid="assessment-content"]').count()).toBe(0);
+    expect(await page.isVisible('[data-testid="snapshot-locked"]')).toBe(true);
+    expect(await page.locator('[data-testid="take-snapshot-btn"]').count()).toBe(0);
+    expect(await page.locator('[data-testid="snapshot-summary"]').count()).toBe(0);
   });
 
-  it('21b. a completed campaign synthesizes and renders the Final Atlas Assessment', async () => {
+  it('21b. a fully charted campaign takes one dated Atlas Snapshot that is not terminal', async () => {
     // Reach the end state the way a player legitimately can: import a campaign
     // the engine already considers complete, through the real import path.
     const exported = await page.evaluate(async () => {
@@ -392,18 +392,25 @@ describe('Atlas browser journey', () => {
     await page.waitForSelector('.toast:text-matches("imported and validated")');
 
     await goto('Me');
-    await expect.poll(() => page.locator('[data-testid="assessment-locked"]').count()).toBe(0);
+    await expect.poll(() => page.locator('[data-testid="snapshot-locked"]').count()).toBe(0);
 
-    await page.click('[data-testid="synthesize-assessment-btn"]');
-    await expect.poll(() => page.isVisible('[data-testid="assessment-content"]')).toBe(true);
+    await page.click('[data-testid="take-snapshot-btn"]');
+    await expect.poll(() => page.isVisible('[data-testid="snapshot-summary"]')).toBe(true);
 
-    const whoText = await page.textContent('[data-testid="who-is-greyson"]');
+    const whoText = await page.textContent('[data-testid="snapshot-summary"]');
     expect(whoText).toContain('Greyson (he/they)');
 
     const domainCards = page.locator('.domain-card');
     expect(await domainCards.count()).toBe(8);
 
-    expect(await page.isVisible('[data-testid="print-assessment-btn"]')).toBe(true);
+    expect(await page.isVisible('[data-testid="print-snapshot-btn"]')).toBe(true);
+    // v2: a dated entry in history, and no second Snapshot the same day.
+    expect(await page.locator('[data-testid="snapshot-entry"]').count()).toBe(1);
+    expect(await page.textContent('[data-testid="snapshot-entry"] .chip')).toContain('Snapshot');
+    expect(await page.locator('[data-testid="take-snapshot-btn"]').count()).toBe(0);
+    expect(await page.textContent('[data-testid="snapshot-locked"]')).toContain('One Snapshot per day');
+    const section = await page.textContent('[data-testid="snapshot-section"]');
+    expect(section).not.toMatch(/final atlas|atlas is finished/i);
   });
 
   it('22. print styles and 320px layout hold with full assessment rendered', async () => {
