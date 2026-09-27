@@ -49,7 +49,8 @@ export function resolveAttack(
   definition: CombatDefinition,
   state: CombatState,
   targetId: string,
-  timing: CombatTimingGrade
+  timing: CombatTimingGrade,
+  modifyDamage: (damage: number) => number = (damage) => damage
 ): AttackResolution {
   if (!validateCombatDefinitionContract(definition).ok) return reject(state, targetId, 'invalid-definition');
   if (!validateCombatStateAgainstDefinition(definition, state).ok) return reject(state, targetId, 'invalid-state');
@@ -66,7 +67,10 @@ export function resolveAttack(
   if (definitionTarget.team !== 'enemy') return reject(state, targetId, 'target-not-enemy');
   if (stateTarget.currentHp <= 0) return reject(state, targetId, 'target-defeated');
 
-  const damage = resolveAttackDamage(timing);
+  // C08 gimmicks (e.g. shielded) may only lower the C00 damage, never raise it.
+  const base = resolveAttackDamage(timing);
+  const modified = modifyDamage(base);
+  const damage = Number.isInteger(modified) && modified >= 0 && modified <= base ? modified : base;
   const reduced = reduceCombatState(definition, state, { type: 'DAMAGE', targetId, amount: damage });
   if (!reduced.accepted) {
     return {
