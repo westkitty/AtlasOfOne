@@ -121,13 +121,22 @@ describe('I02/C13 adventure -> combat -> completion in the production bundle', (
     await page.click('[data-testid="adventure-resume"]');
     await page.waitForSelector('[data-testid="fallback-adventure"][data-beat="hook"]');
 
-    for (const expected of ['approach', 'complication', 'encounter']) {
+    // A double tap on Continue advances exactly one beat.
+    await page.dblclick('[data-testid="adventure-continue"]');
+    await page.waitForSelector('[data-testid="fallback-adventure"][data-beat="approach"]');
+    await page.waitForTimeout(300);
+    expect(await beat(page)).toBe('approach');
+
+    for (const expected of ['complication', 'encounter']) {
+      await page.waitForTimeout(500); // presses unlock after the settle window
       await page.click('[data-testid="adventure-continue"]');
       await page.waitForSelector(`[data-testid="fallback-adventure"][data-beat="${expected}"]`);
     }
     expect(await page.locator('[data-testid="adventure-continue"]').count()).toBe(0);
     await page.waitForSelector('[data-testid="adventure-encounter-intro"]');
 
+    // Face it replaces Continue in the same spot, so it shares the double-tap settle window.
+    await page.waitForTimeout(500);
     await page.click('[data-testid="adventure-face-encounter"]');
     await page.waitForSelector('[data-testid="combat-panel"]');
     expect(await page.locator('[data-testid="combat-intents"] li').count()).toBeGreaterThan(0);
@@ -173,9 +182,11 @@ describe('I02/C13 adventure -> combat -> completion in the production bundle', (
     await page.waitForSelector('[data-testid="adventure-outcome"]');
     expect(await beat(page)).toBe('choice');
 
+    await page.waitForTimeout(500);
     await page.click('[data-testid="adventure-continue"]');
     await page.waitForSelector('[data-testid="fallback-adventure"][data-beat="consequence"]');
     expect(await page.textContent('[data-testid="adventure-continue"]')).toBe('Return to the world');
+    await page.waitForTimeout(500);
     await page.click('[data-testid="adventure-continue"]');
     await page.waitForSelector('[data-testid="fallback-adventure"]', { state: 'detached' });
 

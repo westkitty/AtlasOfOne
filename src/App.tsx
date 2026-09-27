@@ -1542,7 +1542,7 @@ export default function App() {
           view={adventureView}
           paused={state.sessionStatus === 'paused'}
           quiet={quiet}
-          onContinue={() => { const at = new Date().toISOString(); const runId = adventureView.run.id; setState((current) => current.sessionStatus === 'paused' ? current : continueAdventure(current, runId, { now: () => at })); }}
+          onContinue={() => { const at = new Date().toISOString(); const runId = adventureView.run.id; const expectedBeatId = adventureView.run.currentBeatId; setState((current) => current.sessionStatus === 'paused' ? current : continueAdventure(current, runId, { now: () => at, expectedBeatId })); }}
           onFaceEncounter={() => { const runId = adventureView.run.id; playStinger('boss', quiet); setState((current) => current.sessionStatus === 'paused' ? current : beginAdventureEncounter(current, runId)); }}
           onCombatCommand={(command, expectedTurn) => { const at = new Date().toISOString(); setState((current) => current.sessionStatus === 'paused' ? current : commandAdventureCombat(current, command, { expectedTurn }, { now: () => at }).state); }}
           onToggleStop={() => dispatch({ type: 'SESSION_SET', status: state.sessionStatus === 'paused' ? 'active' : 'paused' })}

@@ -109,6 +109,16 @@ describe('I02/I03 local Adventure play loop', () => {
     expect(adventurePlayView(state)!.scene.role).toBe('choice');
   });
 
+  it('a double tap on Continue advances exactly one beat', () => {
+    const state = activeRunCampaign();
+    const view = adventurePlayView(state)!;
+    const seen = view.run.currentBeatId;
+    const once = continueAdventure(state, view.run.id, { now, expectedBeatId: seen });
+    const twice = continueAdventure(once, view.run.id, { now, expectedBeatId: seen });
+    expect(twice).toBe(once);
+    expect(adventurePlayView(twice)!.scene.role).toBe('approach');
+  });
+
   it('refuses a duplicate submission for the same turn without double-applying', () => {
     let state = toEncounter(activeRunCampaign());
     state = beginAdventureEncounter(state, adventurePlayView(state)!.run.id);

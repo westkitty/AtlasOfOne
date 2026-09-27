@@ -24,7 +24,11 @@ import { advanceAdventureBeat } from './runtime';
  * become an AdventureAction + an `unreflected` AdventureObservation — fiction,
  * never evidence; only a later explicit Reflection can mean anything more.
  */
-export interface PlayOptions { now?: () => string }
+export interface PlayOptions {
+  now?: () => string;
+  /** The beat the player saw when pressing Continue; a mismatch (double tap, stale render) is a no-op. */
+  expectedBeatId?: string;
+}
 
 export interface AdventurePlayView {
   run: AdventureRun;
@@ -79,6 +83,7 @@ function nextBeatId(template: AdventureTemplate, beatId: string): string | undef
 export function continueAdventure(state: CampaignState, runId: string, options: PlayOptions = {}): CampaignState {
   const view = adventurePlayView(state);
   if (!view || view.run.id !== runId || view.combat) return state;
+  if (options.expectedBeatId !== undefined && options.expectedBeatId !== view.run.currentBeatId) return state;
   if (view.scene.terminal) return completeAdventureRun(state, runId, options);
   if (view.scene.role === 'encounter' && !view.encounterResolved) return state;
   const next = nextBeatId(view.template, view.run.currentBeatId);

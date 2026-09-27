@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { CombatCommand } from '../contracts/combat';
-import { CombatPanel } from '../combat/CombatPanel';
+import { COMBAT_SETTLE_MS, CombatPanel } from '../combat/CombatPanel';
 import type { AdventurePlayView } from './play';
 import './AdventurePanel.css';
 
@@ -25,6 +25,15 @@ export function AdventurePanel({ view, paused, quiet, onContinue, onFaceEncounte
   const { scene, encounter, combat, encounterResolved, outcomeCopy } = view;
   const atEncounter = scene.role === 'encounter';
   const [minimized, setMinimized] = useState(false);
+  // React re-renders between the two taps of a double tap, so the second tap
+  // would see the NEW beat and advance again. One press per settle window.
+  const lastPressAt = useRef(-Infinity);
+  const once = (action: () => void) => () => {
+    const at = performance.now();
+    if (at - lastPressAt.current < COMBAT_SETTLE_MS) return;
+    lastPressAt.current = at;
+    action();
+  };
   const names: Record<string, string> = { greyson: 'Greyson' };
   if (combat) for (const c of combat.definition.combatants) if (c.team === 'enemy') names[c.id] = encounter.enemyName;
 
@@ -49,8 +58,8 @@ export function AdventurePanel({ view, paused, quiet, onContinue, onFaceEncounte
       {combat && <CombatPanel session={combat} title={encounter.name} objectiveCopy={encounter.objectiveCopy} names={names} paused={paused} quiet={quiet} onCommand={onCombatCommand} />}
       {!combat && <div className="adventure-actions">
         {atEncounter && !encounterResolved
-          ? <button type="button" data-testid="adventure-face-encounter" disabled={paused} onClick={onFaceEncounter}>Face it</button>
-          : <button type="button" data-testid="adventure-continue" disabled={paused} onClick={onContinue}>{scene.terminal ? 'Return to the world' : 'Continue'}</button>}
+          ? <button type="button" data-testid="adventure-face-encounter" disabled={paused} onClick={once(onFaceEncounter)}>Face it</button>
+          : <button type="button" data-testid="adventure-continue" disabled={paused} onClick={once(onContinue)}>{scene.terminal ? 'Return to the world' : 'Continue'}</button>}
       </div>}
       <div className="agency adventure-agency" data-testid="adventure-agency" role="group" aria-label="Always-available controls">
         <button type="button" className={`agency-protect${paused ? ' is-active' : ''}`} data-testid="adventure-stop" aria-pressed={paused} onClick={onToggleStop}>{paused ? 'RESUME' : 'STOP'}</button>
