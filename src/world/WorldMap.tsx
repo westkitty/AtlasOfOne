@@ -40,7 +40,7 @@ import {
 import { InteriorCanvas } from './InteriorCanvas';
 import { sanctuaryFor } from './sanctuaries';
 import { WorldMarkerIcon } from './markers';
-import type { AdventureWorldMarker } from './adventureMarkers';
+import type { AdventureWorldMarker, WorldMemoryMarker } from './adventureMarkers';
 
 export interface WorldMapProps {
   state: CampaignState;
@@ -57,6 +57,7 @@ export interface WorldMapProps {
   onInteriorChange?: (interiorId: string | null) => void;
   onPositionSettled?: (position: { x: number; y: number; territoryId: string }) => void;
   adventureMarkers?: readonly AdventureWorldMarker[];
+  memoryMarkers?: readonly WorldMemoryMarker[];
 }
 
 const STATUS_WORD: Record<TerritoryStatus, string> = {
@@ -106,7 +107,8 @@ export function WorldMap({
   activeInterior = null,
   onInteriorChange,
   onPositionSettled,
-  adventureMarkers = []
+  adventureMarkers = [],
+  memoryMarkers = []
 }: WorldMapProps) {
   usePreloadedFrames();
 
@@ -122,13 +124,24 @@ export function WorldMap({
   });
   const lastReportedPosition = useRef<string | null>(null);
 
-  const adventureInteractables = useMemo<ExternalInteractableTarget[]>(() => adventureMarkers.map((marker) => ({
-    type: 'adventure',
-    id: marker.seedId,
-    label: marker.ariaLabel,
-    x: marker.x,
-    y: marker.y
-  })), [adventureMarkers]);
+  const adventureInteractables = useMemo<ExternalInteractableTarget[]>(() => [
+    ...adventureMarkers.map((marker) => ({
+      type: 'adventure' as const,
+      id: marker.seedId,
+      label: marker.ariaLabel,
+      x: marker.x,
+      y: marker.y
+    })),
+    // A world memory reads like a waystone: walk up, press A, see what happened here.
+    ...memoryMarkers.map((marker) => ({
+      type: 'waystone' as const,
+      id: marker.id,
+      label: 'A memory of this place',
+      inscription: marker.recollection,
+      x: marker.x,
+      y: marker.y
+    }))
+  ], [adventureMarkers, memoryMarkers]);
 
   const inputVectorRef = useRef({ x: 0, y: 0 });
 
@@ -634,6 +647,21 @@ export function WorldMap({
               key={marker.id}
               className={`world-opportunity-marker${player.nearbyTarget?.type === 'adventure' && player.nearbyTarget.id === marker.seedId ? ' is-near' : ''}`}
               data-testid="adventure-world-marker"
+              data-marker-kind={marker.kind}
+              style={{
+                left: `${(marker.x / WORLD.width) * 100}%`,
+                top: `${(marker.y / WORLD.height) * 100}%`
+              }}
+            >
+              <WorldMarkerIcon model={marker} />
+            </div>
+          ))}
+
+          {memoryMarkers.map((marker) => (
+            <div
+              key={marker.id}
+              className={`world-opportunity-marker is-memory${player.nearbyTarget?.id === marker.id ? ' is-near' : ''}`}
+              data-testid="world-memory-marker"
               data-marker-kind={marker.kind}
               style={{
                 left: `${(marker.x / WORLD.width) * 100}%`,

@@ -18,6 +18,7 @@ import { playMenuSound, playStinger } from './world/audio';
 import { AdventurePanel } from './adventure/AdventurePanel';
 import { localFallbackTemplateForSeed } from './adventure/fallback';
 import { adventurePlayView, beginAdventureEncounter, commandAdventureCombat, continueAdventure } from './adventure/play';
+import { selectJourneyEvents } from './adventure/journey';
 import { materializeJournalAdventureSeed } from './adventure/journalSeed';
 import { selectActiveAdventureRun, startAdventureRun } from './adventure/runs';
 import { enterAdventureTemplate } from './adventure/runtime';
@@ -27,7 +28,7 @@ import { retractJournalEntry, saveJournalEntry, setJournalEntryPrivacy } from '.
 import { curiosityGapId, markJournalForExploration, retireKnowledgeGap } from './knowledge/gaps';
 import { AppSheet, MilestoneBanners, ProgressPresentation } from './presentation/AppPresentation';
 import { WorldwalkerPanel } from './world/WorldwalkerPanel';
-import { selectAdventureWorldMarkers } from './world/adventureMarkers';
+import { selectAdventureWorldMarkers, selectWorldMemoryMarkers } from './world/adventureMarkers';
 import type { InteractableTarget } from './world/playerController';
 import { deleteCampaign, loadCampaign, saveCampaign } from './persistence/db';
 import { deserializeCampaign, downloadCampaign } from './persistence/transfer';
@@ -262,6 +263,7 @@ export default function App() {
   const [facing, setFacing] = useState<'front' | 'back' | 'left' | 'right'>('front');
   const previousTerritory = useRef<string | null>(null);
   const adventureWorldMarkers = useMemo(() => selectAdventureWorldMarkers(state), [state]);
+  const worldMemoryMarkers = useMemo(() => selectWorldMemoryMarkers(state), [state]);
   // No provider adventure mode exists yet, so the deterministic local
   // adventure is the adventure, online or offline.
   const adventureView = useMemo(() => adventurePlayView(state), [state]);
@@ -928,6 +930,7 @@ export default function App() {
     xpPercent={xpPercent}
     activeTerritoryLabel={activeTerritory.label}
     adventureMarkers={adventureWorldMarkers}
+    memoryMarkers={worldMemoryMarkers}
     onSelectRegion={(territoryId) => {
       if (territoryId === state.activeTerritory) return;
       const from = state.activeTerritory;
@@ -1082,7 +1085,7 @@ export default function App() {
     onAnswerChange={setAnswer}
     draftPrivate={draftPrivate}
     promptRequested={promptRequested}
-    journalEntries={state.journalEntries}
+    journeyEvents={selectJourneyEvents(state)} territoryLabels={territoryLabels} journalEntries={state.journalEntries}
     explorationStatusByEntryId={journalExplorationStatusByEntryId}
     onDraftPrivateChange={setDraftPrivate}
     onRequestPrompt={() => setPromptRequested(true)}

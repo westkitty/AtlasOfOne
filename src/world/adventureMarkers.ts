@@ -1,3 +1,4 @@
+import { selectWorldMemories } from '../adventure/journey';
 import { selectAvailableAdventureSeeds } from '../adventure/seeds';
 import type { CampaignState } from '../game/types';
 import { REGIONS, WORLD } from './geography';
@@ -68,5 +69,37 @@ export function selectAdventureWorldMarkers(state: CampaignState): AdventureWorl
     });
   }
 
+  return markers;
+}
+
+export interface WorldMemoryMarker extends WorldMarkerRenderModel {
+  runId: string;
+  territoryId: string;
+  recollection: string;
+  x: number;
+  y: number;
+}
+
+/** Memories sit on an outer ring so opportunity markers never shift when one appears. */
+const MEMORY_SLOT_OFFSET = RING_SIZE * 2;
+
+/**
+ * World memory: every completed, still-eligible adventure leaves a `memory`
+ * marker where it happened. Derived state only — nothing here is stored, so
+ * retirement (PRIVATE/retraction upstream) removes the marker automatically.
+ */
+export function selectWorldMemoryMarkers(state: CampaignState): WorldMemoryMarker[] {
+  const slotByTerritory = new Map<string, number>();
+  const markers: WorldMemoryMarker[] = [];
+  const memories = selectWorldMemories(state).sort((a, b) => a.startedAt.localeCompare(b.startedAt) || a.runId.localeCompare(b.runId));
+  for (const memory of memories) {
+    if (!regionById.has(memory.territoryId)) continue;
+    const slotIndex = slotByTerritory.get(memory.territoryId) ?? 0;
+    const position = positionFor(memory.territoryId, MEMORY_SLOT_OFFSET + slotIndex);
+    const render = createWorldMarkerRenderModel({ kind: 'memory', sourceId: memory.runId });
+    if (!position || !render) continue;
+    slotByTerritory.set(memory.territoryId, slotIndex + 1);
+    markers.push({ ...render, runId: memory.runId, territoryId: memory.territoryId, recollection: memory.outcome ?? 'Something happened here.', x: position.x, y: position.y });
+  }
   return markers;
 }

@@ -153,6 +153,7 @@ describe('I02/C13 adventure -> combat -> completion in the production bundle', (
     expect(await page.isDisabled('[data-testid="combat-guard"]')).toBe(true);
     await page.click('[data-testid="adventure-stop"]');
     await page.waitForSelector('[data-testid="combat-paused"]', { state: 'detached' });
+    await waitForStored(page, (s) => s.sessionStatus !== 'paused');
 
     // Reload mid-combat resumes the same encounter at the same round.
     await page.reload({ waitUntil: 'load' });
@@ -186,6 +187,17 @@ describe('I02/C13 adventure -> combat -> completion in the production bundle', (
     expect(stored.evidence).toEqual([]);
     expect(stored.xp).toBe(prepared.xp);
     expect(JSON.stringify(stored.adventureObservations)).not.toContain('CANARY');
+    // The world remembers: a memory marker where it happened, and the Journal's Journey list.
+    await page.waitForSelector('[data-testid="world-memory-marker"]');
+    expect(await page.locator('[data-testid="world-memory-marker"]').count()).toBe(1);
+    await page.click('[data-testid="enter-encounter"]');
+    await page.waitForSelector('[data-testid="journal-journey"]');
+    const journey = await page.textContent('[data-testid="journal-journey"]');
+    expect(journey).toContain('Completed');
+    expect(journey).toContain('not evidence about you');
+    expect(journey).toContain(stored.adventureObservations[0].observation);
+    expect(journey).not.toContain('CANARY');
+
     expect(turnRequests).toBe(0);
     expect(errors).toEqual([]);
     await page.context().close();

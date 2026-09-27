@@ -8,6 +8,7 @@ import type { KnowledgeGapStatus } from '../contracts/reflection';
 import type { SassLevel, TerritoryState } from '../game/types';
 import type { MockPrompt } from '../cartographer/mock';
 import type { VoiceMode, VoiceState } from '../voice/types';
+import type { JourneyEvent } from '../adventure/journey';
 
 const GREYSON_PORTRAITS = {
   neutral: '/assets/atlas/v3/greyson/portrait-neutral.png', serious: '/assets/atlas/v3/greyson/portrait-serious.png',
@@ -22,6 +23,7 @@ export interface JournalPanelProps {
   voiceMode: VoiceMode; voiceState: VoiceState; isSubmitting: boolean; micLevel: number; micMeterLive: boolean;
   draftPrivate: boolean; promptRequested: boolean; journalEntries: JournalEntry[];
   explorationStatusByEntryId: Readonly<Record<string, JournalExplorationStatus>>;
+  journeyEvents: readonly JourneyEvent[]; territoryLabels: Readonly<Record<string, string>>;
   onAnswerChange: (answer: string) => void; onDraftPrivateChange: (value: boolean) => void; onRequestPrompt: () => void;
   onSaveJournal: () => void; onRetractJournal: (entryId: string) => void; onSetJournalPrivacy: (entryId: string, privacy: JournalPrivacy) => void;
   onExploreLater: (entryId: string) => void; onExploreNow: (entryId: string) => void; onStopExploring: (entryId: string) => void;
@@ -34,7 +36,7 @@ const entryTime = (createdAt: string) => createdAt.replace('T', ' ').replace(/\.
 export function JournalPanel(props: JournalPanelProps) {
   const {
     activeTerritory, prompt, promptOverride, reply, answer, sessionPaused, quiet, sass, bannersLength, voiceMode, voiceState,
-    isSubmitting, micLevel, micMeterLive, draftPrivate, promptRequested, journalEntries, explorationStatusByEntryId, onAnswerChange, onDraftPrivateChange,
+    isSubmitting, micLevel, micMeterLive, draftPrivate, promptRequested, journalEntries, explorationStatusByEntryId, journeyEvents, territoryLabels, onAnswerChange, onDraftPrivateChange,
     onRequestPrompt, onSaveJournal, onRetractJournal, onSetJournalPrivacy, onExploreLater, onExploreNow, onStopExploring, onClose, onModeChange, onSubmit, onStartRecording,
     onStopRecording, onCancelVoice, actionBar
   } = props;
@@ -63,6 +65,14 @@ export function JournalPanel(props: JournalPanelProps) {
       const canExplore = entry.status === 'active' && entry.privacy === 'normal';
       return <li key={entry.id} className={`journal-entry ${entry.status === 'retracted' ? 'is-retracted' : ''}`}><div className="journal-entry-head"><time dateTime={entry.createdAt}>{entryTime(entry.createdAt)}</time><span className="journal-entry-state">{entry.status === 'retracted' ? 'Retracted' : entry.privacy === 'private' ? 'Private' : 'Active'}</span></div><p>{entry.text}</p><small>{entry.inputMode === 'speech-to-text' ? 'Dictated, then editable' : 'Typed'}{entry.sourcePrompt ? ' · prompted' : ''}{entry.reflectionIds.length || entry.adventureIds.length ? ` · ${entry.reflectionIds.length} reflection / ${entry.adventureIds.length} adventure links` : ''}</small>{entry.status === 'active' && <div className="journal-entry-actions"><button data-testid={`journal-privacy-${entry.id}`} onClick={() => onSetJournalPrivacy(entry.id, entry.privacy === 'private' ? 'normal' : 'private')}>{entry.privacy === 'private' ? 'Make normal' : 'Make private'}</button><button data-testid={`journal-retract-${entry.id}`} onClick={() => onRetractJournal(entry.id)}>Retract</button>{canExplore && explorationStatus === 'none' && <button data-testid={`journal-explore-${entry.id}`} onClick={() => onExploreLater(entry.id)}>Explore later</button>}{canExplore && explorationStatus === 'open' && <button data-testid={`journal-explore-now-${entry.id}`} onClick={() => onExploreNow(entry.id)}>Explore this</button>}{canExplore && (explorationStatus === 'open' || explorationStatus === 'seeded') && <button data-testid={`journal-stop-exploring-${entry.id}`} onClick={() => onStopExploring(entry.id)}>Don't explore this</button>}{canExplore && explorationStatus === 'seeded' && <span className="journal-exploration-state" data-testid={`journal-exploration-${entry.id}`}>Adventure ready</span>}{canExplore && explorationStatus === 'retired' && <span className="journal-exploration-state" data-testid={`journal-exploration-${entry.id}`}>Not exploring</span>}{canExplore && explorationStatus === 'resolved' && <span className="journal-exploration-state" data-testid={`journal-exploration-${entry.id}`}>Explored</span>}</div>}</li>;
     })}</ol>}</section>
+    {journeyEvents.length > 0 && <section className="journal-history journal-journey" aria-label="Journey" data-testid="journal-journey">
+      <div className="journal-history-head"><h3>Journey</h3></div>
+      <p className="journal-empty">What happened in the world. Fiction — not evidence about you.</p>
+      <ol className="journal-entry-list">{journeyEvents.map((event) => <li key={event.runId} className="journal-entry" data-testid="journey-event">
+        <div className="journal-entry-head"><time dateTime={event.completedAt ?? event.startedAt}>{entryTime(event.completedAt ?? event.startedAt)}</time><span className="journal-entry-state">{event.status === 'complete' ? 'Completed' : event.status === 'withdrawn' ? 'Stepped away' : 'Under way'}</span></div>
+        <p>An adventure in {territoryLabels[event.territoryId] ?? event.territoryId}.{event.outcome ? ` ${event.outcome}` : ''}</p>
+      </li>)}</ol>
+    </section>}
     {actionBar}
   </div>;
 }

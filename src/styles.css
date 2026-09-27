@@ -204,6 +204,8 @@ html[data-reduced-motion="true"] .world-layer { transition: none; }
   box-shadow: 0 0 0 3px #05090e99, 0 0 22px #f4dfa266;
 }
 html[data-reduced-motion="true"] .world-opportunity-marker { transition: none; }
+/* A world memory is quieter than an opportunity: it marks what already happened. */
+.world-opportunity-marker.is-memory { opacity: .72; filter: saturate(.6); }
 
 .world-greyson {
   position: absolute; width: 34px; height: 46px;
