@@ -1443,6 +1443,12 @@ export default function App() {
           </div>
         </article>
       )}
+      {/* A new phone or cleared site data must not force a fresh start before a
+          saved Atlas can be restored (UNV-023). Same validated import path as Me. */}
+      <label className="file onboarding-restore" data-testid="onboarding-restore">
+        Already have an Atlas file? Restore it
+        <input type="file" accept="application/json,.json,.atlas" onChange={(e) => void importFile(e.target.files?.[0])} />
+      </label>
     </section>
   );
 

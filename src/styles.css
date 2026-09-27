@@ -1728,3 +1728,6 @@ html[data-reduced-motion="true"] .world-enter { animation: none; }
   font-size: 0.9rem;
   font-weight: 700;
 }
+
+/* Restore sits under every onboarding step: a returning player is never forced through a fresh start. */
+.onboarding-restore { margin: 16px auto 0; max-width: 420px; text-align: center; }
