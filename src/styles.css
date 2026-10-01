@@ -1104,7 +1104,7 @@ html[data-reduced-motion="true"] *::after { transition-duration: .01ms !importan
   min-height: 44px; padding: 0 16px;
 }
 
-/* ---- final assessment styles -------------------------------------- */
+/* ---- final assessment / snapshot styles ---------------------------- */
 .assessment-section { margin-top: 20px; border-color: var(--gold-soft); }
 .assessment-head { display: flex; flex-direction: column; gap: 12px; }
 .assessment-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1115,9 +1115,27 @@ html[data-reduced-motion="true"] *::after { transition-duration: .01ms !importan
 }
 .assessment-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 12px; }
 
+.snapshot-history {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.snapshot-entry {
+  padding: 16px;
+  background: rgba(13, 20, 30, .85);
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .22);
+}
+
 .who-is-greyson {
-  margin: 16px 0; padding: 16px; background: #0c1520;
-  border-left: 4px solid var(--gold); border-radius: 4px 12px 12px 4px;
+  margin: 16px 0; padding: 18px;
+  background: linear-gradient(180deg, #0e1724, #0a111a);
+  border-left: 4px solid var(--gold); border-radius: 4px 14px 14px 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
 }
 .who-is-greyson h3 { margin: 0 0 8px; font-size: 1.05rem; color: var(--gold-soft); }
 .who-is-greyson p { margin: 0; line-height: 1.5; color: var(--ink); font-size: .95rem; }
@@ -1128,8 +1146,11 @@ html[data-reduced-motion="true"] *::after { transition-duration: .01ms !importan
 }
 
 .domain-card {
-  padding: 16px; background: #0e1622; border: 1px solid var(--line);
+  padding: 16px;
+  background: linear-gradient(180deg, #101926, #0c131e);
+  border: 1px solid var(--line);
   border-radius: 12px; display: flex; flex-direction: column; gap: 10px;
+  transition: border-color 180ms ease;
 }
 .domain-card h4 { margin: 0; font-size: 1rem; color: var(--gold-soft); }
 .domain-summary { margin: 0; font-size: .86rem; color: var(--muted); }
@@ -1329,7 +1350,7 @@ html[data-reduced-motion="true"] *::after { transition-duration: .01ms !importan
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 8px; padding: 24px; text-align: center; pointer-events: none;
   background:
-    radial-gradient(120% 80% at 50% 42%, rgba(217, 197, 143, .09) 0%, rgba(217, 197, 143, .025) 38%, transparent 68%),
+    radial-gradient(120% 80% at 50% 50%, rgba(217, 197, 143, .07) 0%, rgba(15, 23, 34, .3) 36%, transparent 68%),
     #05070b;
   animation: cold-breathe 7s ease-in-out infinite;
 }
@@ -1340,23 +1361,76 @@ html[data-reduced-motion="true"] *::after { transition-duration: .01ms !importan
 }
 .cold-open-surface:focus-visible { outline: 2px solid var(--gold); outline-offset: -6px; }
 
+/* Subtle rotating celestial astrolabe grid in dormant state */
+.cold-open-astrolabe {
+  position: absolute;
+  width: 260px; height: 260px;
+  pointer-events: none;
+  display: grid; place-items: center;
+  opacity: .32;
+  transition: opacity 500ms ease, transform 500ms ease;
+}
+.astrolabe-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px dashed rgba(217, 197, 143, .18);
+}
+.ring-outer {
+  width: 250px; height: 250px;
+  border-style: solid; border-color: rgba(217, 197, 143, .1);
+  animation: astrolabe-spin 90s linear infinite;
+}
+.ring-middle {
+  width: 160px; height: 160px;
+  animation: astrolabe-spin-rev 60s linear infinite;
+}
+.astrolabe-axis {
+  position: absolute; background: rgba(217, 197, 143, .1);
+}
+.axis-horizontal { width: 260px; height: 1px; }
+.axis-vertical { width: 1px; height: 260px; }
+
+@keyframes astrolabe-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes astrolabe-spin-rev {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
 /* Dormant: a faint glint, nothing that reads as a logo, loader or button. */
 .cold-open-mark {
-  width: 40px; height: 40px; border-radius: 50%;
-  border: 1px solid rgba(217, 197, 143, .16);
-  box-shadow: 0 0 22px rgba(217, 197, 143, .05), inset 0 0 14px rgba(217, 197, 143, .03);
+  position: relative; z-index: 2;
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 1px solid rgba(217, 197, 143, .22);
+  box-shadow: 0 0 24px rgba(217, 197, 143, .08), inset 0 0 14px rgba(217, 197, 143, .05);
+  background: radial-gradient(circle at center, rgba(217, 197, 143, .12) 0%, transparent 70%);
   transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
 }
 /* The wake: the mark blooms and the identity arrives with it. */
 .cold-open.is-revealing .cold-open-scene { animation: none; }
+.cold-open.is-revealing .cold-open-astrolabe {
+  opacity: .75;
+  transform: scale(1.08);
+}
 .cold-open.is-revealing .cold-open-mark {
-  border-color: rgba(241, 221, 165, .75);
-  box-shadow: 0 0 46px rgba(217, 197, 143, .4), inset 0 0 24px rgba(217, 197, 143, .18);
-  transform: scale(1.12);
+  border-color: rgba(241, 221, 165, .85);
+  box-shadow: 0 0 48px rgba(217, 197, 143, .5), inset 0 0 24px rgba(217, 197, 143, .22);
+  transform: scale(1.15);
+}
+.cold-open-identity {
+  position: relative; z-index: 2;
+  margin-top: 10px;
+}
+.cold-open-eyebrow {
+  display: block;
+  font-size: .64rem; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--gold-soft); opacity: .78; margin-bottom: 2px;
+  animation: cold-reveal 250ms ease-out forwards;
 }
 .cold-open-title, .cold-open-sub { opacity: 0; animation: cold-reveal 300ms ease-out forwards; }
 .cold-open-title {
-  margin: 14px 0 0;
+  margin: 4px 0 0;
   font-family: Georgia, 'Times New Roman', serif; font-size: 1.55rem; letter-spacing: .015em;
   color: rgba(243, 237, 219, .92);
 }
@@ -1383,16 +1457,19 @@ html[data-reduced-motion="true"] *::after { transition-duration: .01ms !importan
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cold-open-scene, .shell.is-waking { animation: none; }
+  .cold-open-scene, .shell.is-waking, .ring-outer, .ring-middle { animation: none; }
   .cold-open-mark { transition: none; }
   /* The reveal still happens; only its decoration is removed. */
-  .cold-open-title, .cold-open-sub { animation: none; opacity: 1; }
+  .cold-open-title, .cold-open-sub, .cold-open-eyebrow { animation: none; opacity: 1; }
 }
 html[data-reduced-motion="true"] .cold-open-scene,
-html[data-reduced-motion="true"] .shell.is-waking { animation: none; }
+html[data-reduced-motion="true"] .shell.is-waking,
+html[data-reduced-motion="true"] .ring-outer,
+html[data-reduced-motion="true"] .ring-middle { animation: none; }
 html[data-reduced-motion="true"] .cold-open-mark { transition: none; }
 html[data-reduced-motion="true"] .cold-open-title,
-html[data-reduced-motion="true"] .cold-open-sub { animation: none; opacity: 1; }
+html[data-reduced-motion="true"] .cold-open-sub,
+html[data-reduced-motion="true"] .cold-open-eyebrow { animation: none; opacity: 1; }
 
 /* ---- live microphone visualizer ---------------------------------- */
 /* Functional recording feedback, not decoration: it stays under reduced

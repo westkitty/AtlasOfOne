@@ -178,6 +178,35 @@ export function OverworldCanvas({
       if (seaImg) {
         ctx.drawImage(seaImg, 0, 0, WORLD.width, WORLD.height);
       }
+
+      // 1b. Ancient Cartographic Graticule / Observatory Astrolabe ley-lines in the void
+      ctx.save();
+      ctx.strokeStyle = '#4a607a';
+      ctx.lineWidth = 0.6;
+      ctx.globalAlpha = 0.14;
+      // Latitude arcs
+      for (let y = 60; y < WORLD.height; y += 80) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.bezierCurveTo(WORLD.width * 0.33, y - 8, WORLD.width * 0.66, y - 8, WORLD.width, y);
+        ctx.stroke();
+      }
+      // Longitude meridians
+      for (let x = 60; x < WORLD.width; x += 90) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.bezierCurveTo(x - 12, WORLD.height * 0.33, x - 12, WORLD.height * 0.66, x, WORLD.height);
+        ctx.stroke();
+      }
+      // Astrolabe compass rings
+      ctx.beginPath();
+      ctx.arc(WORLD.width / 2, WORLD.height / 2, 170, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(WORLD.width / 2, WORLD.height / 2, 210, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
       const hiddenImg = images.get(asset(LAYERS.hidden));
       if (hiddenImg) {
         ctx.drawImage(hiddenImg, 0, 0, WORLD.width, WORLD.height);
@@ -216,18 +245,33 @@ export function OverworldCanvas({
         ctx.restore();
       }
 
-      // 3b. Biome ambient floating particles (pollen / embers / sea mist)
+      // 3b. Biome ambient floating particles (pollen / embers / sea mist / starlight)
       if (!reducedMotion) {
         ctx.save();
         const t = animTimeRef.current;
-        for (let i = 0; i < 18; i++) {
+        const currentTerritory = player.territoryId;
+        for (let i = 0; i < 22; i++) {
           const px = ((Math.sin(i * 99.3 + t * 0.3) * 0.5 + 0.5) * (WORLD.width - 40)) + 20;
           const py = ((i * 35.7 + t * 14) % (WORLD.height - 60)) + 30;
-          const isGold = i % 3 === 0;
-          ctx.fillStyle = isGold ? '#f4dfa2' : '#88d8b0';
-          ctx.globalAlpha = 0.22 + Math.sin(t * 2 + i) * 0.12;
+
+          // Territory specific atmospheric particle coloration
+          if (currentTerritory === 'fears') {
+            // Abyssal shadow motes & embers
+            ctx.fillStyle = i % 2 === 0 ? '#c9705d' : '#4a2830';
+          } else if (currentTerritory === 'cognition') {
+            // Crystalline prism shimmer
+            ctx.fillStyle = i % 2 === 0 ? '#b3cde0' : '#88d8b0';
+          } else if (currentTerritory === 'future') {
+            // Celestial beacon starlight dust
+            ctx.fillStyle = i % 2 === 0 ? '#f4dfa2' : '#ffffff';
+          } else {
+            // General golden pollen & verdant sea mist
+            ctx.fillStyle = i % 3 === 0 ? '#f4dfa2' : '#88d8b0';
+          }
+
+          ctx.globalAlpha = 0.24 + Math.sin(t * 2 + i) * 0.12;
           ctx.beginPath();
-          ctx.arc(px, py, isGold ? 1.5 : 1, 0, Math.PI * 2);
+          ctx.arc(px, py, i % 3 === 0 ? 1.5 : 1, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.restore();

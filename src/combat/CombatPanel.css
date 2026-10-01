@@ -3,10 +3,20 @@
   padding: 14px;
   border: 1px solid var(--ember-line, #7d4a4a);
   border-radius: 16px;
-  background: rgba(20, 12, 14, .82);
+  background: rgba(20, 12, 14, .88);
   min-width: 0;
+  transition: border-color 280ms ease, box-shadow 280ms ease;
 }
-.combat-panel.is-quiet { border-color: var(--line, #2a3748); background: rgba(12, 16, 22, .9); }
+.combat-panel.is-quiet {
+  border-color: var(--line, #2a3748) !important;
+  background: rgba(12, 16, 22, .9) !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+.combat-panel.has-danger {
+  border-color: rgba(201, 112, 93, .75);
+  box-shadow: 0 0 22px rgba(201, 112, 93, .16), inset 0 0 10px rgba(201, 112, 93, .06);
+}
 .combat-kicker, .combat-options-label {
   font-size: .69rem;
   letter-spacing: .12em;
@@ -36,6 +46,7 @@
   font-size: .7rem;
 }
 .combat-intents { margin: 0 0 8px; padding-left: 18px; font-size: .82rem; color: var(--gold-soft, #f1dda5); }
+.intent-glyph { display: inline-block; margin-right: 4px; color: var(--ember, #c9705d); }
 .combat-log { margin: 0 0 8px; min-height: 2.6em; font-size: .84rem; line-height: 1.4; }
 .combat-paused { margin: 0 0 8px; color: var(--muted, #98a7ba); font-size: .82rem; }
 .combat-commands, .combat-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
@@ -53,6 +64,11 @@
   flex: 1 1 auto;
   max-width: 100%;
   white-space: normal;
+  transition: transform 90ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+.combat-commands button:not(:disabled):active,
+.combat-options button:not(:disabled):active {
+  transform: scale(0.97);
 }
 .combat-commands button:disabled, .combat-options button:disabled { opacity: .45; }
 .combat-leave { border-color: var(--verdigris-line, #4a6a7d) !important; }

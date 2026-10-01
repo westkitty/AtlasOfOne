@@ -14,7 +14,7 @@ import { applyGameEvents, campaignReachedEndState, createInitialCampaign, xpInto
 import type { CampaignState, GameEvent, SassLevel } from './game/types';
 import { neighboursOf, regionFor, routeBetween } from './world/geography';
 import { sanctuaryFor } from './world/sanctuaries';
-import { playMenuSound, playStinger } from './world/audio';
+import { initAudio, playMenuSound, playObservatoryAwaken, playStinger } from './world/audio';
 import { AdventurePanel } from './adventure/AdventurePanel';
 import { localFallbackTemplateForSeed } from './adventure/fallback';
 import { adventurePlayView, beginAdventureEncounter, commandAdventureCombat, continueAdventure } from './adventure/play';
@@ -1461,11 +1461,14 @@ export default function App() {
    */
   const wake = () => {
     if (awake || revealing) return;
+    initAudio();
     setOnboardingStep((step) => (step === 1 ? 2 : step));
     // The mark blooms and the name arrives with it. Reduced motion gets the same
     // reveal without the decoration — essentially immediate, never a wait.
     const quiet = state.settings.reducedMotion
+      || state.presentation === 'quiet'
       || (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    playObservatoryAwaken(quiet);
     setRevealing(true);
     window.setTimeout(() => {
       setRevealing(false);
@@ -1484,14 +1487,20 @@ export default function App() {
   if (!awake || !hydrated) {
     return <div className={`shell cold-open${revealing ? ' is-revealing' : ''}`}>
       <div className="cold-open-scene">
-        {/* Dormant environmental presence, not a control: no name, no tagline,
-            no instruction until the player has actually engaged. */}
+        {/* Dormant observatory presence */}
+        <div className="cold-open-astrolabe" aria-hidden="true">
+          <div className="astrolabe-ring ring-outer" />
+          <div className="astrolabe-ring ring-middle" />
+          <div className="astrolabe-axis axis-horizontal" />
+          <div className="astrolabe-axis axis-vertical" />
+        </div>
         <span className="cold-open-mark" aria-hidden="true" />
         {revealing && (
-          <>
+          <div className="cold-open-identity">
+            <span className="cold-open-eyebrow">OBSERVATORY OF THE INTERIOR</span>
             <h1 className="cold-open-title">Atlas of One</h1>
             <p className="cold-open-sub">The Greyson Map</p>
-          </>
+          </div>
         )}
       </div>
       {/* The whole viewport is the activation surface, so nothing reads as a

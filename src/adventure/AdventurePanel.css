@@ -2,10 +2,10 @@
   width: min(100%, 720px);
   margin: 12px auto 0;
   padding: 16px;
-  border: 1px solid rgba(122, 243, 255, .24);
+  border: 1px solid rgba(122, 243, 255, .28);
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(9, 23, 31, .96), rgba(5, 13, 19, .96));
-  box-shadow: 0 14px 36px rgba(0, 0, 0, .26);
+  background: linear-gradient(180deg, rgba(9, 23, 31, .97), rgba(5, 13, 19, .98));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .36), 0 0 20px rgba(122, 243, 255, .05);
 }
 
 .fallback-adventure-card h2 {
@@ -61,6 +61,10 @@
   color: inherit;
   font: inherit;
   flex: 1 1 auto;
+  transition: transform 90ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+.adventure-actions button:not(:disabled):active {
+  transform: scale(0.97);
 }
 .adventure-actions button:disabled { opacity: .45; }
 .adventure-encounter-intro, .adventure-outcome { margin: 12px 0 0 !important; }

@@ -5,6 +5,7 @@ import { checkLeaveAvailability } from './leave';
 import { sessionIntents, type CombatLogEntry, type CombatSession } from './session';
 import { MVP_TECHNIQUES, checkTechniqueAvailability } from './techniques';
 import { COMBAT_OBJECTIVE_RULES } from './rules';
+import { playCombatSound } from '../world/audio';
 import './CombatPanel.css';
 
 export interface CombatPanelProps {
@@ -25,6 +26,16 @@ const INTENT_COPY: Record<string, string> = {
   defend: 'is backing down',
   hazard: 'is disturbing the ground',
   'special-act-reactive': 'is watching you'
+};
+
+const INTENT_GLYPH: Record<string, string> = {
+  attack: '⚔',
+  'objective-action': '◆',
+  charge: '⚡',
+  recover: '◌',
+  defend: '🛡',
+  hazard: '≋',
+  'special-act-reactive': '👁'
 };
 
 function logLine(entry: CombatLogEntry | undefined, names: Record<string, string>): string {
@@ -63,12 +74,25 @@ export function CombatPanel({ session, title, objectiveCopy, names, paused, quie
     const timer = window.setTimeout(() => setSettling(false), COMBAT_SETTLE_MS);
     return () => window.clearTimeout(timer);
   }, [session.turn]);
+
+  // Audio feedback for combat resolutions & enemy attacks
+  const lastLogEntry = session.log[session.log.length - 1];
+  useEffect(() => {
+    if (!lastLogEntry) return;
+    if (lastLogEntry.kind === 'enemy' && lastLogEntry.damage > 0) {
+      playCombatSound('hit', quiet);
+    } else if (lastLogEntry.kind === 'resolved') {
+      playCombatSound('victory', quiet);
+    }
+  }, [session.log.length, quiet]);
+
   const { definition, state } = session;
   const combatants = definition.combatants.map((entry) => ({ ...entry, current: state.combatants.find((c) => c.id === entry.id)!.currentHp }));
   const enemies = combatants.filter((c) => c.team === 'enemy' && c.current > 0);
   const allies = combatants.filter((c) => c.team === 'ally' && c.current > 0);
   const target = enemies[0];
   const intents = sessionIntents(session);
+  const hasDanger = intents.some((i) => i.kind === 'attack' || i.kind === 'charge');
   const progressTarget = COMBAT_OBJECTIVE_RULES[definition.objective].progressTarget;
   const leave = checkLeaveAvailability(definition, state);
   const locked = paused || settling || state.phase !== 'player';
@@ -76,11 +100,18 @@ export function CombatPanel({ session, title, objectiveCopy, names, paused, quie
     const at = performance.now();
     if (locked || at - lastPressAt.current < COMBAT_SETTLE_MS) return;
     lastPressAt.current = at;
+    switch (command.kind) {
+      case 'ATTACK': playCombatSound('attack', quiet); break;
+      case 'GUARD': playCombatSound('guard', quiet); break;
+      case 'TECHNIQUE': playCombatSound('technique', quiet); break;
+      case 'ACT':
+      case 'LEAVE': playCombatSound('act', quiet); break;
+    }
     onCommand(command, session.turn);
   };
   const recent = session.log.slice(-3);
 
-  return <section className={`combat-panel${quiet ? ' is-quiet' : ''}`} data-testid="combat-panel" aria-label={`Encounter: ${title}`}>
+  return <section className={`combat-panel${quiet ? ' is-quiet' : ''}${hasDanger ? ' has-danger' : ''}`} data-testid="combat-panel" aria-label={`Encounter: ${title}`}>
     <header className="combat-head">
       <div className="combat-kicker">ENCOUNTER · ROUND {state.round}</div>
       <h2 data-testid="combat-title">{title}</h2>
@@ -97,7 +128,7 @@ export function CombatPanel({ session, title, objectiveCopy, names, paused, quie
     </ul>
 
     {intents.length > 0 && <ul className="combat-intents" data-testid="combat-intents" aria-label="What they will do next">
-      {intents.map((intent) => <li key={intent.enemyId}>{names[intent.enemyId] ?? intent.enemyId} {INTENT_COPY[intent.kind] ?? intent.kind}{intent.targetId && intent.kind !== 'charge' ? ` ${names[intent.targetId] ?? intent.targetId}` : ''}{intent.damage > 0 ? ` (${intent.damage})` : ''}</li>)}
+      {intents.map((intent) => <li key={intent.enemyId}><span className="intent-glyph" aria-hidden="true">{INTENT_GLYPH[intent.kind] ?? '✦'}</span> {names[intent.enemyId] ?? intent.enemyId} {INTENT_COPY[intent.kind] ?? intent.kind}{intent.targetId && intent.kind !== 'charge' ? ` ${names[intent.targetId] ?? intent.targetId}` : ''}{intent.damage > 0 ? ` (${intent.damage})` : ''}</li>)}
     </ul>}
 
     <p className="combat-log" role="status" aria-live="polite" data-testid="combat-log">{recent.length ? recent.map((entry) => logLine(entry, names)).join(' ') : logLine(undefined, names)}</p>

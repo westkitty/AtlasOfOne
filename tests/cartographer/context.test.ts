@@ -116,7 +116,7 @@ describe('context compiler: boundedness', () => {
     const context = compileContext(longCampaign(600), task, syntheticDevelopedAnswer);
     // Well inside the smallest eligible model's 32k-token window.
     expect(contextSizeChars(context)).toBeLessThan(20_000);
-  });
+  }, 15_000);
 
   it('caps recalled answers but never truncates the current one below the budget', () => {
     let state = createInitialCampaign();

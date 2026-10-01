@@ -29,6 +29,18 @@ export const TERRITORY_THEMES: Record<string, number[]> = {
   future: [293.66, 369.99, 440.0, 587.33] // D major beacon
 };
 
+/** Deep subterranean drone roots (Hz) evoking the ancient weight of each territory */
+export const TERRITORY_DRONES: Record<string, number> = {
+  identity: 98.0,      // G2 grounded resonance
+  values: 110.0,      // A2 steadfast pillar
+  politics: 73.42,    // D2 noble ruin
+  relationships: 130.81, // C3 open horizon
+  cognition: 123.47,  // B2 uncanny clockwork
+  interests: 87.31,   // F2 verdant depth
+  fears: 65.41,       // C2 abyssal void
+  future: 146.83      // D3 beacon expanse
+};
+
 function getGain(value: number): GainNode | null {
   if (!audioCtx || !masterGain) return null;
   const g = audioCtx.createGain();
@@ -55,6 +67,36 @@ function playTone(
 
     g.gain.setValueAtTime(0.0001, when);
     g.gain.exponentialRampToValueAtTime(volume, when + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+
+    osc.connect(g);
+    osc.start(when);
+    osc.stop(when + duration + 0.03);
+  } catch {
+    // Gracefully handle browser audio limitations
+  }
+}
+
+function playSweep(
+  startFreq: number,
+  endFreq: number,
+  when: number,
+  duration = 0.2,
+  type: OscillatorType = 'sine',
+  volume = 0.035
+) {
+  if (!audioCtx || isMuted || audioCtx.state !== 'running') return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const g = getGain(0);
+    if (!g) return;
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(startFreq, when);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), when + duration);
+
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(volume, when + 0.012);
     g.gain.exponentialRampToValueAtTime(0.0001, when + duration);
 
     osc.connect(g);
@@ -156,6 +198,63 @@ export function playStinger(
   });
 }
 
+/** Plays an ancient observatory awakening stinger when Atlas is woken from dormancy */
+export function playObservatoryAwaken(quiet = false): void {
+  if (!audioCtx || isMuted || audioCtx.state !== 'running' || quiet) return;
+  const now = audioCtx.currentTime + 0.01;
+  // Deep subterranean fundamental swell
+  playSweep(55, 110, now, 0.65, 'sine', 0.038);
+  // Ancient harmonic resonance blooming through the observatory
+  playTone(164.81, now + 0.12, 0.7, 'triangle', 0.022); // E3
+  playTone(220.0, now + 0.24, 0.8, 'sine', 0.026);    // A3
+  playTone(329.63, now + 0.38, 0.9, 'triangle', 0.022);  // E4
+  playTone(659.25, now + 0.52, 1.2, 'sine', 0.02);    // E5 celestial glint
+}
+
+/** Tactile, procedural combat audio cues for JRPG encounters */
+export function playCombatSound(
+  action: 'attack' | 'guard' | 'technique' | 'act' | 'hit' | 'victory',
+  quiet = false
+): void {
+  if (!audioCtx || isMuted || audioCtx.state !== 'running' || quiet) return;
+  const now = audioCtx.currentTime + 0.005;
+
+  switch (action) {
+    case 'attack':
+      // Weighty, physical strike with sub-bass drop and crisp transient
+      playSweep(280, 55, now, 0.14, 'triangle', 0.038);
+      playTone(180, now, 0.05, 'square', 0.012);
+      break;
+    case 'guard':
+      // Crystalline deflection & metallic resonance
+      playTone(880, now, 0.22, 'sine', 0.025);
+      playTone(1320, now + 0.015, 0.3, 'triangle', 0.022);
+      playSweep(660, 440, now, 0.18, 'sine', 0.015);
+      break;
+    case 'technique':
+      // Ascending mystical power flare
+      playTone(329.63, now, 0.25, 'triangle', 0.022);
+      playTone(440.0, now + 0.06, 0.25, 'triangle', 0.024);
+      playTone(659.25, now + 0.12, 0.35, 'sine', 0.028);
+      break;
+    case 'act':
+      // Empathetic, inquisitive harmonic doublet
+      playTone(440.0, now, 0.22, 'sine', 0.022);
+      playTone(587.33, now + 0.08, 0.3, 'sine', 0.024);
+      break;
+    case 'hit':
+      // Heavy subterranean tremor
+      playSweep(110, 40, now, 0.18, 'sawtooth', 0.032);
+      break;
+    case 'victory':
+      // Solemn yet triumphant resolution
+      playTone(261.63, now, 0.3, 'triangle', 0.026);
+      playTone(392.0, now + 0.08, 0.3, 'triangle', 0.026);
+      playTone(523.25, now + 0.16, 0.55, 'sine', 0.032);
+      break;
+  }
+}
+
 /** Plays a soft 16-bit menu interaction chime */
 export function playMenuSound(kind: 'open' | 'close' = 'open'): void {
   if (!audioCtx || isMuted || audioCtx.state !== 'running') return;
@@ -169,21 +268,27 @@ export function playMenuSound(kind: 'open' | 'close' = 'open'): void {
   }
 }
 
-/** Periodic ambient audio tick for territory theme melody */
+/** Periodic ambient audio tick layering territory theme melody with a deep atmospheric drone */
 export function playAmbientTick(territoryId: string, quiet = false): void {
   if (!audioCtx || isMuted || audioCtx.state !== 'running' || quiet) return;
   const now = audioCtx.currentTime;
   if (now < nextNoteTime) return;
 
   const notes = TERRITORY_THEMES[territoryId] ?? TERRITORY_THEMES.identity;
-  const step = Math.floor((now / 1.6) % notes.length);
+  const step = Math.floor((now / 1.8) % notes.length);
   const root = notes[step];
 
-  // Soft atmospheric chime
+  // Soft atmospheric melody chime
   playTone(root, now + 0.05, 0.8, 'triangle', 0.014);
   if (step % 2 === 0) {
     playTone(root * 1.5, now + 0.15, 0.6, 'sine', 0.008);
   }
 
-  nextNoteTime = now + 1.6;
+  // Low subterranean drone root every second cycle for spatial weight
+  if (step === 0) {
+    const drone = TERRITORY_DRONES[territoryId] ?? TERRITORY_DRONES.identity;
+    playTone(drone, now + 0.02, 1.4, 'sine', 0.012);
+  }
+
+  nextNoteTime = now + 1.8;
 }
